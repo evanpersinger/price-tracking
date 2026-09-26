@@ -38,4 +38,7 @@ Creates `backend/data/prices.db` (gitignored) with the stores, their discount te
 uv run python backend/server.py
 ```
 
-Serves on http://127.0.0.1:8021. `GET /api/stores?country=CA` (or `US`) returns each store in that country with its discount text and items. Prices come back as `price_cents`.
+Serves on http://127.0.0.1:8021. Prices come back as `price_cents`, and `country` is `CA` or `US`.
+
+- `GET /api/stores?country=CA` returns each store in that country with its discount text and items.
+- `GET /api/cheapest?country=CA` returns each store with the items it sells cheapest, matching items by exact name across stores.
