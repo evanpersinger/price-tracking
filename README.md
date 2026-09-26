@@ -45,3 +45,11 @@ Serves on http://127.0.0.1:8021. Prices come back as `price_cents`, and `country
 - `POST /api/items` adds an item to a store, creating the store if it isn't in that country yet. The body has `country`, `store`, `name`, `price_cents`, and at least one of `item_count` (how many in the pack), `weight_g` or `volume_ml`, because an item with no size is rejected. `purchased_on` is optional and defaults to today. When those size boxes are filled in, `/api/cheapest` uses them instead of reading the size from the name.
 
 Set `PRICES_DB` to a file path to point the API and importer at a different database, handy for testing on a copy.
+
+## Run the UI
+
+```bash
+cd frontend && pnpm install && pnpm dev
+```
+
+Opens on http://localhost:3009 and needs the API running. `/ca` and `/us` show each country's stores with their discount line and prices, so you can open each in its own browser window.
