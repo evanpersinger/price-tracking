@@ -132,6 +132,9 @@ class Offer(NamedTuple):
     price_cents: int
     words: str  # the name without its sizes, lowercase
     amounts: dict[str, float]  # count, weight in g and volume in ml, whichever the item has, empty if none
+    item_count: int | None  # the sizes as typed into the add form, passed on so the UI can show them
+    weight_g: float | None
+    volume_ml: float | None
 
 
 class Winner(NamedTuple):
@@ -186,7 +189,9 @@ def _make_offers(rows: list[tuple]) -> list[Offer]:
             for kind, amount in (("count", item_count), ("weight", weight_g), ("volume", volume_ml))
             if amount
         }
-        offers.append(Offer(item_id, store_id, store_name, name, price_cents, words, typed or amounts))
+        offers.append(Offer(
+            item_id, store_id, store_name, name, price_cents, words, typed or amounts, item_count, weight_g, volume_ml,
+        ))
     return offers
 
 
@@ -261,6 +266,9 @@ class CheapestItem(BaseModel):
     other_stores: int  # how many other stores sell this item, 0 means it was only found here
     unit: Literal["each", "g", "ml"]  # what unit_price_cents is per
     unit_price_cents: float
+    item_count: int | None
+    weight_g: float | None
+    volume_ml: float | None
 
 
 class CheapestStore(BaseModel):
@@ -295,6 +303,7 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
             store.items.append(CheapestItem(
                 id=offer.id, name=offer.name, price_cents=offer.price_cents, other_stores=winner.other_stores,
                 unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
+                item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml,
             ))
 
     for store in cheapest.values():

@@ -1,4 +1,4 @@
-import { formatPrice, itemLabel } from './format.ts'
+import { formatPrice, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
 
@@ -20,24 +20,29 @@ export function StoreTable({ store, country }: StoreTableProps) {
         <thead>
           <tr>
             <th scope="col">Item</th>
+            <th scope="col" className="amount">Amount</th>
             <th scope="col" className="price">Price</th>
           </tr>
         </thead>
         <tbody>
-          {store.items.map((item) => (
-            <tr key={item.id}>
-              <td>
-                <ItemName label={itemLabel(item)} />
-              </td>
-              <td className="price">
-                {item.price_cents === null ? (
-                  <span className="no-price">No price</span>
-                ) : (
-                  formatPrice(item.price_cents, country)
-                )}
-              </td>
-            </tr>
-          ))}
+          {store.items.map((item) => {
+            const { name, amounts } = itemParts(item)
+            return (
+              <tr key={item.id}>
+                <td>
+                  <ItemName segments={name} />
+                </td>
+                <td className="amount">{amounts.join(' · ')}</td>
+                <td className="price">
+                  {item.price_cents === null ? (
+                    <span className="no-price">No price</span>
+                  ) : (
+                    formatPrice(item.price_cents, country)
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </section>

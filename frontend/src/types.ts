@@ -25,6 +25,9 @@ export interface CheapestItem {
   other_stores: number // how many other stores sell it, 0 means it was only found here
   unit: 'each' | 'g' | 'ml' // what unit_price_cents is per
   unit_price_cents: number
+  item_count: number | null
+  weight_g: number | null
+  volume_ml: number | null
 }
 
 export interface CheapestStore {

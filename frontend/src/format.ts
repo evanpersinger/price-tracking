@@ -1,4 +1,4 @@
-import type { CheapestItem, Country, Item } from './types.ts'
+import type { CheapestItem, Country } from './types.ts'
 
 const FORMATTERS: Record<Country, Intl.NumberFormat> = {
   CA: new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }),
@@ -60,11 +60,32 @@ export function labelSegments(label: string): Segment[] {
   return segments
 }
 
-// Sizes entered in the add form live in their own fields instead of the name, so they are shown after it
-export function itemLabel(item: Item): string {
-  const sizes: string[] = []
-  if (item.item_count !== null) sizes.push(`(${item.item_count}x)`)
-  if (item.weight_g !== null) sizes.push(`(${item.weight_g}g)`)
-  if (item.volume_ml !== null) sizes.push(`(${item.volume_ml}ml)`)
-  return [item.name, ...sizes].join(' ')
+interface Sized {
+  name: string
+  item_count: number | null
+  weight_g: number | null
+  volume_ml: number | null
+}
+
+export interface ItemParts {
+  name: Segment[] // the words, with the typed unit price kept in as its own segment
+  amounts: string[] // like "8x" or "500g", without the brackets
+}
+
+// Splits an item into what goes in the Item column and what goes in the Amount column. Imported items have their
+// amounts written in the name, items from the add form keep them in their own fields.
+export function itemParts(item: Sized): ItemParts {
+  const name: Segment[] = []
+  const amounts: string[] = []
+  for (const segment of labelSegments(item.name)) {
+    if (segment.kind === 'amount') {
+      amounts.push(segment.text.slice(1, -1).trim())
+    } else {
+      name.push(segment)
+    }
+  }
+  if (item.item_count !== null) amounts.push(`${item.item_count}x`)
+  if (item.weight_g !== null) amounts.push(`${item.weight_g}g`)
+  if (item.volume_ml !== null) amounts.push(`${item.volume_ml}ml`)
+  return { name, amounts }
 }

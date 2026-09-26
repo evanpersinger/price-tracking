@@ -1,14 +1,14 @@
-import { labelSegments } from './format.ts'
+import type { Segment } from './format.ts'
 
 interface ItemNameProps {
-  label: string
+  segments: Segment[]
 }
 
-// An item's name with its amounts and typed unit price each in their own color
-export function ItemName({ label }: ItemNameProps) {
+// An item's name with its typed unit price in its own color
+export function ItemName({ segments }: ItemNameProps) {
   return (
     <>
-      {labelSegments(label).map((segment) => (
+      {segments.map((segment) => (
         <span key={segment.start} className={`item-${segment.kind}`}>
           {segment.text}
         </span>

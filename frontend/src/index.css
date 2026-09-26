@@ -211,12 +211,17 @@ body {
   color: var(--item);
 }
 
-.item-amount {
-  color: var(--amount);
-}
-
 .item-unit-price {
   color: var(--unit-price);
+}
+
+.items .amount {
+  min-width: 5.5rem;
+  padding-left: 16px;
+}
+
+.items td.amount {
+  color: var(--amount);
 }
 
 .items td.price {
