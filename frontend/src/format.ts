@@ -1,4 +1,4 @@
-import type { Country, Item } from './types.ts'
+import type { CheapestItem, Country, Item } from './types.ts'
 
 const FORMATTERS: Record<Country, Intl.NumberFormat> = {
   CA: new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }),
@@ -7,6 +7,24 @@ const FORMATTERS: Record<Country, Intl.NumberFormat> = {
 
 export function formatPrice(cents: number, country: Country): string {
   return FORMATTERS[country].format(cents / 100)
+}
+
+// Grams and millilitres are shown per 100, the way shelf tags do it. The API sends cents per single g or ml, which
+// as dollars is the same number per 100.
+export function formatUnitPrice(item: CheapestItem, country: Country): string {
+  const formatter = FORMATTERS[country]
+  switch (item.unit) {
+    case 'each':
+      return `${formatter.format(item.unit_price_cents / 100)} each`
+    case 'g':
+      return `${formatter.format(item.unit_price_cents)} per 100g`
+    case 'ml':
+      return `${formatter.format(item.unit_price_cents)} per 100ml`
+  }
+}
+
+export function compareNote(otherStores: number): string {
+  return otherStores === 0 ? 'Only found here' : `Cheapest of ${otherStores + 1} stores`
 }
 
 export type SegmentKind = 'name' | 'amount' | 'unit-price'

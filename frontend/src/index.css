@@ -87,6 +87,41 @@ body {
   outline-offset: 2px;
 }
 
+.view-nav {
+  margin-top: 12px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--text);
+}
+
+.toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+}
+
+.item-compare {
+  color: var(--text-muted);
+}
+
 .currency-note {
   margin: 8px 0 24px;
   color: var(--text-muted);
@@ -105,7 +140,28 @@ body {
   margin-bottom: 8px;
 }
 
-.store-head h2 {
+.country {
+  margin-bottom: 32px;
+}
+
+.country-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  color: var(--heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.country-currency {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.store-name {
   margin: 0;
   color: var(--store);
   font-size: 1.125rem;

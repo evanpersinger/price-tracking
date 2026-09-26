@@ -1,25 +1,24 @@
 import { useEffect, useState } from 'react'
-import { fetchStores } from './api.ts'
-import type { Country, Store } from './types.ts'
+import { fetchJson } from './api.ts'
 
-export type StoresState =
+export type LoadState<T> =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; stores: Store[] }
+  | { status: 'ready'; data: T }
 
-export function useStores(country: Country): StoresState {
-  const [state, setState] = useState<StoresState>({ status: 'loading' })
+export function useLoad<T>(url: string): LoadState<T> {
+  const [state, setState] = useState<LoadState<T>>({ status: 'loading' })
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchStores(country, controller.signal)
-      .then((stores) => setState({ status: 'ready', stores }))
+    fetchJson<T>(url, controller.signal)
+      .then((data) => setState({ status: 'ready', data }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         setState({ status: 'error', message: error instanceof Error ? error.message : 'Something went wrong' })
       })
     return () => controller.abort()
-  }, [country])
+  }, [url])
 
   return state
 }

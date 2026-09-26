@@ -1,4 +1,5 @@
-import { formatPrice, itemLabel, labelSegments } from './format.ts'
+import { formatPrice, itemLabel } from './format.ts'
+import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
 
 interface StoreTableProps {
@@ -12,7 +13,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
   return (
     <section className="store" aria-labelledby={headingId}>
       <div className="store-head">
-        <h2 id={headingId}>{store.name}</h2>
+        <h2 id={headingId} className="store-name">{store.name}</h2>
         {store.discount_text && <p className="discount">{store.discount_text}</p>}
       </div>
       <table className="items">
@@ -26,11 +27,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
           {store.items.map((item) => (
             <tr key={item.id}>
               <td>
-                {labelSegments(itemLabel(item)).map((segment) => (
-                  <span key={segment.start} className={`item-${segment.kind}`}>
-                    {segment.text}
-                  </span>
-                ))}
+                <ItemName label={itemLabel(item)} />
               </td>
               <td className="price">
                 {item.price_cents === null ? (
