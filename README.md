@@ -26,8 +26,16 @@ OpenAI and Anthropic bill per receipt.
 ## Import a store-prices CSV
 
 ```bash
-uv run python backend/import_sheet.py test_files/store_prices.csv CA
-uv run python backend/import_sheet.py test_files/store_prices_us.csv US
+uv run python backend/import_sheet.py backend/data/imports/store_prices_ca.csv CA
+uv run python backend/import_sheet.py backend/data/imports/store_prices_us.csv US
 ```
 
 Creates `backend/data/prices.db` (gitignored) with the stores, their discount text, items and prices. The last argument is the country, `CA` or `US`. It refuses to import a country twice, so the database stays the source of truth once you start editing it.
+
+## Run the API
+
+```bash
+uv run python backend/server.py
+```
+
+Serves on http://127.0.0.1:8021. `GET /api/stores?country=CA` (or `US`) returns each store in that country with its discount text and items. Prices come back as `price_cents`.
