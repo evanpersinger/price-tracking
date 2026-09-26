@@ -1,9 +1,11 @@
 """Import a wide store-prices CSV (one Item/Price column pair per store) into backend/data/prices.db.
 
-Refuses to run twice for the same country, so it can't duplicate rows or touch edits made since.
+Also adds items that appear only in the sheet's hand-made Cheapest Items list. Refuses to run twice for the same
+country, so it can't duplicate rows or touch edits made since.
 """
 
 import csv
+import sqlite3
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -11,8 +13,9 @@ from pathlib import Path
 from db import DB_PATH, connect
 
 COUNTRIES = ("CA", "US")
+CHEAPEST_HEADER = "Cheapest Items"
 STUDENT_HEADER = "Student Discounts"
-NON_STORE_HEADERS = {"Cheapest Items", "Price", STUDENT_HEADER}  # left-hand blocks, not stores
+NON_STORE_HEADERS = {CHEAPEST_HEADER, "Price", STUDENT_HEADER}  # left-hand blocks, not stores
 DISCOUNT_ROW = 1  # discount text sits under each store name
 COLUMN_HEADER_ROW = 2  # the Item / Price / Rating labels
 FIRST_ITEM_ROW = 3
@@ -73,6 +76,46 @@ def _read_student_discounts(rows: list[list[str]]) -> list[tuple[str, str | None
     ]
 
 
+def _read_cheapest_block(rows: list[list[str]]) -> list[tuple[str, str, int | None]]:
+    """(store, name, price_cents) for the Cheapest Items list, where each store's name is a heading above its items."""
+    col = next((i for i, name in enumerate(rows[0]) if name.strip() == CHEAPEST_HEADER), None)
+    if col is None:
+        return []
+
+    store_names = {name for name, _, _ in _store_blocks(rows)}
+    store = None
+    items = []
+    for row in rows[COLUMN_HEADER_ROW:]:
+        name = _cell(row, col)
+        if name in store_names:
+            store = name
+        elif name and store:
+            items.append((store, name, _parse_price_cents(_cell(row, col + 1))))
+    return items
+
+
+def add_cheapest_block(conn: sqlite3.Connection, rows: list[list[str]], country: str) -> int:
+    """Add the Cheapest Items list's items that aren't in the database yet, ignoring case. Returns how many."""
+    store_ids = dict(conn.execute("SELECT name, id FROM stores WHERE country = ?", (country,)))
+    have = {
+        (store_id, name.lower(), price_cents)
+        for store_id, name, price_cents in conn.execute(
+            "SELECT i.store_id, i.name, i.price_cents FROM items i JOIN stores s ON s.id = i.store_id "
+            "WHERE s.country = ?", (country,)
+        )
+    }
+
+    added = 0
+    for store, name, price_cents in _read_cheapest_block(rows):
+        store_id = store_ids[store]
+        if (store_id, name.lower(), price_cents) in have:
+            continue
+        conn.execute("INSERT INTO items (store_id, name, price_cents) VALUES (?, ?, ?)", (store_id, name, price_cents))
+        have.add((store_id, name.lower(), price_cents))
+        added += 1
+    return added
+
+
 def import_sheet(csv_path: Path, country: str) -> None:
     with csv_path.open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.reader(f))
@@ -106,9 +149,11 @@ def import_sheet(csv_path: Path, country: str) -> None:
             "INSERT INTO student_discounts (country, place, discount, days) VALUES (?, ?, ?, ?)",
             [(country, *row) for row in students],
         )
+        from_cheapest_list = add_cheapest_block(conn, rows, country)
 
-    print(f"\nImported {len(blocks)} stores, {total_items} items ({total_unpriced} with no price) "
-          f"and {len(students)} student discounts into {DB_PATH}")
+    print(f"\nImported {len(blocks)} stores, {total_items} items ({total_unpriced} with no price), "
+          f"{from_cheapest_list} more items only in the Cheapest Items list and {len(students)} student discounts "
+          f"into {DB_PATH}")
 
 
 if __name__ == "__main__":

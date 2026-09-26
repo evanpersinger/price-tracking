@@ -1,17 +1,18 @@
-"""Local API for the price database, serves each country's stores and cheapest items as JSON on port 8021.
+"""Local API for the price database, serves and adds each country's stores and items as JSON on port 8021.
 
-Reads backend/data/prices.db and only listens on 127.0.0.1. Run: python backend/server.py
+Reads and writes backend/data/prices.db and only listens on 127.0.0.1. Run: python backend/server.py
 """
 
 import difflib
 import math
 import re
 from contextlib import closing
+from datetime import date
 from typing import Literal, NamedTuple
 
 import uvicorn
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from db import connect
 
@@ -25,6 +26,9 @@ class Item(BaseModel):
     name: str
     price_cents: int | None
     rating: int | None
+    item_count: int | None
+    weight_g: float | None
+    volume_ml: float | None
     purchased_on: str | None
 
 
@@ -37,27 +41,76 @@ class Store(BaseModel):
 
 @app.get("/api/stores")
 def list_stores(country: Literal["CA", "US"]) -> list[Store]:
-    """Every store in a country with its items, in the order they were imported."""
+    """Every store in a country with its items, in the order they were added."""
     with closing(connect()) as conn:
         store_rows = conn.execute(
             "SELECT id, name, discount_text FROM stores WHERE country = ? ORDER BY id", (country,)
         ).fetchall()
         item_rows = conn.execute(
-            "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.purchased_on "
-            "FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
+            "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
+            "i.purchased_on FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
-    for id_, store_id, name, price_cents, rating, purchased_on in item_rows:
+    for id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
-            id=id_, name=name, price_cents=price_cents, rating=rating, purchased_on=purchased_on,
+            id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
+            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on,
         ))
 
     return [
         Store(id=id_, name=name, discount_text=discount_text, items=items_by_store.get(id_, []))
         for id_, name, discount_text in store_rows
     ]
+
+
+class NewItem(BaseModel):
+    country: Literal["CA", "US"]
+    store: str = Field(min_length=1, max_length=100)  # an existing store's name, or a new one to create
+    name: str = Field(min_length=1, max_length=200)
+    price_cents: int = Field(gt=0)
+    item_count: int | None = Field(default=None, gt=0)  # how many items are in the pack, e.g. 24 buns
+    weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
+    volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
+    purchased_on: date | None = None  # today if left out
+
+    model_config = {"str_strip_whitespace": True}
+
+    @model_validator(mode="after")
+    def _needs_a_size(self) -> "NewItem":
+        if self.item_count is None and self.weight_g is None and self.volume_ml is None:
+            raise ValueError("an item needs a size, give item_count, weight_g or volume_ml")
+        return self
+
+
+class AddedItem(Item):
+    store_id: int
+
+
+@app.post("/api/items", status_code=201)
+def add_item(new_item: NewItem) -> AddedItem:
+    """Add an item with its price to a store, creating the store if it isn't in that country yet."""
+    purchased_on = (new_item.purchased_on or date.today()).isoformat()
+    with closing(connect()) as conn, conn:
+        store = conn.execute(
+            "SELECT id FROM stores WHERE country = ? AND lower(name) = lower(?)", (new_item.country, new_item.store)
+        ).fetchone()
+        store_id = store[0] if store else conn.execute(
+            "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
+        ).lastrowid
+        item_id = conn.execute(
+            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (store_id, new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g,
+             new_item.volume_ml, purchased_on),
+        ).lastrowid
+
+    return AddedItem(
+        id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
+        item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
+        purchased_on=purchased_on,
+    )
 
 
 # Item matching
@@ -78,7 +131,7 @@ class Offer(NamedTuple):
     name: str
     price_cents: int
     words: str  # the name without its sizes, lowercase
-    amounts: dict[str, float]  # count, weight in g and volume in ml, whichever the name has, empty if none
+    amounts: dict[str, float]  # count, weight in g and volume in ml, whichever the item has, empty if none
 
 
 class Winner(NamedTuple):
@@ -102,7 +155,7 @@ def _to_amount(number: float, unit: str, has_volume: bool) -> tuple[str, float] 
 
 
 def _split_name(name: str) -> tuple[str, dict[str, float]]:
-    """A name's words and its amounts, ignoring case and the typed unit price. No amounts means no size.
+    """A name's words and the amounts written in it, ignoring case and the typed unit price.
 
     A bracket that isn't a plain number and unit, like "(250mg per)", stays in the words.
     """
@@ -117,6 +170,24 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
             amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
             text = text.replace(match.group(0), " ", 1)
     return " ".join(text.split()), amounts
+
+
+def _make_offers(rows: list[tuple]) -> list[Offer]:
+    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml) rows.
+
+    The size typed into item_count, weight_g and volume_ml wins, the size written in the name is only used when
+    those are all empty.
+    """
+    offers = []
+    for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml in rows:
+        words, amounts = _split_name(name)
+        typed = {
+            kind: amount
+            for kind, amount in (("count", item_count), ("weight", weight_g), ("volume", volume_ml))
+            if amount
+        }
+        offers.append(Offer(item_id, store_id, store_name, name, price_cents, words, typed or amounts))
+    return offers
 
 
 def _same_sizes(a: dict[str, float], b: dict[str, float]) -> bool:
@@ -148,7 +219,7 @@ def _group_items(offers: list[Offer]) -> list[list[Offer]]:
 
 
 def _own_unit(offer: Offer) -> tuple[str, float]:
-    """An offer's unit and its price per that unit, from whichever of count, weight or volume its name has."""
+    """An offer's unit and its price per that unit, from whichever of count, weight or volume it has."""
     kind = next(kind for kind in PER_UNIT if kind in offer.amounts)
     return PER_UNIT[kind], offer.price_cents / offer.amounts[kind]
 
@@ -156,8 +227,8 @@ def _own_unit(offer: Offer) -> tuple[str, float]:
 def _pick_winners(group: list[Offer]) -> list[Winner]:
     """The cheapest offers for one item.
 
-    Offers are compared on price per item when the names have a count, otherwise per gram, then per ml. The first
-    of those that two or more stores share is used, and an offer that can't be compared that way is kept as the only
+    Offers are compared on price per item when they have a count, otherwise per gram, then per ml. The first of
+    those that two or more stores share is used, and an offer that can't be compared that way is kept as the only
     one of its kind.
     """
     for kind, unit in PER_UNIT.items():
@@ -204,20 +275,20 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
 
     Names match when their words are alike enough, so case, small typos and the typed unit price don't matter.
     Offers are then compared on unit price (per item if there's a count, else per gram, else per ml), so a 24-pack
-    and an 8-pack can be compared, and 1lb counts the same as 454g. An item sold at one store only counts as
-    cheapest there, ties list it under every tied store, and items with no price or no size are left out.
+    and an 8-pack can be compared, and 1lb counts the same as 454g. The size comes from item_count, weight_g and
+    volume_ml, or from the name when those are empty. An item sold at one store only counts as cheapest there,
+    ties list it under every tied store, and items with no price or no size are left out.
     """
     with closing(connect()) as conn:
         rows = conn.execute(
-            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents "
+            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml "
             "FROM items i JOIN stores s ON s.id = i.store_id "
             "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
             (country,),
         ).fetchall()
 
-    offers = [Offer(*row, *_split_name(row[3])) for row in rows]
     cheapest: dict[int, CheapestStore] = {}
-    for group in _group_items([offer for offer in offers if offer.amounts]):
+    for group in _group_items([offer for offer in _make_offers(rows) if offer.amounts]):
         for winner in _pick_winners(group):
             offer = winner.offer
             store = cheapest.setdefault(offer.store_id, CheapestStore(id=offer.store_id, name=offer.store_name, items=[]))
@@ -227,7 +298,7 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
             ))
 
     for store in cheapest.values():
-        store.items.sort(key=lambda item: item.id)  # back into the order they were imported
+        store.items.sort(key=lambda item: item.id)  # back into the order they were added
     return [cheapest[store_id] for store_id in sorted(cheapest)]
 
 
