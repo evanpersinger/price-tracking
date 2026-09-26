@@ -41,4 +41,4 @@ uv run python backend/server.py
 Serves on http://127.0.0.1:8021. Prices come back as `price_cents`, and `country` is `CA` or `US`.
 
 - `GET /api/stores?country=CA` returns each store in that country with its discount text and items.
-- `GET /api/cheapest?country=CA` returns each store with the items it sells cheapest, matching items by exact name across stores.
+- `GET /api/cheapest?country=CA` returns each store with the items it sells cheapest, matching the same item across stores. Case, small spelling differences and the typed unit price (like `($0.57 per pill)`) don't matter. Items are compared on unit price, per item if the name has a count (`(8x)`), otherwise per gram or per ml, so a 24-pack can be compared with an 8-pack and `(1lb)` counts the same as `(454g)`. Items with no size in the name are left out.

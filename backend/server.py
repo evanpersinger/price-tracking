@@ -3,8 +3,11 @@
 Reads backend/data/prices.db and only listens on 127.0.0.1. Run: python backend/server.py
 """
 
+import difflib
+import math
+import re
 from contextlib import closing
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import uvicorn
 from fastapi import FastAPI
@@ -57,11 +60,136 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
     ]
 
 
+# Item matching
+UNIT_PRICE = re.compile(r"\([^()]*\$[^()]*\)")  # e.g. "($0.57 per pill)", worked out from the price
+AMOUNT = re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
+SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
+SIZE_TOLERANCE = 0.02  # 1lb (453.6g) and 454g are the same amount
+WEIGHT_G = {"g": 1, "kg": 1000, "lb": 453.592, "lbs": 453.592, "oz": 28.3495}
+VOLUME_ML = {"ml": 1, "l": 1000, "lt": 1000}
+FLUID_OZ_ML = 29.5735
+PER_UNIT = {"count": "each", "weight": "g", "volume": "ml"}  # what offers are compared on, in order of preference
+
+
+class Offer(NamedTuple):
+    id: int
+    store_id: int
+    store_name: str
+    name: str
+    price_cents: int
+    words: str  # the name without its sizes, lowercase
+    amounts: dict[str, float]  # count, weight in g and volume in ml, whichever the name has, empty if none
+
+
+class Winner(NamedTuple):
+    offer: Offer
+    other_stores: int
+    unit: str
+    unit_price_cents: float
+
+
+def _to_amount(number: float, unit: str, has_volume: bool) -> tuple[str, float] | None:
+    """(kind, amount) for a number and unit, weights in grams and volumes in ml, None for any other unit."""
+    if unit == "x":
+        return "count", number
+    if unit == "oz" and has_volume:  # "(709ml) (24oz)", the oz is fluid ounces
+        return "volume", number * FLUID_OZ_ML
+    if unit in WEIGHT_G:
+        return "weight", number * WEIGHT_G[unit]
+    if unit in VOLUME_ML:
+        return "volume", number * VOLUME_ML[unit]
+    return None
+
+
+def _split_name(name: str) -> tuple[str, dict[str, float]]:
+    """A name's words and its amounts, ignoring case and the typed unit price. No amounts means no size.
+
+    A bracket that isn't a plain number and unit, like "(250mg per)", stays in the words.
+    """
+    text = UNIT_PRICE.sub(" ", name).lower()
+    matches = list(AMOUNT.finditer(text))
+    has_volume = any(match.group(2) in VOLUME_ML for match in matches)
+
+    amounts: dict[str, float] = {}
+    for match in matches:
+        found = _to_amount(float(match.group(1)), match.group(2), has_volume)
+        if found:
+            amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
+            text = text.replace(match.group(0), " ", 1)
+    return " ".join(text.split()), amounts
+
+
+def _same_sizes(a: dict[str, float], b: dict[str, float]) -> bool:
+    return a.keys() == b.keys() and all(abs(a[kind] - b[kind]) <= SIZE_TOLERANCE * max(a[kind], b[kind]) for kind in a)
+
+
+def _group_items(offers: list[Offer]) -> list[list[Offer]]:
+    """Group offers into items by their words, keeping only the cheapest offer per store and size."""
+    groups: list[list[Offer]] = []
+    for offer in offers:
+        group = next(
+            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            None,
+        )
+        if group is None:
+            groups.append([offer])
+            continue
+
+        same = next(
+            (i for i, other in enumerate(group)
+             if other.store_id == offer.store_id and _same_sizes(other.amounts, offer.amounts)),
+            None,
+        )
+        if same is None:
+            group.append(offer)
+        elif offer.price_cents < group[same].price_cents:
+            group[same] = offer
+    return groups
+
+
+def _own_unit(offer: Offer) -> tuple[str, float]:
+    """An offer's unit and its price per that unit, from whichever of count, weight or volume its name has."""
+    kind = next(kind for kind in PER_UNIT if kind in offer.amounts)
+    return PER_UNIT[kind], offer.price_cents / offer.amounts[kind]
+
+
+def _pick_winners(group: list[Offer]) -> list[Winner]:
+    """The cheapest offers for one item.
+
+    Offers are compared on price per item when the names have a count, otherwise per gram, then per ml. The first
+    of those that two or more stores share is used, and an offer that can't be compared that way is kept as the only
+    one of its kind.
+    """
+    for kind, unit in PER_UNIT.items():
+        comparable = [offer for offer in group if kind in offer.amounts]
+        if len({offer.store_id for offer in comparable}) < 2:
+            continue
+
+        cheapest_per_store: dict[int, tuple[float, Offer]] = {}
+        for offer in comparable:
+            price = offer.price_cents / offer.amounts[kind]
+            if offer.store_id not in cheapest_per_store or price < cheapest_per_store[offer.store_id][0]:
+                cheapest_per_store[offer.store_id] = (price, offer)
+
+        lowest = min(price for price, _ in cheapest_per_store.values())
+        winners = [
+            Winner(offer, len(cheapest_per_store) - 1, unit, price)
+            for price, offer in cheapest_per_store.values()
+            if math.isclose(price, lowest, rel_tol=1e-9)
+        ]
+        alone = [Winner(offer, 0, *_own_unit(offer)) for offer in group if kind not in offer.amounts]
+        return winners + alone
+
+    return [Winner(offer, 0, *_own_unit(offer)) for offer in group]
+
+
 class CheapestItem(BaseModel):
     id: int
     name: str
     price_cents: int
-    other_stores: int  # how many other stores sell this exact item, 0 means it was only found here
+    other_stores: int  # how many other stores sell this item, 0 means it was only found here
+    unit: Literal["each", "g", "ml"]  # what unit_price_cents is per
+    unit_price_cents: float
 
 
 class CheapestStore(BaseModel):
@@ -72,10 +200,12 @@ class CheapestStore(BaseModel):
 
 @app.get("/api/cheapest")
 def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
-    """Each store with the items it sells cheapest, matching items by exact name across stores.
+    """Each store with the items it sells cheapest, matching the same item across stores.
 
-    The size is part of the name, so comparing total prices is fair. An item sold at one store only
-    counts as cheapest there, ties list it under every tied store, and items with no price are skipped.
+    Names match when their words are alike enough, so case, small typos and the typed unit price don't matter.
+    Offers are then compared on unit price (per item if there's a count, else per gram, else per ml), so a 24-pack
+    and an 8-pack can be compared, and 1lb counts the same as 454g. An item sold at one store only counts as
+    cheapest there, ties list it under every tied store, and items with no price or no size are left out.
     """
     with closing(connect()) as conn:
         rows = conn.execute(
@@ -85,24 +215,19 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
             (country,),
         ).fetchall()
 
-    # Each store's cheapest row per item, keyed by the name with case and spacing ignored
-    offers_by_item: dict[str, dict[int, tuple[int, int, str, str, int]]] = {}
-    for row in rows:
-        _, store_id, _, name, price_cents = row
-        offers = offers_by_item.setdefault(" ".join(name.lower().split()), {})
-        if store_id not in offers or price_cents < offers[store_id][4]:
-            offers[store_id] = row
-
+    offers = [Offer(*row, *_split_name(row[3])) for row in rows]
     cheapest: dict[int, CheapestStore] = {}
-    for offers in offers_by_item.values():
-        lowest = min(offer[4] for offer in offers.values())
-        for item_id, store_id, store_name, name, price_cents in offers.values():
-            if price_cents == lowest:
-                store = cheapest.setdefault(store_id, CheapestStore(id=store_id, name=store_name, items=[]))
-                store.items.append(CheapestItem(
-                    id=item_id, name=name, price_cents=price_cents, other_stores=len(offers) - 1,
-                ))
+    for group in _group_items([offer for offer in offers if offer.amounts]):
+        for winner in _pick_winners(group):
+            offer = winner.offer
+            store = cheapest.setdefault(offer.store_id, CheapestStore(id=offer.store_id, name=offer.store_name, items=[]))
+            store.items.append(CheapestItem(
+                id=offer.id, name=offer.name, price_cents=offer.price_cents, other_stores=winner.other_stores,
+                unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
+            ))
 
+    for store in cheapest.values():
+        store.items.sort(key=lambda item: item.id)  # back into the order they were imported
     return [cheapest[store_id] for store_id in sorted(cheapest)]
 
 
