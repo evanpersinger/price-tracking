@@ -19,7 +19,8 @@ export function StoreTable({ store, country }: StoreTableProps) {
       <table className="items">
         <thead>
           <tr>
-            <th scope="col">Item</th>
+            <th scope="col" className="brand">Brand</th>
+            <th scope="col" className="item">Item</th>
             <th scope="col" className="amount">Amount</th>
             <th scope="col" className="unit-price">Unit price</th>
             <th scope="col" className="price">Price</th>
@@ -30,7 +31,8 @@ export function StoreTable({ store, country }: StoreTableProps) {
             const { name, amounts, unitPrice } = itemParts(item)
             return (
               <tr key={item.id}>
-                <td>
+                <td className="brand">{item.brand}</td>
+                <td className="item">
                   <ItemName segments={name} />
                 </td>
                 <td className="amount">{amounts.join(' · ')}</td>

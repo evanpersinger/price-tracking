@@ -30,6 +30,7 @@ class Item(BaseModel):
     weight_g: float | None
     volume_ml: float | None
     purchased_on: str | None
+    brand: str | None
 
 
 class Store(BaseModel):
@@ -48,15 +49,16 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         ).fetchall()
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
-            "i.purchased_on FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
+            "i.purchased_on, i.brand FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
+            "ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
-    for id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on in item_rows:
+    for id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
-            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on,
+            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
         ))
 
     return [
@@ -74,6 +76,7 @@ class NewItem(BaseModel):
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
     purchased_on: date | None = None  # today if left out
+    brand: str | None = Field(default=None, max_length=100)
 
     model_config = {"str_strip_whitespace": True}
 
@@ -100,16 +103,16 @@ def add_item(new_item: NewItem) -> AddedItem:
             "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
         ).lastrowid
         item_id = conn.execute(
-            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (store_id, new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g,
-             new_item.volume_ml, purchased_on),
+             new_item.volume_ml, purchased_on, new_item.brand),
         ).lastrowid
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
         item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
-        purchased_on=purchased_on,
+        purchased_on=purchased_on, brand=new_item.brand,
     )
 
 

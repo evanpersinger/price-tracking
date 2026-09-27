@@ -9,6 +9,7 @@ export interface Item {
   weight_g: number | null
   volume_ml: number | null
   purchased_on: string | null
+  brand: string | null
 }
 
 export interface Store {

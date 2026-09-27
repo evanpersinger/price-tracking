@@ -253,8 +253,16 @@ main {
   text-align: right;
 }
 
+.items .item {
+  padding-left: 16px;
+}
+
 .item-name {
   color: var(--item);
+}
+
+.items td.brand {
+  color: var(--store);
 }
 
 .item-unit-price {
