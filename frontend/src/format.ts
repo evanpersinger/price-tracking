@@ -68,8 +68,9 @@ interface Sized {
 }
 
 export interface ItemParts {
-  name: Segment[] // the words, with the typed unit price kept in as its own segment
+  name: Segment[] // just the words, the typed unit price is its own field below
   amounts: string[] // like "8 buns" or "500g", without the brackets
+  unitPrice: string | null // the typed unit price, like "$0.50 per bun", without the brackets
 }
 
 // Container words worth naming instead of the raw unit, e.g. "1L" on a milk carton reads better as "1 carton".
@@ -89,13 +90,16 @@ function headNoun(name: Segment[]): string {
   return words.length > 0 ? words[words.length - 1].replace(/[^a-zA-Z]/g, '').toLowerCase() : ''
 }
 
-// The noun after "per" in a typed unit price, e.g. "($0.20 per bag)" gives "bag". Only plain words match, so
-// "per gram" or "per 100ml" (not a countable noun) are left alone.
+// Weight and volume units, not countable nouns, so "$0 per gram" doesn't turn a head count into "3 lettuce grams".
+const MEASURE_UNITS = new Set(['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'ml', 'l', 'litre', 'litres', 'liter', 'liters', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds'])
+
+// The noun after "per" in a typed unit price, e.g. "($0.20 per bag)" gives "bag". Only plain, countable words
+// match, so "per gram" or "per 100ml" (a weight or volume rate, not a countable noun) are left alone.
 function perUnitNoun(name: Segment[]): string | undefined {
   for (const segment of name) {
     if (segment.kind !== 'unit-price') continue
     const match = /per\s+([a-zA-Z]+)$/i.exec(segment.text.slice(0, -1))
-    if (match) return match[1].toLowerCase()
+    if (match && !MEASURE_UNITS.has(match[1].toLowerCase())) return match[1].toLowerCase()
   }
   return undefined
 }
@@ -106,24 +110,50 @@ function pluralize(word: string): string {
   return `${word}s`
 }
 
+// A few "-ie" plurals (cookie, brownie) end in "ies" the same as a "-y" plural (battery) does, but singularize to
+// "-ie", not "-y". There's no telling them apart by shape alone, so the ones seen in grocery names are listed here.
+const IE_PLURALS = new Set(['cookies', 'brownies', 'smoothies', 'veggies', 'movies'])
+
 function singularize(word: string): string {
+  if (IE_PLURALS.has(word)) return word.slice(0, -1)
   if (/ies$/i.test(word)) return `${word.slice(0, -3)}y`
   if (/(ses|xes|zes|ches|shes)$/i.test(word)) return word.slice(0, -2)
   if (/[^s]s$/i.test(word)) return word.slice(0, -1)
   return word
 }
 
+// Nouns worth naming more specifically than the last word of the item alone gives, since nothing in the text
+// supplies the extra word: bacon isn't sold loose so "strips" is implied, and "buns" alone is ambiguous between
+// hamburger and hotdog buns. Checked against the full name, not just the last word.
+function overrideCountNoun(base: string, name: Segment[]): string {
+  if (base !== 'bacon' && base !== 'buns') return base
+  const text = name
+    .filter((segment) => segment.kind === 'name')
+    .map((segment) => segment.text)
+    .join(' ')
+    .toLowerCase()
+  if (base === 'bacon') return 'bacon strips'
+  if (text.includes('hamburger')) return 'hamburger buns'
+  if (text.includes('hotdog') || text.includes('hot dog')) return 'hotdog buns'
+  return base
+}
+
 // The word to count by for a "Nx" amount. A typed unit price names it directly ("per bag" -> "bags"), pluralized
 // and, if it's a different word than the item's own name, paired with that name ("tea" + "bags" -> "tea bags").
 // Without a unit price, or when the unit price just names the item itself (buns "per bun"), the item's own name is
-// used alone, since guessing a qualifying word (e.g. "hamburger" buns vs "large" eggs) can't be done reliably.
+// used alone, since guessing a qualifying word (e.g. "hamburger" buns vs "large" eggs) can't be done reliably in
+// general, aside from the specific overrides above.
 function countNoun(name: Segment[]): string {
   const productNoun = headNoun(name)
   const perNoun = perUnitNoun(name)
-  if (!perNoun) return productNoun
-  const perNounPlural = pluralize(perNoun)
-  if (perNounPlural === productNoun || !productNoun) return perNounPlural
-  return `${singularize(productNoun)} ${perNounPlural}`
+  const base = (() => {
+    if (!perNoun) return productNoun
+    const perNounPlural = pluralize(perNoun)
+    // Same word either way ("container" vs "containers", "head" vs "heads") -> just the one word, not both.
+    if (!productNoun || perNounPlural === productNoun || perNounPlural === pluralize(productNoun)) return perNounPlural
+    return `${singularize(productNoun)} ${perNounPlural}`
+  })()
+  return overrideCountNoun(base, name)
 }
 
 // A count of 1 says nothing a single listed item doesn't already say, so it's dropped. Other counts read as
@@ -140,27 +170,30 @@ function describeAmount(amount: string, forCount: string, forMeasure: string): s
   return CONTAINER_WORDS.has(forMeasure) ? `${numberText} ${forMeasure}` : amount
 }
 
-// Splits an item into what goes in the Item column and what goes in the Amount column. Imported items have their
-// amounts written in the name, items from the add form keep them in their own fields.
+// Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and
+// typed unit price written in the name, items from the add form keep the amount in its own fields.
 export function itemParts(item: Sized): ItemParts {
-  const name: Segment[] = []
+  const segments: Segment[] = []
   const rawAmounts: string[] = []
+  let unitPrice: string | null = null
   for (const segment of labelSegments(item.name)) {
     if (segment.kind === 'amount') {
       rawAmounts.push(segment.text.slice(1, -1).trim())
     } else {
-      name.push(segment)
+      segments.push(segment)
+      if (segment.kind === 'unit-price' && unitPrice === null) unitPrice = segment.text.slice(1, -1).trim()
     }
   }
   if (item.item_count !== null) rawAmounts.push(`${item.item_count}x`)
   if (item.weight_g !== null) rawAmounts.push(`${item.weight_g}g`)
   if (item.volume_ml !== null) rawAmounts.push(`${item.volume_ml}ml`)
 
-  const forCount = countNoun(name)
-  const forMeasure = headNoun(name)
+  const forCount = countNoun(segments)
+  const forMeasure = headNoun(segments)
   const amounts = rawAmounts
     .map((amount) => describeAmount(amount, forCount, forMeasure))
     .filter((amount): amount is string => amount !== null)
 
-  return { name, amounts }
+  const name = segments.filter((segment) => segment.kind === 'name')
+  return { name, amounts, unitPrice }
 }

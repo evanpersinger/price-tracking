@@ -25,18 +25,20 @@ export function StoreTable({ store, country }: StoreTableProps) {
           <tr>
             <th scope="col">Item</th>
             <th scope="col" className="amount">Amount</th>
+            <th scope="col" className="unit-price">Unit price</th>
             <th scope="col" className="price">Price</th>
           </tr>
         </thead>
         <tbody>
           {store.items.map((item) => {
-            const { name, amounts } = itemParts(item)
+            const { name, amounts, unitPrice } = itemParts(item)
             return (
               <tr key={item.id}>
                 <td>
                   <ItemName segments={name} />
                 </td>
                 <td className="amount">{amounts.join(' · ')}</td>
+                <td className="unit-price">{unitPrice}</td>
                 <td className="price">
                   {item.price_cents === null ? (
                     <span className="no-price">No price</span>

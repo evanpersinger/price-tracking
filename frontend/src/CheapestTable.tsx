@@ -25,13 +25,14 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
         </thead>
         <tbody>
           {store.items.map((item) => {
-            const { name, amounts } = itemParts(item)
+            const { name, amounts, unitPrice } = itemParts(item)
             return (
               <tr key={item.id}>
                 <td>
                   <ItemName segments={name} />
                   <div className="item-meta">
                     <span className="item-unit-price">{formatUnitPrice(item, country)}</span>
+                    {unitPrice && <span className="item-unit-price">({unitPrice})</span>}
                     <span className="item-compare">{compareNote(item.other_stores)}</span>
                   </div>
                 </td>
