@@ -39,7 +39,7 @@ uv run python backend/server.py
 
 Serves on http://127.0.0.1:8021 and has to be restarted after code changes. Prices come back as `price_cents`, and `country` is `CA` or `US`.
 
-- `GET /api/stores?country=CA` returns each store in that country with its discount text and items.
+- `GET /api/stores?country=CA` returns each store in that country with its discount text and items, including each item's brand where known.
 - `GET /api/cheapest?country=CA` returns each store with the items it sells cheapest, matching the same item across stores. Case, small spelling differences and the typed unit price (like `($0.57 per pill)`) don't matter. Items are compared on unit price, per item if the name has a count (`(8x)`), otherwise per gram or per ml, so a 24-pack can be compared with an 8-pack and `(1lb)` counts the same as `(454g)`. Items with no size are left out.
 - `POST /api/items` adds an item to a store, creating the store if it isn't in that country yet. The body has `country`, `store`, `name`, `price_cents`, and at least one of `item_count` (how many in the pack), `weight_g` or `volume_ml`, because an item with no size is rejected. `purchased_on` is optional and defaults to today. When those size boxes are filled in, `/api/cheapest` uses them instead of reading the size from the name.
 
@@ -53,7 +53,7 @@ cd frontend && pnpm dev
 
 Opens on http://localhost:3009 and needs the API running. Each page has its own address, so you can open them in separate browser windows:
 
-- `/ca` and `/us` show one store at a time for that country: its discount line and a table of Item, Amount, Unit price and Price. A row of buttons lists every store, click one to jump to it, or scroll/swipe over the table to move to the next or previous store.
+- `/ca` and `/us` show one store at a time for that country: its discount line and a table of Brand, Item, Amount, Unit price and Price. A row of buttons lists every store, click one to jump straight to it, or use the arrow button beside the table to step to the next or previous store. An item with no amount at all is hidden until its data has one (it isn't deleted, just not shown yet), and when an item's brand is known, that text is trimmed off the front of its Item name since it's already in the Brand column.
 - `/cheapest` shows the cheapest items for both countries, Canada and the USA as two separate sections since the prices are in different currencies. Each item shows its unit price and how many stores it was compared across, and a checkbox (on by default) hides items sold at only one store.
 
 It has a dark theme with a different color for store names, item names, amounts, unit prices, prices and discounts. `pnpm build` type-checks and builds, and `pnpm lint` runs oxlint.

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { itemParts } from './format.ts'
 import { Loaded } from './Loaded.tsx'
 import { StoreTable } from './StoreTable.tsx'
 import type { Country, Store } from './types.ts'
@@ -33,7 +34,10 @@ export function StoresView({ country }: StoresViewProps) {
   return (
     <Loaded state={state}>
       {(stores) => {
-        const withItems = stores.filter((store) => store.items.length > 0)
+        const withItems = stores
+          // No amount to show is not worth a row, for now. Once the item's data gets an amount, it reappears.
+          .map((store) => ({ ...store, items: store.items.filter((item) => itemParts(item).amounts.length > 0) }))
+          .filter((store) => store.items.length > 0)
         if (withItems.length === 0) {
           return <p className="status">No prices added yet.</p>
         }
