@@ -154,11 +154,12 @@ body {
 }
 
 .store {
-  flex: 0 0 600px;
-  padding: 16px;
+  flex: 0 0 800px;
+  padding: 32px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  font-size: 1.0625rem;
 }
 
 .store-head {
@@ -189,7 +190,7 @@ body {
 .store-name {
   margin: 0;
   color: var(--store);
-  font-size: 1.125rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
@@ -205,7 +206,7 @@ body {
 }
 
 .items th {
-  padding: 8px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 0.75rem;
@@ -216,7 +217,7 @@ body {
 }
 
 .items td {
-  padding: 8px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
