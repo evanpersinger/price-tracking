@@ -115,7 +115,12 @@ function perUnitNoun(name: Segment[]): string | undefined {
   return undefined
 }
 
+// A few nouns are their own plural (a fish caught this way historically), so "4 salmon" stays "salmon", not
+// "salmons".
+const INVARIANT_PLURALS = new Set(['salmon', 'trout', 'fish', 'deer', 'sheep', 'moose'])
+
 function pluralize(word: string): string {
+  if (INVARIANT_PLURALS.has(word)) return word
   if (/[sxz]$/i.test(word) || /(ch|sh)$/i.test(word)) return `${word}es`
   if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`
   return `${word}s`
@@ -134,16 +139,18 @@ function singularize(word: string): string {
 }
 
 // Nouns worth naming more specifically than the last word of the item alone gives, since nothing in the text
-// supplies the extra word: bacon isn't sold loose so "strips" is implied, and "buns" alone is ambiguous between
-// hamburger and hotdog buns. Checked against the full name, not just the last word.
+// supplies the extra word: bacon isn't sold loose so "strips" is implied, "buns" alone is ambiguous between
+// hamburger and hotdog buns, and "dogs" alone (from "hot dogs") loses the "hot". Checked against the full name, not
+// just the last word.
 function overrideCountNoun(base: string, name: Segment[]): string {
-  if (base !== 'bacon' && base !== 'buns') return base
+  if (base !== 'bacon' && base !== 'buns' && base !== 'dogs') return base
   const text = name
     .filter((segment) => segment.kind === 'name')
     .map((segment) => segment.text)
     .join(' ')
     .toLowerCase()
   if (base === 'bacon') return 'bacon strips'
+  if (base === 'dogs') return text.includes('hotdog') || text.includes('hot dog') ? 'hot dogs' : base
   if (text.includes('hamburger')) return 'hamburger buns'
   if (text.includes('hotdog') || text.includes('hot dog')) return 'hotdog buns'
   return base
@@ -167,18 +174,25 @@ function countNoun(name: Segment[]): string {
   return overrideCountNoun(base, name)
 }
 
+// Item names and Amount text always start each word with a capital. Only a space or the start of the string counts
+// as a word start, not any non-letter, so a unit stuck onto a number (500g) and a possessive or contraction
+// (Illy's, M&M's) are both left alone rather than capitalizing the letter right after.
+function capitalizeWords(text: string): string {
+  return text.replace(/(^|\s)([a-z])/g, (_, before: string, letter: string) => before + letter.toUpperCase())
+}
+
 // A count of 1 says nothing a single listed item doesn't already say, so it's dropped. Other counts read as
-// "<n> <noun>" (8 buns, 24 eggs, 50 tea bags). A weight or volume keeps its raw unit (500g, 1L) unless the name
-// calls out a container word, in which case that reads better ("1 carton" over "1L").
+// "<n> <Noun>" (8 Buns, 24 Eggs, 50 Tea Bags). A weight or volume keeps its raw unit (500g, 1L) unless the name
+// calls out a container word, in which case that reads better ("1 Carton" over "1L").
 function describeAmount(amount: string, forCount: string, forMeasure: string): string | null {
   const match = /^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/.exec(amount)
-  if (!match) return amount
+  if (!match) return capitalizeWords(amount)
   const [, numberText, unit] = match
   if (unit.toLowerCase() === 'x') {
     if (Number(numberText) === 1) return null
-    return forCount ? `${numberText} ${forCount}` : amount
+    return capitalizeWords(forCount ? `${numberText} ${forCount}` : amount)
   }
-  return CONTAINER_WORDS.has(forMeasure) ? `${numberText} ${forMeasure}` : amount
+  return capitalizeWords(CONTAINER_WORDS.has(forMeasure) ? `${numberText} ${forMeasure}` : amount)
 }
 
 // Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and
@@ -206,6 +220,8 @@ export function itemParts(item: Sized): ItemParts {
     .map((amount) => describeAmount(amount, forCount, forMeasure))
     .filter((amount): amount is string => amount !== null)
 
-  const name = segments.filter((segment) => segment.kind === 'name')
+  const name = segments
+    .filter((segment) => segment.kind === 'name')
+    .map((segment) => ({ ...segment, text: capitalizeWords(segment.text) }))
   return { name, amounts, unitPrice }
 }
