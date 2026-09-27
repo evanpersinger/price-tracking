@@ -8,6 +8,24 @@ interface StoresViewProps {
   country: Country
 }
 
+function Arrow({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="40"
+      height="40"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transform: direction === 'left' ? 'scaleX(-1)' : undefined }}
+    >
+      <path d="M8 4l8 8-8 8" />
+    </svg>
+  )
+}
+
 export function StoresView({ country }: StoresViewProps) {
   const state = useLoad<Store[]>(`/api/stores?country=${country}`)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -38,6 +56,28 @@ export function StoresView({ country }: StoresViewProps) {
             </div>
             <div className="store-viewport">
               <StoreTable store={activeStore} country={country} />
+              <div className="store-nav">
+                {activeIndexInRange < withItems.length - 1 && (
+                  <button
+                    type="button"
+                    className="store-nav-button"
+                    aria-label="Next store"
+                    onClick={() => setActiveIndex(activeIndexInRange + 1)}
+                  >
+                    <Arrow direction="right" />
+                  </button>
+                )}
+                {activeIndexInRange > 0 && (
+                  <button
+                    type="button"
+                    className="store-nav-button"
+                    aria-label="Previous store"
+                    onClick={() => setActiveIndex(activeIndexInRange - 1)}
+                  >
+                    <Arrow direction="left" />
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )
