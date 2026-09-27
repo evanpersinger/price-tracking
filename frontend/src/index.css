@@ -128,8 +128,33 @@ body {
   font-size: 0.875rem;
 }
 
-.store {
+.store-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-bottom: 16px;
+}
+
+.store-jump button {
+  font: inherit;
+  background: none;
+  border: none;
+}
+
+.stores-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+  box-sizing: border-box;
+}
+
+.store {
+  flex: 0 0 600px;
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);

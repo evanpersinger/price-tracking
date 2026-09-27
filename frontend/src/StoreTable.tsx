@@ -7,8 +7,12 @@ interface StoreTableProps {
   country: Country
 }
 
+export function storeHeadingId(storeId: number): string {
+  return `store-${storeId}`
+}
+
 export function StoreTable({ store, country }: StoreTableProps) {
-  const headingId = `store-${store.id}`
+  const headingId = storeHeadingId(store.id)
 
   return (
     <section className="store" aria-labelledby={headingId}>
