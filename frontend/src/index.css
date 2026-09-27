@@ -161,8 +161,6 @@ main {
   padding-right: 280px;
   box-sizing: border-box;
   overflow-y: auto;
-  /* Swiping over the table swaps stores instead of scrolling the page, so it needs to own that gesture. */
-  touch-action: pan-y;
 }
 
 .store {
@@ -204,8 +202,9 @@ main {
 
 .store-name {
   margin: 0;
-  color: var(--store);
-  font-size: 1.5rem;
+  /* Red on purpose, separate from --store (still used for the Brand column) */
+  color: #f87171;
+  font-size: 2rem;
   font-weight: 600;
 }
 

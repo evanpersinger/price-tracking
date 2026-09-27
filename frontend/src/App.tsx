@@ -14,7 +14,7 @@ export default function App() {
   return (
     <div className="page">
       <header className="header">
-        <h1>Grocery prices</h1>
+        <h1>Price Tracking</h1>
         {!showCheapest && (
           <nav className="nav" aria-label="Country">
             {COUNTRIES.map((link) => (

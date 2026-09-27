@@ -1,4 +1,4 @@
-import { useRef, useState, type WheelEvent } from 'react'
+import { useState } from 'react'
 import { Loaded } from './Loaded.tsx'
 import { StoreTable } from './StoreTable.tsx'
 import type { Country, Store } from './types.ts'
@@ -8,22 +8,9 @@ interface StoresViewProps {
   country: Country
 }
 
-const SWIPE_THRESHOLD = 40 // how far a wheel/trackpad delta has to move before it counts as a swipe
-const SWIPE_COOLDOWN_MS = 400 // one swap per gesture, not one per wheel event a trackpad fires while swiping
-
 export function StoresView({ country }: StoresViewProps) {
   const state = useLoad<Store[]>(`/api/stores?country=${country}`)
   const [activeIndex, setActiveIndex] = useState(0)
-  const lastSwapAt = useRef(0)
-
-  function handleWheel(event: WheelEvent<HTMLDivElement>, count: number) {
-    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
-    if (Math.abs(delta) < SWIPE_THRESHOLD) return
-    const now = Date.now()
-    if (now - lastSwapAt.current < SWIPE_COOLDOWN_MS) return
-    lastSwapAt.current = now
-    setActiveIndex((index) => Math.min(Math.max(index + (delta > 0 ? 1 : -1), 0), count - 1))
-  }
 
   return (
     <Loaded state={state}>
@@ -49,7 +36,7 @@ export function StoresView({ country }: StoresViewProps) {
                 </button>
               ))}
             </div>
-            <div className="store-viewport" onWheel={(event) => handleWheel(event, withItems.length)}>
+            <div className="store-viewport">
               <StoreTable store={activeStore} country={country} />
             </div>
           </>
