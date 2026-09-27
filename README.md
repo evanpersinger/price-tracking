@@ -53,7 +53,7 @@ cd frontend && pnpm dev
 
 Opens on http://localhost:3009 and needs the API running. Each page has its own address, so you can open them in separate browser windows:
 
-- `/ca` and `/us` show that country's stores with their discount line and a table of Item, Amount and Price.
+- `/ca` and `/us` show one store at a time for that country: its discount line and a table of Item, Amount, Unit price and Price. A row of buttons lists every store, click one to jump to it, or scroll/swipe over the table to move to the next or previous store.
 - `/cheapest` shows the cheapest items for both countries, Canada and the USA as two separate sections since the prices are in different currencies. Each item shows its unit price and how many stores it was compared across, and a checkbox (on by default) hides items sold at only one store.
 
 It has a dark theme with a different color for store names, item names, amounts, unit prices, prices and discounts. `pnpm build` type-checks and builds, and `pnpm lint` runs oxlint.

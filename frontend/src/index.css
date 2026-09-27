@@ -37,9 +37,19 @@ body {
 }
 
 .page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   max-width: 720px;
   margin: 0 auto;
   padding: 24px var(--gutter) 64px;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .header {
@@ -141,25 +151,30 @@ body {
   border: none;
 }
 
-.stores-row {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+.store-viewport {
+  flex: 1;
+  min-height: 0;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   padding-left: var(--gutter);
-  padding-right: var(--gutter);
+  /* Wider than the left gutter on purpose, room reserved for an aside here later. */
+  padding-right: 280px;
   box-sizing: border-box;
+  overflow-y: auto;
+  /* Swiping over the table swaps stores instead of scrolling the page, so it needs to own that gesture. */
+  touch-action: pan-y;
 }
 
 .store {
-  flex: 0 0 800px;
+  min-height: 100%;
+  width: 100%;
+  margin-bottom: 16px;
   padding: 32px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 1.0625rem;
+  font-size: 1.5rem;
+  box-sizing: border-box;
 }
 
 .store-head {
@@ -201,8 +216,15 @@ body {
 }
 
 .items {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
+}
+
+.items th,
+.items td {
+  /* Mini rule for our data tables: cell text never wraps to a second line, columns just size to their content. */
+  white-space: nowrap;
 }
 
 .items th {
@@ -219,7 +241,6 @@ body {
 .items td {
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  overflow-wrap: anywhere;
 }
 
 .items tbody tr:last-child td {
@@ -230,7 +251,6 @@ body {
   padding-left: 16px;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  white-space: nowrap;
 }
 
 .item-name {
@@ -242,13 +262,11 @@ body {
 }
 
 .items .amount {
-  min-width: 5.5rem;
   padding-left: 16px;
 }
 
 .items .unit-price {
   padding-left: 16px;
-  white-space: nowrap;
 }
 
 .items td.amount {
