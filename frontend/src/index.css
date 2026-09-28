@@ -3,11 +3,12 @@
   --surface: #1e1e1e;
   --border: #2e2e2e;
   --hover-fill: #2a2a2a;
+  --table-border: #606060; /* stronger than --border, for visible data table grid lines */
 
   /* One color per kind of text */
   --heading: #f2f2f2; /* page title */
   --store: #7dd3fc; /* store names */
-  --item: #e0e0e0; /* item names */
+  --item: #f9a8d4; /* item names */
   --amount: #fdba74; /* sizes like (8x) or (500g) */
   --unit-price: #c4b5fd; /* the typed unit price, like ($0.50 per bun) */
   --price: #4ade80; /* prices */
@@ -292,36 +293,23 @@ main {
 .items td {
   /* Mini rule for our data tables: cell text never wraps to a second line, columns just size to their content. */
   white-space: nowrap;
+  padding: 10px 16px;
+  border: 1px solid var(--table-border);
 }
 
 .items th {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
-}
-
-.items td {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.items tbody tr:last-child td {
-  border-bottom: none;
+  background: var(--hover-fill);
 }
 
 .items .price {
-  padding-left: 16px;
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-.items .item {
-  padding-left: 16px;
 }
 
 .item-name {
@@ -334,14 +322,6 @@ main {
 
 .item-unit-price {
   color: var(--unit-price);
-}
-
-.items .amount {
-  padding-left: 16px;
-}
-
-.items .unit-price {
-  padding-left: 16px;
 }
 
 .items td.amount {
