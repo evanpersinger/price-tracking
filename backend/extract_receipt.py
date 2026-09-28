@@ -1,7 +1,7 @@
 """Read a receipt image and print its purchase date, store, and items as JSON.
 
-OpenAI and Claude need OPENAI_API_KEY / ANTHROPIC_API_KEY (env or .env) and cost money, local
-needs Ollama. script needs neither, it's plain OCR (Tesseract), no model involved.
+local needs Ollama running with a vision model pulled. script needs neither, it's plain OCR
+(Tesseract), no model involved. Open-source models only for now, no paid API providers.
 """
 
 import base64
@@ -12,11 +12,9 @@ import re
 import sys
 from pathlib import Path
 
-import anthropic
 import pytesseract
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
 from PIL import Image, ImageEnhance, ImageFilter
 from pytesseract import Output
 
@@ -25,6 +23,7 @@ load_dotenv()
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_KEEP_ALIVE = "15s"  # stop the model 15 seconds after the run, overrides Ollama's 5 min default
 MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+OUTPUT_DIR = Path(__file__).parent / "output"
 
 _RECEIPT_PROMPT = (
     "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), store, "
@@ -32,46 +31,6 @@ _RECEIPT_PROMPT = (
     "consistent product name, e.g. 'Organic Bananas'), price (a number), and category (what kind "
     "of item it is, e.g. produce). Output only the JSON."
 )
-
-
-# OpenAI
-def _image_openai(model: str, image_b64: str, media_type: str) -> str:
-    """Send the receipt to OpenAI and return its JSON reply."""
-    response = OpenAI().chat.completions.create(
-        model=model,
-        response_format={"type": "json_object"},
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": _RECEIPT_PROMPT},
-                {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
-            ],
-        }],
-    )
-    return response.choices[0].message.content or ""
-
-
-# Anthropic
-def _image_anthropic(model: str, image_b64: str, media_type: str) -> str:
-    """Send the receipt to Claude and return its JSON reply."""
-    message = anthropic.Anthropic().messages.create(
-        model=model,
-        max_tokens=8192,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
-                {"type": "text", "text": _RECEIPT_PROMPT},
-            ],
-        }],
-    )
-
-    if message.stop_reason == "refusal":
-        raise RuntimeError("Claude declined to process this image")
-    if message.stop_reason == "max_tokens":
-        raise RuntimeError("output was cut off")
-
-    return "".join(block.text for block in message.content if block.type == "text")
 
 
 # Local (Ollama)
@@ -187,15 +146,43 @@ def _image_script(_model: str | None, image_b64: str, _media_type: str) -> str:
 
 def _check_provider(provider: str) -> None:
     """Exit with a clear message if the chosen provider isn't ready to use."""
-    key_names = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
-    if provider in key_names and not os.environ.get(key_names[provider]):
-        sys.exit(f"Error: {key_names[provider]} not found. Please add {key_names[provider]} to your .env file")
-
     if provider == "local":
         try:
             requests.get(f"{OLLAMA_HOST}/api/version", timeout=2).raise_for_status()
         except requests.exceptions.RequestException:
             sys.exit(f"Error: Ollama not reachable at {OLLAMA_HOST}. Run `ollama serve` (or open the Ollama app).")
+
+
+def _list_ollama_models() -> list[str]:
+    """Names of models currently pulled in the local Ollama installation."""
+    response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
+    response.raise_for_status()
+    return sorted(m["name"] for m in response.json().get("models", []))
+
+
+def _prompt_for_local_model() -> str:
+    """Ask which installed Ollama model to use.
+
+    There is no default: a blank or invalid answer asks again, so a run never starts on a
+    model nobody chose.
+    """
+    try:
+        models = _list_ollama_models()
+    except requests.exceptions.RequestException:
+        sys.exit(f"Error: Ollama not reachable at {OLLAMA_HOST}. Run `ollama serve` (or open the Ollama app).")
+
+    if not models:
+        sys.exit("No Ollama models installed. Pull one with `ollama pull <model>`.")
+
+    print("Installed Ollama models:")
+    for i, name in enumerate(models, start=1):
+        print(f"  {i}) {name}")
+
+    while True:
+        choice = input("Select a model: ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(models):
+            return models[int(choice) - 1]
+        print("Please enter a number from the list.")
 
 
 def _extract_json(text: str) -> dict:
@@ -209,14 +196,19 @@ def _extract_json(text: str) -> dict:
         sys.exit(f"Model returned invalid JSON ({e}):\n{text}")
 
 
-PROVIDERS = {"openai": _image_openai, "anthropic": _image_anthropic, "local": _image_ollama, "script": _image_script}
+PROVIDERS = {"local": _image_ollama, "script": _image_script}
 
 
 if __name__ == "__main__":
-    # Usage: python extract_receipt.py <openai|anthropic|local> <model> <image>
+    # Usage: python extract_receipt.py local <model> <image>
+    #    or: python extract_receipt.py local <image> (prompts for which installed model to use)
     #    or: python extract_receipt.py script <image> (no model, it's plain OCR)
-    # There is no default model: it is always chosen explicitly.
-    usage = "Usage: python extract_receipt.py <openai|anthropic|local> <model> <image>\n   or: python extract_receipt.py script <image>"
+    # There is no default model: it is always chosen explicitly, by flag or by prompt.
+    usage = (
+        "Usage: python extract_receipt.py local <model> <image>\n"
+        "   or: python extract_receipt.py local <image> (prompts for a model)\n"
+        "   or: python extract_receipt.py script <image>"
+    )
     if len(sys.argv) < 3 or sys.argv[1] not in PROVIDERS:
         sys.exit(usage)
 
@@ -225,6 +217,8 @@ if __name__ == "__main__":
         if len(sys.argv) != 3:
             sys.exit(usage)
         model, image_path = None, Path(sys.argv[2])
+    elif len(sys.argv) == 3:
+        model, image_path = _prompt_for_local_model(), Path(sys.argv[2])
     else:
         if len(sys.argv) != 4:
             sys.exit(usage)
@@ -238,4 +232,8 @@ if __name__ == "__main__":
     _check_provider(provider)
     image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
     reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
-    print(json.dumps(_extract_json(reply), indent=2))
+    result = json.dumps(_extract_json(reply), indent=2)
+    print(result)
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    (OUTPUT_DIR / f"{image_path.stem}.json").write_text(result)

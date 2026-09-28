@@ -1,6 +1,6 @@
 # price-tracking
 
-Tracks grocery prices per store in Canada and the USA, so the same item can be compared across stores. Items get in through a receipt photo (read by an LLM) or by hand, and the app works out which store sells each item cheapest per item, per gram or per ml.
+Tracks grocery prices per store in Canada and the USA, so the same item can be compared across stores. Items get in through a receipt photo (read by a local open-source vision model, or by a plain OCR script) or by hand, and the app works out which store sells each item cheapest per item, per gram or per ml.
 
 So far there are four parts: a script that reads a receipt photo, an importer that loaded the existing store-prices sheets into a local SQLite database, an API that serves and adds that data, and a basic UI with a stores page per country and a Cheapest Items page. Not built yet: the manual add form and receipt upload in the UI.
 
@@ -8,19 +8,20 @@ So far there are four parts: a script that reads a receipt photo, an importer th
 
 ```bash
 uv sync
-cp .env.example .env
 cd frontend && pnpm install
 ```
 
-Add `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` to `.env`, only needed for receipts read by OpenAI or Anthropic. The local route needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`).
+Receipt reading is open-source only right now, no paid API keys needed. The `local` route needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`). The `script` route needs Tesseract installed separately (`brew install tesseract` on macOS), no model at all.
 
 ## Read a receipt
 
 ```bash
-uv run python backend/extract_receipt.py <openai|anthropic|local> <model> <image>
+uv run python backend/extract_receipt.py local <model> <image>
+uv run python backend/extract_receipt.py local <image>   # prompts for which installed Ollama model to use
+uv run python backend/extract_receipt.py script <image>  # plain OCR, no model
 ```
 
-Prints the purchase date, store, and every item (raw name, clean name, price, category) as JSON, and saves nothing yet. The model is always required, there is no default. Images can be JPG or PNG. Try it on a receipt in `test_files/` (gitignored). OpenAI and Anthropic bill per receipt.
+Prints the purchase date, store, and every item (raw name, clean name, price, category) as JSON, and also saves it to `backend/output/<image-name>.json`. The model is always chosen explicitly, by flag or by prompt, never defaulted. Images can be JPG or PNG. Try it on a receipt in `test_files/` (gitignored, drop your own in there, or in `backend/input/`). `script` can't clean up names or infer a category the way a model can, so its `item_name` just repeats `raw_name` and `category` is always null.
 
 ## Import a store-prices CSV
 
