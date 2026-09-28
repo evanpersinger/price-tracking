@@ -286,6 +286,12 @@ main {
   text-align: right;
 }
 
+.items td.row-number {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .item-name {
   color: var(--item);
 }
