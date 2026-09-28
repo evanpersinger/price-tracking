@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react'
+import type { DragEvent } from 'react'
 import { AbbreviationsView } from './AbbreviationsView.tsx'
 import { CheapestView } from './CheapestView.tsx'
 import { COUNTRIES } from './countries.ts'
@@ -16,8 +18,46 @@ export default function App() {
   const showStores = !showCheapest && !showAbbreviations
   const country = COUNTRIES.find((candidate) => path.startsWith(candidate.path)) ?? COUNTRIES[0]
 
+  // Picking or dropping a file is wired up, what happens with it isn't yet: reading the receipt and adding its
+  // items comes next.
+  const receiptInputRef = useRef<HTMLInputElement>(null)
+  const [, setReceiptFile] = useState<File | null>(null)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setIsDraggingFile(true)
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setIsDraggingFile(false)
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setIsDraggingFile(false)
+    const file = event.dataTransfer.files[0]
+    if (file) setReceiptFile(file)
+  }
+
   return (
-    <div className="page">
+    <div
+      className={isDraggingFile ? 'page page-drag-over' : 'page'}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <button type="button" className="add-item-button" onClick={() => receiptInputRef.current?.click()}>
+        Add Item
+      </button>
+      <input
+        ref={receiptInputRef}
+        type="file"
+        accept="image/*"
+        className="add-item-input"
+        onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
+      />
       <header className="header">
         <h1>Price Tracking</h1>
         {showStores && (

@@ -46,6 +46,36 @@ body {
   padding: 24px var(--gutter) 64px;
 }
 
+.page-drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -8px;
+  background: var(--accent-soft);
+}
+
+.add-item-button {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  padding: 16px 32px;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  color: var(--bg);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.add-item-button:hover {
+  filter: brightness(1.1);
+}
+
+.add-item-input {
+  display: none;
+}
+
 main {
   display: flex;
   flex-direction: column;
