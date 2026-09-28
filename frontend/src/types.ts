@@ -29,6 +29,7 @@ export interface CheapestItem {
   item_count: number | null
   weight_g: number | null
   volume_ml: number | null
+  brand: string | null
 }
 
 export interface CheapestStore {

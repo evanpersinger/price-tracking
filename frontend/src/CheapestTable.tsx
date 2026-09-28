@@ -18,6 +18,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
       <table className="items">
         <thead>
           <tr>
+            <th scope="col" className="brand">Brand</th>
             <th scope="col" className="item">Item</th>
             <th scope="col" className="amount">Amount</th>
             <th scope="col" className="unit-price">Unit price</th>
@@ -30,6 +31,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
             const computedUnitPrice = formatUnitPrice(item, country)
             return (
               <tr key={item.id}>
+                <td className="brand">{item.brand}</td>
                 <td className="item">
                   <ItemName segments={name} />
                 </td>

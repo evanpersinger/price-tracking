@@ -138,6 +138,7 @@ class Offer(NamedTuple):
     item_count: int | None  # the sizes as typed into the add form, passed on so the UI can show them
     weight_g: float | None
     volume_ml: float | None
+    brand: str | None
 
 
 class Winner(NamedTuple):
@@ -179,13 +180,13 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
 
 
 def _make_offers(rows: list[tuple]) -> list[Offer]:
-    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml) rows.
+    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand) rows.
 
     The size typed into item_count, weight_g and volume_ml wins, the size written in the name is only used when
     those are all empty.
     """
     offers = []
-    for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml in rows:
+    for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml, brand in rows:
         words, amounts = _split_name(name)
         typed = {
             kind: amount
@@ -193,7 +194,8 @@ def _make_offers(rows: list[tuple]) -> list[Offer]:
             if amount
         }
         offers.append(Offer(
-            item_id, store_id, store_name, name, price_cents, words, typed or amounts, item_count, weight_g, volume_ml,
+            item_id, store_id, store_name, name, price_cents, words, typed or amounts, item_count, weight_g,
+            volume_ml, brand,
         ))
     return offers
 
@@ -272,6 +274,7 @@ class CheapestItem(BaseModel):
     item_count: int | None
     weight_g: float | None
     volume_ml: float | None
+    brand: str | None
 
 
 class CheapestStore(BaseModel):
@@ -292,7 +295,7 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     """
     with closing(connect()) as conn:
         rows = conn.execute(
-            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml "
+            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand "
             "FROM items i JOIN stores s ON s.id = i.store_id "
             "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
             (country,),
@@ -306,7 +309,7 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
             store.items.append(CheapestItem(
                 id=offer.id, name=offer.name, price_cents=offer.price_cents, other_stores=winner.other_stores,
                 unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
-                item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml,
+                item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand,
             ))
 
     for store in cheapest.values():
