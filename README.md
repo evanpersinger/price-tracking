@@ -16,12 +16,13 @@ Receipt reading is open-source only right now, no paid API keys needed. The `loc
 ## Read a receipt
 
 ```bash
-uv run python backend/extract_receipt.py local <model> <image>
-uv run python backend/extract_receipt.py local <image>   # prompts for which installed Ollama model to use
-uv run python backend/extract_receipt.py script <image>  # plain OCR, no model
+uv run python backend/extract_receipt.py local <model>  # or omit <model> to be prompted
+uv run python backend/extract_receipt.py script          # plain OCR, no model
 ```
 
-Prints the purchase date, store, and every item (raw name, clean name, price, category) as JSON, and also saves it to `backend/output/<image-name>.json`. The model is always chosen explicitly, by flag or by prompt, never defaulted. Images can be JPG or PNG. Try it on a receipt in `test_files/` (gitignored, drop your own in there, or in `backend/input/`). `script` can't clean up names or infer a category the way a model can, so its `item_name` just repeats `raw_name` and `category` is always null.
+No image argument, either one converts every image currently sitting in `backend/input/` (gitignored).
+
+For each image found, prints the purchase date, store, and every item (raw name, clean name, price, category) as JSON, and also saves it to `backend/output/<image-name>.json`. The model is always chosen explicitly, by flag or by prompt, never defaulted. Images can be JPG or PNG. `script` can't clean up names or infer a category the way a model can, so its `item_name` just repeats `raw_name` and `category` is always null.
 
 ## Import a store-prices CSV
 

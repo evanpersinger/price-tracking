@@ -23,6 +23,7 @@ load_dotenv()
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_KEEP_ALIVE = "15s"  # stop the model 15 seconds after the run, overrides Ollama's 5 min default
 MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+INPUT_DIR = Path(__file__).parent / "input"
 OUTPUT_DIR = Path(__file__).parent / "output"
 
 _RECEIPT_PROMPT = (
@@ -199,41 +200,77 @@ def _extract_json(text: str) -> dict:
 PROVIDERS = {"local": _image_ollama, "script": _image_script}
 
 
+def _input_images() -> list[Path]:
+    """Every supported image currently sitting in backend/input/, alphabetical."""
+    if not INPUT_DIR.is_dir():
+        return []
+    return sorted(p for p in INPUT_DIR.iterdir() if p.suffix.lower() in MEDIA_TYPES)
+
+
+def _prompt_for_provider() -> tuple[str, str | None]:
+    """Ask the user to pick across all options in one combined list: every installed Ollama
+    model, plus script. Matches the sibling file-converter project's `_prompt_for_provider`.
+
+    Returns (provider, model). model is None for "script", which has no model.
+    """
+    try:
+        local_models = _list_ollama_models()
+    except requests.exceptions.RequestException:
+        local_models = []
+
+    entries: list[tuple[str, str | None]] = [("local", name) for name in local_models] + [("script", None)]
+
+    print("Open Source models:")
+    if local_models:
+        for i, name in enumerate(local_models, start=1):
+            print(f"  {i}) {name}")
+    else:
+        print("  (none installed)")
+    print(f"  {len(local_models) + 1}) script (plain OCR, no model)")
+
+    while True:
+        choice = input("Select an option: ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(entries):
+            return entries[int(choice) - 1]
+        print("Enter a number from the list above.")
+
+
 if __name__ == "__main__":
-    # Usage: python extract_receipt.py local <model> <image>
-    #    or: python extract_receipt.py local <image> (prompts for which installed model to use)
-    #    or: python extract_receipt.py script <image> (no model, it's plain OCR)
-    # There is no default model: it is always chosen explicitly, by flag or by prompt.
-    usage = (
-        "Usage: python extract_receipt.py local <model> <image>\n"
-        "   or: python extract_receipt.py local <image> (prompts for a model)\n"
-        "   or: python extract_receipt.py script <image>"
-    )
-    if len(sys.argv) < 3 or sys.argv[1] not in PROVIDERS:
+    # Usage: python extract_receipt.py local [model]  (prompts for a model if not given)
+    #    or: python extract_receipt.py script
+    #    or: python extract_receipt.py  (prompts for provider and model together)
+    # No image argument: it always converts every image sitting in backend/input/.
+    # There is no default model or provider: both are always chosen explicitly, by flag or by prompt.
+    usage = "Usage: python extract_receipt.py local [model]\n   or: python extract_receipt.py script"
+    args = sys.argv[1:]
+    if args and args[0] not in PROVIDERS:
         sys.exit(usage)
 
-    provider = sys.argv[1]
-    if provider == "script":
-        if len(sys.argv) != 3:
+    if not args:
+        provider, model = _prompt_for_provider()
+    elif args[0] == "script":
+        if len(args) != 1:
             sys.exit(usage)
-        model, image_path = None, Path(sys.argv[2])
-    elif len(sys.argv) == 3:
-        model, image_path = _prompt_for_local_model(), Path(sys.argv[2])
+        provider, model = "script", None
     else:
-        if len(sys.argv) != 4:
+        provider = "local"
+        if len(args) == 1:
+            model = _prompt_for_local_model()
+        elif len(args) == 2:
+            model = args[1]
+        else:
             sys.exit(usage)
-        model, image_path = sys.argv[2], Path(sys.argv[3])
 
-    if image_path.suffix.lower() not in MEDIA_TYPES:
-        sys.exit(f"Only {', '.join(MEDIA_TYPES)} images are supported, got {image_path.suffix or 'no extension'}")
-    if not image_path.is_file():
-        sys.exit(f"Image not found: {image_path}")
+    images = _input_images()
+    if not images:
+        sys.exit(f"No images found in {INPUT_DIR}. Drop a receipt there first.")
 
     _check_provider(provider)
-    image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
-    reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
-    result = json.dumps(_extract_json(reply), indent=2)
-    print(result)
-
     OUTPUT_DIR.mkdir(exist_ok=True)
-    (OUTPUT_DIR / f"{image_path.stem}.json").write_text(result)
+    for image_path in images:
+        image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
+        reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
+        result = json.dumps(_extract_json(reply), indent=2)
+        print(f"{image_path.name}:")
+        print(result)
+        (OUTPUT_DIR / f"{image_path.stem}.json").write_text(result)
