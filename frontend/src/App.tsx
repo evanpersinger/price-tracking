@@ -61,18 +61,21 @@ export default function App() {
       <header className="header">
         <h1>Price Tracking</h1>
         {showStores && (
-          <nav className="nav" aria-label="Country">
-            {COUNTRIES.map((link) => (
-              <a
-                key={link.code}
-                className="nav-link"
-                href={link.path}
-                aria-current={link.code === country.code ? 'page' : undefined}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
+          <div className="country-nav-wrap">
+            <nav className="nav country-nav" aria-label="Country">
+              {COUNTRIES.map((link) => (
+                <a
+                  key={link.code}
+                  className="nav-link"
+                  href={link.path}
+                  aria-current={link.code === country.code ? 'page' : undefined}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+            <p className="currency-note">Currency: {country.currency}</p>
+          </div>
         )}
       </header>
       <nav className="nav view-nav" aria-label="View">
@@ -92,10 +95,7 @@ export default function App() {
         ) : showAbbreviations ? (
           <AbbreviationsView />
         ) : (
-          <>
-            <p className="currency-note">Prices in {country.currency}</p>
-            <StoresView country={country.code} />
-          </>
+          <StoresView country={country.code} />
         )}
       </main>
     </div>
