@@ -1,4 +1,4 @@
-import { formatPrice, itemParts } from './format.ts'
+import { formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
 
@@ -36,7 +36,9 @@ export function StoreTable({ store, country }: StoreTableProps) {
                   <ItemName segments={name} />
                 </td>
                 <td className="amount">{amounts.join(' · ')}</td>
-                <td className="unit-price">{unitPrice}</td>
+                <td className={unitPrice && isZeroMoney(unitPrice) ? 'unit-price zero-money' : 'unit-price'}>
+                  {unitPrice}
+                </td>
                 <td className="price">
                   {item.price_cents === null ? (
                     <span className="no-price">No price</span>

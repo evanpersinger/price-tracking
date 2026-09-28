@@ -1,4 +1,4 @@
-import { compareNote, formatPrice, formatUnitPrice, itemParts } from './format.ts'
+import { compareNote, formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { CheapestStore, Country } from './types.ts'
 
@@ -26,13 +26,20 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
         <tbody>
           {store.items.map((item) => {
             const { name, amounts, unitPrice } = itemParts(item)
+            const computedUnitPrice = formatUnitPrice(item, country)
             return (
               <tr key={item.id}>
                 <td>
                   <ItemName segments={name} />
                   <div className="item-meta">
-                    <span className="item-unit-price">{formatUnitPrice(item, country)}</span>
-                    {unitPrice && <span className="item-unit-price">({unitPrice})</span>}
+                    <span className={isZeroMoney(computedUnitPrice) ? 'item-unit-price zero-money' : 'item-unit-price'}>
+                      {computedUnitPrice}
+                    </span>
+                    {unitPrice && (
+                      <span className={isZeroMoney(unitPrice) ? 'item-unit-price zero-money' : 'item-unit-price'}>
+                        ({unitPrice})
+                      </span>
+                    )}
                     <span className="item-compare">{compareNote(item.other_stores)}</span>
                   </div>
                 </td>

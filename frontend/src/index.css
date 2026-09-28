@@ -12,6 +12,7 @@
   --unit-price: #c4b5fd; /* the typed unit price, like ($0.50 per bun) */
   --price: #4ade80; /* prices */
   --discount: #fbbf24; /* store discount lines */
+  --warning: #ef4444; /* flags a unit price that reads as $0, which should never happen */
   --text-muted: #9ca3af; /* labels and notes */
   --text: #e0e0e0;
   --accent: #7dd3fc;
@@ -319,6 +320,12 @@ main {
 
 .items td.unit-price {
   color: var(--unit-price);
+}
+
+.items td.zero-money,
+.item-unit-price.zero-money {
+  color: var(--warning);
+  font-weight: 700;
 }
 
 .items td.price {
