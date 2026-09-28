@@ -6,6 +6,7 @@ dependencies = [
     "anthropic",
     "fastapi",
     "openai",
+    "pytesseract",
     "python-dotenv",
     "requests",
     "uvicorn",
