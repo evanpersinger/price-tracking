@@ -123,7 +123,8 @@ main {
   color: var(--text);
 }
 
-.nav-link[aria-current='page'] {
+.nav-link[aria-current='page'],
+.nav-link[aria-current='true'] {
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -152,7 +153,7 @@ main {
 }
 
 .country-nav .nav-link {
-  font-size: 1.125rem;
+  font-size: 1.375rem;
 }
 
 .toggle {
@@ -189,14 +190,17 @@ main {
 .currency-note {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: 1.125rem;
 }
 
 .store-jump {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  margin-top: 24px;
+  padding-top: 24px;
   margin-bottom: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .store-jump button {
