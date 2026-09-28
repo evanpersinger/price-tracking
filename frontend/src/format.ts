@@ -23,10 +23,6 @@ export function formatUnitPrice(item: CheapestItem, country: Country): string {
   }
 }
 
-export function compareNote(otherStores: number): string {
-  return otherStores === 0 ? 'Only found here' : `Cheapest of ${otherStores + 1} stores`
-}
-
 // A unit price that reads as $0 is never actually free, it means something lost precision along the way (typed with
 // too few decimals, or rounded during a computed fill-in). Flagged in the UI rather than shown as if it were normal.
 export function isZeroMoney(text: string): boolean {

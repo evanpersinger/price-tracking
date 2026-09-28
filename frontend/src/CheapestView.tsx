@@ -10,12 +10,11 @@ import { useLoad } from './useLoad.ts'
 
 interface CountryCheapestProps {
   country: CountryInfo
-  comparedOnly: boolean
 }
 
 // One country's cheapest items, one store at a time, same browsing pattern as the Stores page. Countries are never
 // mixed, their prices are in different currencies.
-function CountryCheapest({ country, comparedOnly }: CountryCheapestProps) {
+function CountryCheapest({ country }: CountryCheapestProps) {
   const state = useLoad<CheapestStore[]>(`/api/cheapest?country=${country.code}`)
   const headingId = `country-${country.code}`
   const [activeIndex, setActiveIndex] = useState(0)
@@ -31,9 +30,7 @@ function CountryCheapest({ country, comparedOnly }: CountryCheapestProps) {
           const withItems = stores
             .map((store) => ({
               ...store,
-              items: store.items
-                .filter((item) => (comparedOnly ? item.other_stores > 0 : true))
-                .filter((item) => itemParts(item).amounts.length > 0),
+              items: store.items.filter((item) => itemParts(item).amounts.length > 0),
             }))
             .filter((store) => store.items.length > 0)
 
@@ -91,21 +88,10 @@ function CountryCheapest({ country, comparedOnly }: CountryCheapestProps) {
 }
 
 export function CheapestView() {
-  // Most items are only sold at one store, so they are hidden until asked for
-  const [comparedOnly, setComparedOnly] = useState(true)
-
   return (
     <>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={comparedOnly}
-          onChange={(event) => setComparedOnly(event.target.checked)}
-        />
-        Only items sold at more than one store
-      </label>
       {COUNTRIES.map((country) => (
-        <CountryCheapest key={country.code} country={country} comparedOnly={comparedOnly} />
+        <CountryCheapest key={country.code} country={country} />
       ))}
     </>
   )
