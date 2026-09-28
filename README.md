@@ -54,7 +54,7 @@ cd frontend && pnpm dev
 Opens on http://localhost:3009 and needs the API running. Each page has its own address, so you can open them in separate browser windows:
 
 - `/ca` and `/us` show one store at a time for that country: its discount line and a table of Brand, Item, Amount, Unit price and Price. A row of buttons lists every store, click one to jump straight to it, or use the arrow button beside the table to step to the next or previous store. An item with no amount at all is hidden until its data has one (it isn't deleted, just not shown yet), and when an item's brand is known, that text is trimmed off the front of its Item name since it's already in the Brand column.
-- `/cheapest` shows the cheapest items for both countries, Canada and the USA as two separate sections since the prices are in different currencies. Each item shows its unit price and how many stores it was compared across, and a checkbox (on by default) hides items sold at only one store.
+- `/cheapest` shows the cheapest items for both countries, Canada and the USA as two separate sections since the prices are in different currencies. Each section browses one store at a time, just like `/ca` and `/us` do: click a store name or use the arrow button to switch. Each item shows its unit price and how many stores it was compared across, and a checkbox (on by default) hides items sold at only one store.
 - `/abbreviations` is a plain reference table explaining shorthand used in item names, like `SS` for sesame seed.
 
 It has a dark theme with a different color for store names, item names, amounts, unit prices, prices and discounts. `pnpm build` type-checks and builds, and `pnpm lint` runs oxlint.

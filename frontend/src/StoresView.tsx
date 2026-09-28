@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Arrow } from './Arrow.tsx'
 import { itemParts } from './format.ts'
 import { Loaded } from './Loaded.tsx'
 import { StoreTable } from './StoreTable.tsx'
@@ -7,24 +8,6 @@ import { useLoad } from './useLoad.ts'
 
 interface StoresViewProps {
   country: Country
-}
-
-function Arrow({ direction }: { direction: 'left' | 'right' }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="40"
-      height="40"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ transform: direction === 'left' ? 'scaleX(-1)' : undefined }}
-    >
-      <path d="M8 4l8 8-8 8" />
-    </svg>
-  )
 }
 
 export function StoresView({ country }: StoresViewProps) {

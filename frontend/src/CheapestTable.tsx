@@ -18,8 +18,9 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
       <table className="items">
         <thead>
           <tr>
-            <th scope="col">Item</th>
+            <th scope="col" className="item">Item</th>
             <th scope="col" className="amount">Amount</th>
+            <th scope="col" className="unit-price">Unit price</th>
             <th scope="col" className="price">Price</th>
           </tr>
         </thead>
@@ -29,21 +30,17 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
             const computedUnitPrice = formatUnitPrice(item, country)
             return (
               <tr key={item.id}>
-                <td>
+                <td className="item">
                   <ItemName segments={name} />
                   <div className="item-meta">
-                    <span className={isZeroMoney(computedUnitPrice) ? 'item-unit-price zero-money' : 'item-unit-price'}>
-                      {computedUnitPrice}
-                    </span>
-                    {unitPrice && (
-                      <span className={isZeroMoney(unitPrice) ? 'item-unit-price zero-money' : 'item-unit-price'}>
-                        ({unitPrice})
-                      </span>
-                    )}
                     <span className="item-compare">{compareNote(item.other_stores)}</span>
                   </div>
                 </td>
                 <td className="amount">{amounts.join(' · ')}</td>
+                <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
+                  {computedUnitPrice}
+                  {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
+                </td>
                 <td className="price">{formatPrice(item.price_cents, country)}</td>
               </tr>
             )
