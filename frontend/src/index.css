@@ -236,27 +236,6 @@ main {
   margin-bottom: 8px;
 }
 
-.country {
-  margin-bottom: 32px;
-}
-
-.country-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 12px;
-  margin: 0 0 12px;
-  color: var(--heading);
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.country-currency {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
 .store-name {
   margin: 0;
   /* Red on purpose, separate from --store (still used for the Brand column) */

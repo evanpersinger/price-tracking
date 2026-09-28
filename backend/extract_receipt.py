@@ -26,7 +26,7 @@ MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 INPUT_DIR = Path(__file__).parent / "input"
 OUTPUT_DIR = Path(__file__).parent / "output"
 
-_RECEIPT_PROMPT = (
+_RECEIPT_PROMPT = ( # Prompt given to LLM
     "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), store, "
     "and items. Each item has raw_name (exactly as printed on the receipt), item_name (a clean, "
     "consistent product name, e.g. 'Organic Bananas'), price (a number), and category (what kind "

@@ -9,14 +9,17 @@ const CHEAPEST_PATH = '/cheapest'
 const ABBREVIATIONS_PATH = '/abbreviations'
 
 export default function App() {
-  // The address picks the page, so each one can be opened in its own browser window. The stores pages are one per
-  // country (/ca and /us), the cheapest and abbreviations pages show neither in particular. Anything else shows the
-  // Canadian stores.
+  // The address picks the page, so each one can be opened in its own browser window. The stores and cheapest pages
+  // are both one per country (/ca, /us, /cheapest/ca, /cheapest/us), the abbreviations page shows neither in
+  // particular. Anything else shows the Canadian stores.
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
   const showCheapest = path.startsWith(CHEAPEST_PATH)
   const showAbbreviations = path.startsWith(ABBREVIATIONS_PATH)
   const showStores = !showCheapest && !showAbbreviations
-  const country = COUNTRIES.find((candidate) => path.startsWith(candidate.path)) ?? COUNTRIES[0]
+  const countryNavBase = showCheapest ? CHEAPEST_PATH : ''
+  const country = showCheapest
+    ? (COUNTRIES.find((candidate) => path === `${CHEAPEST_PATH}${candidate.path}`) ?? COUNTRIES[0])
+    : (COUNTRIES.find((candidate) => path.startsWith(candidate.path)) ?? COUNTRIES[0])
 
   // Picking or dropping a file is wired up, what happens with it isn't yet: reading the receipt and adding its
   // items comes next.
@@ -60,14 +63,14 @@ export default function App() {
       />
       <header className="header">
         <h1>Price Tracking</h1>
-        {showStores && (
+        {(showStores || showCheapest) && (
           <div className="country-nav-wrap">
             <nav className="nav country-nav" aria-label="Country">
               {COUNTRIES.map((link) => (
                 <a
                   key={link.code}
                   className="nav-link"
-                  href={link.path}
+                  href={`${countryNavBase}${link.path}`}
                   aria-current={link.code === country.code ? 'page' : undefined}
                 >
                   {link.label}
@@ -82,7 +85,11 @@ export default function App() {
         <a className="nav-link" href={country.path} aria-current={showStores ? 'page' : undefined}>
           Stores
         </a>
-        <a className="nav-link" href={CHEAPEST_PATH} aria-current={showCheapest ? 'page' : undefined}>
+        <a
+          className="nav-link"
+          href={`${CHEAPEST_PATH}${country.path}`}
+          aria-current={showCheapest ? 'page' : undefined}
+        >
           Cheapest items
         </a>
         <a className="nav-link" href={ABBREVIATIONS_PATH} aria-current={showAbbreviations ? 'page' : undefined}>
@@ -91,7 +98,7 @@ export default function App() {
       </nav>
       <main>
         {showCheapest ? (
-          <CheapestView />
+          <CheapestView country={country.code} />
         ) : showAbbreviations ? (
           <AbbreviationsView />
         ) : (
