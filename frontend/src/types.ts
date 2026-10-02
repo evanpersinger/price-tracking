@@ -60,10 +60,12 @@ export interface ReceiptItem {
   item_name: string // the model's cleaned-up name
   price: number
   category: string | null
+  quantity_info?: string | null // a line like "3 @ 2.79" printed under the item, as printed
 }
 
 export interface ReceiptResult {
   purchase_date: string | null
+  purchase_time?: string | null // HH:MM, shown on the review page but not saved
   store: string | null
   items: ReceiptItem[]
 }

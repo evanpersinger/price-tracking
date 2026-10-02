@@ -462,6 +462,11 @@ main {
   gap: 4px;
 }
 
+.review-time {
+  padding: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .review-label {
   color: var(--text-muted);
   font-size: 0.875rem;

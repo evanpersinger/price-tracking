@@ -27,11 +27,30 @@ MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 INPUT_DIR = Path(__file__).parent / "input"
 OUTPUT_DIR = Path(__file__).parent / "output"
 
-_RECEIPT_PROMPT = ( # Prompt given to LLM
-    "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), store, "
-    "and items. Each item has raw_name (exactly as printed on the receipt), item_name (a clean, "
-    "consistent product name, e.g. 'Organic Bananas'), price (a number), and category (what kind "
-    "of item it is, e.g. produce). Output only the JSON."
+_RECEIPT_PROMPT = (  # Prompt given to LLM
+    "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), "
+    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, and items. Each item has "
+    "raw_name (exactly as printed on the receipt), item_name (a clean, consistent product name, "
+    "e.g. 'Organic Bananas'), price (a number), category (what kind of item it is, e.g. produce), "
+    "and quantity_info.\n"
+    "Some items are followed by a quantity or weight line such as '3 @ 2.79' or "
+    "'1.2 kg @ $4.99/kg'. That line is not an item. Copy it exactly as printed into quantity_info "
+    "of the item above it, or use null when an item has no such line.\n"
+    "Only items that were bought are items. Ignore everything else on the receipt, including:\n"
+    "- barcodes\n"
+    "- the card brand (Mastercard, Visa, etc.) and any card number, including masked ones like "
+    "XXXXXXXXX9999\n"
+    "- the subtotal and the total\n"
+    "- the HST tax line\n"
+    "- the transaction type and the Account, Card Type and Card Number lines\n"
+    "- payment entry lines such as 'Entry: Tap EMV (H)' and 'FF/DT 00'\n"
+    "- 'TRANSACTION RECORDED', 'Approved', 'Thank you', 'Customer copy', 'Cardholder copy' and "
+    "'Important: retain this copy for your records', with or without asterisks\n"
+    "- PC Optimum lines, including promos like 'You could have earned at least 1220 PC Optimum "
+    "points with a ...'\n"
+    "- lines that are only a row of asterisks or dashes\n"
+    "- personal names, such as the cardholder or the cashier\n"
+    "Output only the JSON."
 )
 
 

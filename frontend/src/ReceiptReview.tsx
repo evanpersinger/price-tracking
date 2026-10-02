@@ -29,6 +29,7 @@ interface Row {
   id: number
   rawName: string // as printed, without the code
   code: string | undefined // the store's product code on that line, if it prints one
+  quantityInfo: string // a "3 @ 2.79" line printed under the item, empty if none
   name: string
   price: string
   count: string
@@ -52,6 +53,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     id,
     rawName: printed.name,
     code: printed.code,
+    quantityInfo: item.quantity_info ?? '',
     name: known?.name ?? (item.item_name || item.raw_name || ''),
     price: typeof item.price === 'number' ? String(item.price) : '',
     count: known ? String(known.count) : '',
@@ -259,6 +261,12 @@ export function ReceiptReview({ result, onDone }: Props) {
             onChange={(event) => setDate(event.target.value)}
           />
         </label>
+        {result.purchase_time && (
+          <div className="review-field">
+            <span className="review-label">Time</span>
+            <span className="review-time">{result.purchase_time}</span>
+          </div>
+        )}
       </div>
 
       {renderStoreBanner()}
@@ -308,6 +316,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         Printed as {row.rawName || 'nothing'}
                         {row.code ? `, code ${row.code}` : ''}
                       </div>
+                      {row.quantityInfo && <div className="raw-name">Quantity line: {row.quantityInfo}</div>}
                       {row.saved && country !== null && (
                         <div className="raw-name">
                           Matched saved item, overwrites its price of{' '}
