@@ -3,20 +3,30 @@
 Reads and writes backend/data/prices.db and only listens on 127.0.0.1. Run: python backend/server.py
 """
 
+import asyncio
 import difflib
+import logging
 import math
 import re
+import threading
 from contextlib import closing
 from datetime import date
 from typing import Literal, NamedTuple
 
+import requests
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect
+from extract_receipt import extract_receipt
 
 PORT = 8021  # registered in ~/dotfiles/.claude/PORTS.md
+RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
+MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+
+logger = logging.getLogger("uvicorn.error")
+receipt_lock = threading.Lock()  # one receipt at a time, the local model is heavy
 
 app = FastAPI()
 
@@ -114,6 +124,32 @@ def add_item(new_item: NewItem) -> AddedItem:
         item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
         purchased_on=purchased_on, brand=new_item.brand,
     )
+
+
+@app.post("/api/receipt")
+async def read_receipt(request: Request) -> dict:
+    """Read a receipt image (the raw JPEG or PNG as the request body) and return the items found on it.
+
+    Nothing is saved. Only one receipt is read at a time, a second one gets 409 instead of queuing.
+    """
+    media_type = request.headers.get("content-type", "")
+    if media_type not in RECEIPT_MEDIA_TYPES:
+        raise HTTPException(status_code=415, detail="Send a JPEG or PNG image.")
+    if not receipt_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Another receipt is being read, try again in a moment.")
+    try:
+        image = await request.body()
+        if len(image) > MAX_RECEIPT_BYTES:
+            raise HTTPException(status_code=413, detail="That image is over 10 MB.")
+        return await asyncio.to_thread(extract_receipt, image, media_type)
+    except requests.exceptions.RequestException as e:
+        logger.warning("Ollama call failed: %s", e)
+        raise HTTPException(status_code=503, detail="Couldn't reach the local model. Is Ollama running?") from e
+    except ValueError as e:
+        logger.warning("Receipt read failed: %s", e)
+        raise HTTPException(status_code=502, detail="The model's reply couldn't be read, try again.") from e
+    finally:
+        receipt_lock.release()
 
 
 # Item matching

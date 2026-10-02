@@ -22,6 +22,7 @@ load_dotenv()
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_KEEP_ALIVE = "15s"  # stop the model 15 seconds after the run, overrides Ollama's 5 min default
+RECEIPT_MODEL = os.environ.get("RECEIPT_MODEL", "gemma4:12b")  # model the API uses, set RECEIPT_MODEL to switch
 MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 INPUT_DIR = Path(__file__).parent / "input"
 OUTPUT_DIR = Path(__file__).parent / "output"
@@ -187,14 +188,23 @@ def _prompt_for_local_model() -> str:
 
 
 def _extract_json(text: str) -> dict:
-    """Pull the JSON object out of the reply, in case the model wraps it in a code fence."""
+    """Pull the JSON object out of the reply, in case the model wraps it in a code fence.
+
+    Raises ValueError if there's no valid JSON, so the API can turn it into an error response.
+    """
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1:
-        sys.exit(f"No JSON in the model's reply:\n{text}")
+        raise ValueError(f"No JSON in the model's reply:\n{text}")
     try:
         return json.loads(text[start:end + 1])
     except json.JSONDecodeError as e:
-        sys.exit(f"Model returned invalid JSON ({e}):\n{text}")
+        raise ValueError(f"Model returned invalid JSON ({e}):\n{text}") from e
+
+
+def extract_receipt(image_bytes: bytes, media_type: str) -> dict:
+    """Read one receipt image with the local model (RECEIPT_MODEL) and return its JSON as a dict."""
+    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+    return _extract_json(_image_ollama(RECEIPT_MODEL, image_b64, media_type))
 
 
 PROVIDERS = {"local": _image_ollama, "script": _image_script}
@@ -270,7 +280,10 @@ if __name__ == "__main__":
     for image_path in images:
         image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
         reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
-        result = json.dumps(_extract_json(reply), indent=2)
+        try:
+            result = json.dumps(_extract_json(reply), indent=2)
+        except ValueError as e:
+            sys.exit(str(e))
         print(f"{image_path.name}:")
         print(result)
         (OUTPUT_DIR / f"{image_path.stem}.json").write_text(result)
