@@ -38,6 +38,19 @@ export interface CheapestStore {
   items: CheapestItem[]
 }
 
+// The body of POST /api/items. A size (item_count, weight_g or volume_ml) is required, at least one of the three.
+export interface NewItem {
+  country: Country
+  store: string
+  name: string
+  price_cents: number
+  item_count?: number
+  weight_g?: number
+  volume_ml?: number
+  purchased_on?: string // YYYY-MM-DD, the server uses today if left out
+  brand?: string
+}
+
 // What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.
 export interface ReceiptItem {
   raw_name: string // exactly as printed on the receipt

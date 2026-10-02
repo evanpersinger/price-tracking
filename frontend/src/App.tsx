@@ -3,6 +3,7 @@ import { AbbreviationsView } from './AbbreviationsView.tsx'
 import { CheapestView } from './CheapestView.tsx'
 import { COUNTRIES } from './countries.ts'
 import { ReceiptModal } from './ReceiptModal.tsx'
+import { ReceiptReview } from './ReceiptReview.tsx'
 import { StoresView } from './StoresView.tsx'
 import type { ReceiptResult } from './types.ts'
 
@@ -22,18 +23,24 @@ export default function App() {
     ? (COUNTRIES.find((candidate) => path === `${CHEAPEST_PATH}${candidate.path}`) ?? COUNTRIES[0])
     : (COUNTRIES.find((candidate) => path.startsWith(candidate.path)) ?? COUNTRIES[0])
 
-  // The modal reads the receipt and hands back what was found, showing it on a review page comes next.
+  // The modal reads the receipt, the review page then shows what was found until it's added or cancelled. The id
+  // gives each receipt its own review state, so a new one never inherits the edits of the last.
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
-  const [, setReceiptResult] = useState<ReceiptResult | null>(null)
+  const [review, setReview] = useState<{ id: number; result: ReceiptResult } | null>(null)
 
   return (
     // A dropped file outside the modal must do nothing, not open the image in the tab
     <div className="page" onDragOver={(event) => event.preventDefault()} onDrop={(event) => event.preventDefault()}>
-      <button type="button" className="add-item-button" onClick={() => setIsReceiptModalOpen(true)}>
-        Add Item
-      </button>
+      {review === null && (
+        <button type="button" className="add-item-button" onClick={() => setIsReceiptModalOpen(true)}>
+          Add Item
+        </button>
+      )}
       {isReceiptModalOpen && (
-        <ReceiptModal onClose={() => setIsReceiptModalOpen(false)} onResult={setReceiptResult} />
+        <ReceiptModal
+          onClose={() => setIsReceiptModalOpen(false)}
+          onResult={(result) => setReview((previous) => ({ id: (previous?.id ?? 0) + 1, result }))}
+        />
       )}
       <header className="header">
         <h1>Price Tracking</h1>
@@ -55,23 +62,27 @@ export default function App() {
           </div>
         )}
       </header>
-      <nav className="nav view-nav" aria-label="View">
-        <a className="nav-link" href={country.path} aria-current={showStores ? 'page' : undefined}>
-          Stores
-        </a>
-        <a
-          className="nav-link"
-          href={`${CHEAPEST_PATH}${country.path}`}
-          aria-current={showCheapest ? 'page' : undefined}
-        >
-          Cheapest items
-        </a>
-        <a className="nav-link" href={ABBREVIATIONS_PATH} aria-current={showAbbreviations ? 'page' : undefined}>
-          Abbreviations
-        </a>
-      </nav>
+      {review === null && (
+        <nav className="nav view-nav" aria-label="View">
+          <a className="nav-link" href={country.path} aria-current={showStores ? 'page' : undefined}>
+            Stores
+          </a>
+          <a
+            className="nav-link"
+            href={`${CHEAPEST_PATH}${country.path}`}
+            aria-current={showCheapest ? 'page' : undefined}
+          >
+            Cheapest items
+          </a>
+          <a className="nav-link" href={ABBREVIATIONS_PATH} aria-current={showAbbreviations ? 'page' : undefined}>
+            Abbreviations
+          </a>
+        </nav>
+      )}
       <main>
-        {showCheapest ? (
+        {review ? (
+          <ReceiptReview key={review.id} result={review.result} onDone={() => setReview(null)} />
+        ) : showCheapest ? (
           <CheapestView country={country.code} />
         ) : showAbbreviations ? (
           <AbbreviationsView />
