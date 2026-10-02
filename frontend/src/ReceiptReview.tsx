@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { addItem } from './api.ts'
 import { COUNTRIES } from './countries.ts'
+import { findKnownItem } from './knownItems.ts'
 import { useLoad } from './useLoad.ts'
 import type { Country, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
@@ -15,7 +16,7 @@ type RowStatus = 'idle' | 'saving' | 'added' | 'failed'
 
 // What the size number is in. 'none' is for items sold as identical units (soda cans), where the count is the size.
 const SIZE_UNITS = ['g', 'ml', 'L', 'none'] as const
-type SizeUnit = (typeof SIZE_UNITS)[number]
+export type SizeUnit = (typeof SIZE_UNITS)[number]
 
 function toUnit(value: string): SizeUnit | '' {
   return SIZE_UNITS.find((unit) => unit === value) ?? ''
@@ -31,6 +32,7 @@ interface Row {
   size: string
   unit: SizeUnit | '' // '' until the user picks one, there is no default
   brand: string
+  isKnown: boolean // filled in from the known items list rather than typed
   include: boolean
   status: RowStatus
   error: string | null
@@ -39,15 +41,17 @@ interface Row {
 type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand'>
 
 function toRow(item: ReceiptItem, id: number): Row {
+  const known = findKnownItem(item.raw_name ?? '')
   return {
     id,
     rawName: item.raw_name ?? '',
-    name: item.item_name || item.raw_name || '',
+    name: known?.name ?? (item.item_name || item.raw_name || ''),
     price: typeof item.price === 'number' ? String(item.price) : '',
-    count: '',
-    size: '',
-    unit: '',
-    brand: '',
+    count: known ? String(known.count) : '',
+    size: known?.size !== undefined ? String(known.size) : '',
+    unit: known?.unit ?? '',
+    brand: known?.brand ?? '',
+    isKnown: known !== undefined,
     include: true,
     status: 'idle',
     error: null,
@@ -262,7 +266,10 @@ export function ReceiptReview({ result, onDone }: Props) {
                         disabled={locked}
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
-                      <div className="raw-name">Printed as {row.rawName || 'nothing'}</div>
+                      <div className="raw-name">
+                        Printed as {row.rawName || 'nothing'}
+                        {row.isKnown && ' (known item, filled in automatically)'}
+                      </div>
                     </td>
                     <td>
                       <input
