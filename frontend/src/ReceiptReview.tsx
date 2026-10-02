@@ -32,7 +32,6 @@ interface Row {
   size: string
   unit: SizeUnit | '' // '' until the user picks one, there is no default
   brand: string
-  isKnown: boolean // filled in from the known items list rather than typed
   include: boolean
   status: RowStatus
   error: string | null
@@ -40,8 +39,8 @@ interface Row {
 
 type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand'>
 
-function toRow(item: ReceiptItem, id: number): Row {
-  const known = findKnownItem(item.raw_name ?? '')
+function toRow(item: ReceiptItem, id: number, store: string): Row {
+  const known = findKnownItem(store, item.raw_name ?? '')
   return {
     id,
     rawName: item.raw_name ?? '',
@@ -51,7 +50,6 @@ function toRow(item: ReceiptItem, id: number): Row {
     size: known?.size !== undefined ? String(known.size) : '',
     unit: known?.unit ?? '',
     brand: known?.brand ?? '',
-    isKnown: known !== undefined,
     include: true,
     status: 'idle',
     error: null,
@@ -104,7 +102,9 @@ export function ReceiptReview({ result, onDone }: Props) {
   const [country, setCountry] = useState<Country | null>(null)
   const [store, setStore] = useState(result.store ?? '')
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
-  const [rows, setRows] = useState<Row[]>(() => (result.items ?? []).map(toRow))
+  const [rows, setRows] = useState<Row[]>(() =>
+    (result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
+  )
   const [isSaving, setIsSaving] = useState(false)
 
   const caStores = useLoad<Store[]>('/api/stores?country=CA')
@@ -266,10 +266,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         disabled={locked}
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
-                      <div className="raw-name">
-                        Printed as {row.rawName || 'nothing'}
-                        {row.isKnown && ' (known item, filled in automatically)'}
-                      </div>
+                      <div className="raw-name">Printed as {row.rawName || 'nothing'}</div>
                     </td>
                     <td>
                       <input
