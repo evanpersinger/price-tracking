@@ -115,12 +115,25 @@ def add_item(new_item: NewItem) -> AddedItem:
         store_id = store[0] if store else conn.execute(
             "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
         ).lastrowid
-        item_id = conn.execute(
-            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand, "
-            "item_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (store_id, new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g,
-             new_item.volume_ml, purchased_on, new_item.brand, new_item.item_code),
-        ).lastrowid
+        values = (new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g, new_item.volume_ml,
+                  purchased_on, new_item.brand, new_item.item_code)
+        # A code the store already has means the same product at a new price, so overwrite that row
+        existing = conn.execute(
+            "SELECT id FROM items WHERE store_id = ? AND item_code = ?", (store_id, new_item.item_code)
+        ).fetchone() if new_item.item_code else None
+        if existing:
+            item_id = existing[0]
+            conn.execute(
+                "UPDATE items SET name = ?, price_cents = ?, item_count = ?, weight_g = ?, volume_ml = ?, "
+                "purchased_on = ?, brand = ?, item_code = ? WHERE id = ?",
+                (*values, item_id),
+            )
+        else:
+            item_id = conn.execute(
+                "INSERT INTO items (name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand, "
+                "item_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (*values, store_id),
+            ).lastrowid
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,

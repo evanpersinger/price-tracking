@@ -4,7 +4,8 @@ import { COUNTRIES } from './countries.ts'
 import { splitItemCode } from './itemCode.ts'
 import { findKnownItem } from './knownItems.ts'
 import { useLoad } from './useLoad.ts'
-import type { Country, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
+import { formatPrice } from './format.ts'
+import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -35,6 +36,8 @@ interface Row {
   unit: SizeUnit | '' // '' until the user picks one, there is no default
   brand: string
   hasNoSize: boolean // a known item sold by count alone (like toilet paper), so the size box and unit are left out
+  known: boolean // matched an entry in knownItems.ts, which wins over a saved item
+  saved: Item | null // the item already in this store with the same code, saving overwrites it
   include: boolean
   status: RowStatus
   error: string | null
@@ -56,9 +59,30 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     unit: known?.unit ?? '',
     brand: known?.brand ?? '',
     hasNoSize: known?.unit === 'none',
+    known: known !== undefined,
+    saved: null,
     include: true,
     status: 'idle',
     error: null,
+  }
+}
+
+// Fills a row from the item the store already has under the same code. The price stays the receipt's.
+function fillFromSaved(row: Row, storeItems: Item[]): Row {
+  if (row.known || row.code === undefined) return row
+  const saved = storeItems.find((item) => item.item_code === row.code)
+  if (saved === undefined) return row
+
+  const unit: SizeUnit = saved.weight_g !== null ? 'g' : saved.volume_ml !== null ? 'ml' : 'none'
+  const size = saved.weight_g ?? saved.volume_ml
+  return {
+    ...row,
+    saved,
+    name: saved.name,
+    brand: saved.brand ?? '',
+    count: saved.item_count === null ? '' : String(saved.item_count),
+    size: size === null ? '' : String(size),
+    unit,
   }
 }
 
@@ -122,6 +146,14 @@ export function ReceiptReview({ result, onDone }: Props) {
   const countryLabel = COUNTRIES.find((candidate) => candidate.code === country)?.label ?? ''
   // Same match the server makes: a store in that country with the same name, ignoring case
   const existingStore = storeList?.find((candidate) => candidate.name.toLowerCase() === trimmedStore.toLowerCase())
+
+  // Once the store is known to exist, rows whose code it already has are filled in from its saved items (once per store)
+  const [filledFor, setFilledFor] = useState<number | null>(null)
+  const existingStoreId = existingStore?.id ?? null
+  if (existingStoreId !== filledFor) {
+    setFilledFor(existingStoreId)
+    if (existingStore) setRows((current) => current.map((row) => fillFromSaved(row, existingStore.items)))
+  }
 
   const readyRows = rows.filter((row) => row.include && row.status !== 'added' && checkRow(row).fields !== null)
   const countLabel = `${readyRows.length} ${readyRows.length === 1 ? 'item' : 'items'}`
@@ -276,6 +308,12 @@ export function ReceiptReview({ result, onDone }: Props) {
                         Printed as {row.rawName || 'nothing'}
                         {row.code ? `, code ${row.code}` : ''}
                       </div>
+                      {row.saved && country !== null && (
+                        <div className="raw-name">
+                          Matched saved item, overwrites its price of{' '}
+                          {row.saved.price_cents === null ? 'nothing' : formatPrice(row.saved.price_cents, country)}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <input
