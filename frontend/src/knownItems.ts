@@ -14,7 +14,7 @@ export interface KnownItem {
 // Grouped by store. A group applies when the receipt's store name contains the group's name, ignoring case, so
 // "Costco Wholesale - North London" uses the Costco group.
 export const KNOWN_ITEMS: Record<string, KnownItem[]> = {
-  Costco: [{ printedAs: 'KS BATH', name: 'Bath Tissue', brand: 'Kirkland Signature', count: 30, unit: 'none' }],
+  Costco: [{ printedAs: 'KS BATH', name: 'Bath Tissue', brand: 'Kirkland', count: 30, unit: 'none' }],
 }
 
 // Case, spacing, the asterisks the model sometimes wraps a name in, and Costco's item number in front of the name
