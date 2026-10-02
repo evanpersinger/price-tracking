@@ -32,6 +32,7 @@ interface Row {
   size: string
   unit: SizeUnit | '' // '' until the user picks one, there is no default
   brand: string
+  hasNoSize: boolean // a known item sold by count alone (like toilet paper), so the size box and unit are left out
   include: boolean
   status: RowStatus
   error: string | null
@@ -50,6 +51,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     size: known?.size !== undefined ? String(known.size) : '',
     unit: known?.unit ?? '',
     brand: known?.brand ?? '',
+    hasNoSize: known?.unit === 'none',
     include: true,
     status: 'idle',
     error: null,
@@ -293,35 +295,37 @@ export function ReceiptReview({ result, onDone }: Props) {
                       />
                     </td>
                     <td>
-                      <div className="review-size">
-                        <input
-                          className="review-input review-input-number"
-                          type="number"
-                          min="0"
-                          step="any"
-                          aria-label={`Size of item ${rowNumber}`}
-                          value={row.size}
-                          disabled={locked || row.unit === 'none' || row.unit === ''}
-                          onChange={(event) => patchRow(row.id, { size: event.target.value })}
-                        />
-                        <select
-                          className="review-input"
-                          aria-label={`Size unit of item ${rowNumber}`}
-                          value={row.unit}
-                          disabled={locked}
-                          onChange={(event) => {
-                            const unit = toUnit(event.target.value)
-                            patchRow(row.id, unit === 'none' ? { unit, size: '' } : { unit })
-                          }}
-                        >
-                          <option value="">Unit</option>
-                          {SIZE_UNITS.map((unit) => (
-                            <option key={unit} value={unit}>
-                              {unit}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {!row.hasNoSize && (
+                        <div className="review-size">
+                          <input
+                            className="review-input review-input-number"
+                            type="number"
+                            min="0"
+                            step="any"
+                            aria-label={`Size of item ${rowNumber}`}
+                            value={row.size}
+                            disabled={locked || row.unit === 'none' || row.unit === ''}
+                            onChange={(event) => patchRow(row.id, { size: event.target.value })}
+                          />
+                          <select
+                            className="review-input"
+                            aria-label={`Size unit of item ${rowNumber}`}
+                            value={row.unit}
+                            disabled={locked}
+                            onChange={(event) => {
+                              const unit = toUnit(event.target.value)
+                              patchRow(row.id, unit === 'none' ? { unit, size: '' } : { unit })
+                            }}
+                          >
+                            <option value="">Unit</option>
+                            {SIZE_UNITS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </td>
                     <td>
                       <input
