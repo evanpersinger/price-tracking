@@ -3,7 +3,9 @@
 export const BRANDS: string[] = [
   'Armstrong',
   'Black Diamond',
+  'Cedar',
   "Chapman's",
+  'Chosen Foods',
   'Dare',
   'Dunya Harvest',
   'Frito-Lay',
@@ -14,5 +16,7 @@ export const BRANDS: string[] = [
   'McCain',
   'Natrel',
   'PepsiCo',
+  'Sunrise Farms',
   'SunRype',
+  'Twinings',
 ]
