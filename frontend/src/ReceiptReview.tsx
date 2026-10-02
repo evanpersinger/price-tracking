@@ -8,6 +8,7 @@ import { formatPrice } from './format.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const NO_BRAND = 'No Brand' // what a blank brand is saved as, see DATA_CONVENTIONS.md
 
 interface Props {
   result: ReceiptResult
@@ -116,7 +117,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
       item_count: count,
       weight_g: row.unit === 'g' ? (size ?? undefined) : undefined,
       volume_ml: row.unit === 'ml' ? (size ?? undefined) : row.unit === 'L' && size !== null ? Math.round(size * 1000) : undefined,
-      brand: row.brand.trim() || undefined,
+      brand: row.brand.trim() || NO_BRAND,
     },
   }
 }
