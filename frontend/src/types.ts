@@ -10,6 +10,7 @@ export interface Item {
   volume_ml: number | null
   purchased_on: string | null
   brand: string | null
+  item_code: string | null // the product code the store prints on the receipt, empty for imported items
 }
 
 export interface Store {
@@ -30,6 +31,7 @@ export interface CheapestItem {
   weight_g: number | null
   volume_ml: number | null
   brand: string | null
+  item_code: string | null
 }
 
 export interface CheapestStore {
@@ -49,6 +51,7 @@ export interface NewItem {
   volume_ml?: number
   purchased_on?: string // YYYY-MM-DD, the server uses today if left out
   brand?: string
+  item_code?: string
 }
 
 // What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.

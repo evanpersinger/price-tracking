@@ -37,7 +37,13 @@ CREATE TABLE IF NOT EXISTS student_discounts (
 """
 
 # Columns added to items after the first version, added to a database that was created without them
-_ADDED_ITEM_COLUMNS = {"item_count": "INTEGER", "weight_g": "REAL", "volume_ml": "REAL", "brand": "TEXT"}
+_ADDED_ITEM_COLUMNS = {
+    "item_count": "INTEGER",
+    "weight_g": "REAL",
+    "volume_ml": "REAL",
+    "brand": "TEXT",
+    "item_code": "TEXT",  # the product code the store prints on the receipt line, empty for the imported rows
+}
 
 
 def _add_missing_columns(conn: sqlite3.Connection) -> None:

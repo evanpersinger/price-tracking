@@ -41,6 +41,7 @@ class Item(BaseModel):
     volume_ml: float | None
     purchased_on: str | None
     brand: str | None
+    item_code: str | None
 
 
 class Store(BaseModel):
@@ -59,16 +60,17 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         ).fetchall()
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
-            "i.purchased_on, i.brand FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
+            "i.purchased_on, i.brand, i.item_code FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
             "ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
-    for id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand in item_rows:
+    for (id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
+         item_code) in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
-            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
+            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand, item_code=item_code,
         ))
 
     return [
@@ -87,6 +89,7 @@ class NewItem(BaseModel):
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
     purchased_on: date | None = None  # today if left out
     brand: str | None = Field(default=None, max_length=100)
+    item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
 
     model_config = {"str_strip_whitespace": True}
 
@@ -113,16 +116,16 @@ def add_item(new_item: NewItem) -> AddedItem:
             "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
         ).lastrowid
         item_id = conn.execute(
-            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO items (store_id, name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand, "
+            "item_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (store_id, new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g,
-             new_item.volume_ml, purchased_on, new_item.brand),
+             new_item.volume_ml, purchased_on, new_item.brand, new_item.item_code),
         ).lastrowid
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
         item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
-        purchased_on=purchased_on, brand=new_item.brand,
+        purchased_on=purchased_on, brand=new_item.brand, item_code=new_item.item_code,
     )
 
 
@@ -175,6 +178,7 @@ class Offer(NamedTuple):
     weight_g: float | None
     volume_ml: float | None
     brand: str | None
+    item_code: str | None
 
 
 class Winner(NamedTuple):
@@ -216,13 +220,13 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
 
 
 def _make_offers(rows: list[tuple]) -> list[Offer]:
-    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand) rows.
+    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code) rows.
 
     The size typed into item_count, weight_g and volume_ml wins, the size written in the name is only used when
     those are all empty.
     """
     offers = []
-    for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml, brand in rows:
+    for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code in rows:
         words, amounts = _split_name(name)
         typed = {
             kind: amount
@@ -231,7 +235,7 @@ def _make_offers(rows: list[tuple]) -> list[Offer]:
         }
         offers.append(Offer(
             item_id, store_id, store_name, name, price_cents, words, typed or amounts, item_count, weight_g,
-            volume_ml, brand,
+            volume_ml, brand, item_code,
         ))
     return offers
 
@@ -311,6 +315,7 @@ class CheapestItem(BaseModel):
     weight_g: float | None
     volume_ml: float | None
     brand: str | None
+    item_code: str | None
 
 
 class CheapestStore(BaseModel):
@@ -331,8 +336,8 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     """
     with closing(connect()) as conn:
         rows = conn.execute(
-            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand "
-            "FROM items i JOIN stores s ON s.id = i.store_id "
+            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
+            "i.item_code FROM items i JOIN stores s ON s.id = i.store_id "
             "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
             (country,),
         ).fetchall()
@@ -346,6 +351,7 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
                 id=offer.id, name=offer.name, price_cents=offer.price_cents, other_stores=winner.other_stores,
                 unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
                 item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand,
+                item_code=offer.item_code,
             ))
 
     for store in cheapest.values():

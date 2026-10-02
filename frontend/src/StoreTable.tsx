@@ -21,6 +21,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
           <tr>
             <th scope="col" className="row-number">#</th>
             <th scope="col" className="brand">Brand</th>
+            <th scope="col" className="item-code">Item code</th>
             <th scope="col" className="item">Item</th>
             <th scope="col" className="amount">Amount</th>
             <th scope="col" className="unit-price">Unit price</th>
@@ -34,6 +35,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
               <tr key={item.id}>
                 <td className="row-number">{index + 1}</td>
                 <td className="brand">{item.brand}</td>
+                <td className="item-code">{item.item_code}</td>
                 <td className="item">
                   <ItemName segments={name} />
                 </td>

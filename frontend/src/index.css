@@ -379,6 +379,11 @@ main {
   text-align: right;
 }
 
+.items td.item-code {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .item-name {
   color: var(--item);
 }

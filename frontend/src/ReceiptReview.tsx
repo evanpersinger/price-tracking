@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { addItem } from './api.ts'
 import { COUNTRIES } from './countries.ts'
+import { splitItemCode } from './itemCode.ts'
 import { findKnownItem } from './knownItems.ts'
 import { useLoad } from './useLoad.ts'
 import type { Country, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
@@ -25,7 +26,8 @@ function toUnit(value: string): SizeUnit | '' {
 // One receipt item as it's being edited: every field is the text in its input box
 interface Row {
   id: number
-  rawName: string
+  rawName: string // as printed, without the code
+  code: string | undefined // the store's product code on that line, if it prints one
   name: string
   price: string
   count: string
@@ -42,9 +44,11 @@ type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g
 
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
+  const printed = splitItemCode(item.raw_name ?? '')
   return {
     id,
-    rawName: item.raw_name ?? '',
+    rawName: printed.name,
+    code: printed.code,
     name: known?.name ?? (item.item_name || item.raw_name || ''),
     price: typeof item.price === 'number' ? String(item.price) : '',
     count: known ? String(known.count) : '',
@@ -141,7 +145,7 @@ export function ReceiptReview({ result, onDone }: Props) {
       if (fields === null) continue
       patchRow(row.id, { status: 'saving', error: null })
       try {
-        await addItem({ country, store: trimmedStore, purchased_on: date || undefined, ...fields })
+        await addItem({ country, store: trimmedStore, purchased_on: date || undefined, ...fields, item_code: row.code })
         patchRow(row.id, { status: 'added' })
       } catch (caught) {
         patchRow(row.id, { status: 'failed', error: caught instanceof Error ? caught.message : 'Something went wrong' })
@@ -268,7 +272,10 @@ export function ReceiptReview({ result, onDone }: Props) {
                         disabled={locked}
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
-                      <div className="raw-name">Printed as {row.rawName || 'nothing'}</div>
+                      <div className="raw-name">
+                        Printed as {row.rawName || 'nothing'}
+                        {row.code ? `, code ${row.code}` : ''}
+                      </div>
                     </td>
                     <td>
                       <input
