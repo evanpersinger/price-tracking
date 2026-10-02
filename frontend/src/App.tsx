@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
-import type { DragEvent } from 'react'
+import { useState } from 'react'
 import { AbbreviationsView } from './AbbreviationsView.tsx'
 import { CheapestView } from './CheapestView.tsx'
 import { COUNTRIES } from './countries.ts'
+import { ReceiptModal } from './ReceiptModal.tsx'
 import { StoresView } from './StoresView.tsx'
+import type { ReceiptResult } from './types.ts'
 
 const CHEAPEST_PATH = '/cheapest'
 const ABBREVIATIONS_PATH = '/abbreviations'
@@ -21,46 +22,19 @@ export default function App() {
     ? (COUNTRIES.find((candidate) => path === `${CHEAPEST_PATH}${candidate.path}`) ?? COUNTRIES[0])
     : (COUNTRIES.find((candidate) => path.startsWith(candidate.path)) ?? COUNTRIES[0])
 
-  // Picking or dropping a file is wired up, what happens with it isn't yet: reading the receipt and adding its
-  // items comes next.
-  const receiptInputRef = useRef<HTMLInputElement>(null)
-  const [, setReceiptFile] = useState<File | null>(null)
-  const [isDraggingFile, setIsDraggingFile] = useState(false)
-
-  function handleDragOver(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault()
-    setIsDraggingFile(true)
-  }
-
-  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault()
-    setIsDraggingFile(false)
-  }
-
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault()
-    setIsDraggingFile(false)
-    const file = event.dataTransfer.files[0]
-    if (file) setReceiptFile(file)
-  }
+  // The modal reads the receipt and hands back what was found, showing it on a review page comes next.
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
+  const [, setReceiptResult] = useState<ReceiptResult | null>(null)
 
   return (
-    <div
-      className={isDraggingFile ? 'page page-drag-over' : 'page'}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <button type="button" className="add-item-button" onClick={() => receiptInputRef.current?.click()}>
+    // A dropped file outside the modal must do nothing, not open the image in the tab
+    <div className="page" onDragOver={(event) => event.preventDefault()} onDrop={(event) => event.preventDefault()}>
+      <button type="button" className="add-item-button" onClick={() => setIsReceiptModalOpen(true)}>
         Add Item
       </button>
-      <input
-        ref={receiptInputRef}
-        type="file"
-        accept="image/*"
-        className="add-item-input"
-        onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
-      />
+      {isReceiptModalOpen && (
+        <ReceiptModal onClose={() => setIsReceiptModalOpen(false)} onResult={setReceiptResult} />
+      )}
       <header className="header">
         <h1>Price Tracking</h1>
         {(showStores || showCheapest) && (

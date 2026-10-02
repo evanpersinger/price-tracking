@@ -47,12 +47,6 @@ body {
   padding: 24px var(--gutter) 64px;
 }
 
-.page-drag-over {
-  outline: 2px dashed var(--accent);
-  outline-offset: -8px;
-  background: var(--accent-soft);
-}
-
 .add-item-button {
   position: fixed;
   top: 16px;
@@ -73,8 +67,98 @@ body {
   filter: brightness(1.1);
 }
 
-.add-item-input {
-  display: none;
+.receipt-modal {
+  width: min(720px, calc(100vw - 2 * var(--gutter)));
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.receipt-modal::backdrop {
+  background: rgba(18, 18, 18, 0.8);
+}
+
+.receipt-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+}
+
+.receipt-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.receipt-modal-head h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--heading);
+}
+
+.receipt-modal-close {
+  padding: 0 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 2rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.receipt-modal-close:hover:not(:disabled) {
+  background: var(--hover-fill);
+  color: var(--text);
+}
+
+.drop-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 16px;
+  border: 2px dashed var(--table-border);
+  border-radius: var(--radius);
+  color: var(--heading);
+  font-size: 2.25rem;
+  text-align: center;
+}
+
+.drop-area-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.receipt-modal-error {
+  margin: 0;
+  color: var(--warning);
+}
+
+.choose-file-button {
+  padding: 16px 32px;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  color: var(--bg);
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.choose-file-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.choose-file-button:disabled,
+.receipt-modal-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 main {

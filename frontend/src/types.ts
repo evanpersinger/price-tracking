@@ -37,3 +37,17 @@ export interface CheapestStore {
   name: string
   items: CheapestItem[]
 }
+
+// What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.
+export interface ReceiptItem {
+  raw_name: string // exactly as printed on the receipt
+  item_name: string // the model's cleaned-up name
+  price: number
+  category: string | null
+}
+
+export interface ReceiptResult {
+  purchase_date: string | null
+  store: string | null
+  items: ReceiptItem[]
+}
