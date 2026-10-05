@@ -15,6 +15,9 @@ editing, or reviewing data by hand.
   `null`. `No Brand` is a real value, not a stand-in for "unknown", it means someone
   checked and confirmed the item has no brand.
 - Only set a brand when it's known for certain, don't guess from the name.
+- Capitals don't matter in a brand: `Arm&Hammer` and `arm&hammer` are the same brand. `POST /api/items`
+  saves a brand that matches a saved one ignoring case with the saved spelling (the first one saved wins).
+  Rows edited by hand in the database aren't covered, keep their spelling consistent yourself.
 
 ## Item name vs. brand text
 

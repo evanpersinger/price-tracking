@@ -283,8 +283,18 @@ export function ReceiptReview({ result, onDone }: Props) {
                 <th>Item</th>
                 <th>Price</th>
                 <th>Count</th>
-                <th>Size</th>
-                <th>Brand</th>
+                <th className="has-tip" tabIndex={0} aria-describedby="size-tip">
+                  Size (whole pack)
+                  <span id="size-tip" role="tooltip" className="tip">
+                    The total size of everything in the pack, not each item. For example, 6 boxes of 454g is 2724g.
+                  </span>
+                </th>
+                <th className="has-tip" tabIndex={0} aria-describedby="brand-tip">
+                  Brand
+                  <span id="brand-tip" role="tooltip" className="tip tip-right">
+                    Enter the brand name as accurately as possible. Upper and lowercase don't matter.
+                  </span>
+                </th>
                 <th>Status</th>
               </tr>
             </thead>

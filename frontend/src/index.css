@@ -553,6 +553,7 @@ select.review-input {
 
 .review-table-wrap {
   overflow-x: auto;
+  min-height: 9rem; /* room for the header tooltip below a table with only one row, or it adds a scrollbar */
 }
 
 .raw-name {
@@ -594,4 +595,42 @@ select.review-input {
 .review-size {
   display: flex;
   gap: 8px;
+}
+
+/* A note under a table header, shown on hover or keyboard focus */
+.has-tip {
+  position: relative;
+  cursor: help;
+}
+
+.tip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1;
+  width: 18rem;
+  padding: 10px 12px;
+  background: var(--hover-fill);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
+  color: var(--heading);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  visibility: hidden;
+}
+
+/* For a column near the table's right edge, so the note grows leftward instead of past the edge */
+.tip-right {
+  left: auto;
+  right: 0;
+}
+
+.has-tip:hover .tip,
+.has-tip:focus-visible .tip {
+  visibility: visible;
 }

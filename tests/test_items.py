@@ -71,6 +71,27 @@ def test_same_item_code_at_another_store_is_a_new_item(add_item: Callable[..., d
     assert costco["id"] != fresco["id"]
 
 
+def test_a_brand_in_different_capitals_takes_the_saved_spelling(add_item: Callable[..., dict]) -> None:
+    add_item(store="Costco", brand="Arm&Hammer")
+    other_store = add_item(store="Fresco", name="Baking Soda", brand="arm&hammer")
+
+    assert other_store["brand"] == "Arm&Hammer"
+
+
+def test_no_brand_matches_in_any_capitals(add_item: Callable[..., dict]) -> None:
+    add_item(brand="No Brand")
+
+    assert add_item(name="Salt", brand="NO BRAND")["brand"] == "No Brand"
+
+
+def test_a_new_brand_keeps_the_spelling_it_was_typed_with(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(brand="Arm&Hammer")
+    add_item(name="Salt", brand="Windsor")
+
+    brands = [item["brand"] for item in stores_in(client)[0]["items"]]
+    assert brands == ["Arm&Hammer", "Windsor"]
+
+
 def test_items_without_a_code_are_never_overwritten(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item()
     add_item()
