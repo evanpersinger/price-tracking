@@ -53,16 +53,16 @@ body {
 }
 
 .add-item-button {
-  position: fixed;
+  position: absolute; /* not fixed, so it scrolls away with the page instead of following down a long table */
   top: 16px;
   left: 16px;
-  padding: 28px 56px;
+  padding: 36px 72px;
   background: var(--accent);
   border: none;
   border-radius: 999px;
   color: var(--bg);
   font: inherit;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 600;
   cursor: pointer;
   z-index: 10;
@@ -231,8 +231,16 @@ main {
   margin-top: 12px;
 }
 
+/* On a narrower window the big Add Item button reaches down beside the page's nav, so move the nav below it */
+@media (max-width: 1400px) {
+  .view-nav {
+    margin-top: 40px;
+  }
+}
+
 .view-nav .nav-link {
-  font-size: 1.0625rem;
+  padding: 10px 22px;
+  font-size: 1.375rem;
 }
 
 .country-nav-wrap {
@@ -245,7 +253,8 @@ main {
 }
 
 .country-nav .nav-link {
-  font-size: 1.375rem;
+  padding: 10px 22px;
+  font-size: 1.75rem;
 }
 
 .currency-note {
@@ -265,9 +274,12 @@ main {
 }
 
 .store-jump button {
+  padding: 10px 22px;
   font: inherit;
+  font-size: 1.375rem;
   background: none;
   border: none;
+  border-radius: 0;
 }
 
 .store-viewport {
@@ -345,6 +357,7 @@ body:has(.page-split) {
 }
 
 .page-split .store {
+  padding-top: 0;
   background: none;
   border: none;
   border-radius: 0;
@@ -358,8 +371,9 @@ body:has(.page-split) {
   margin: 0;
   /* Red on purpose, separate from --store (still used for the Brand column) */
   color: #f87171;
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .page-heading {
