@@ -11,7 +11,7 @@ export function formatPrice(cents: number, country: Country): string {
 
 // Grams and millilitres are shown per 100, the way shelf tags do it. The API sends cents per single g or ml, which
 // as dollars is the same number per 100.
-export function formatUnitPrice(item: CheapestItem, country: Country): string {
+export function formatUnitPrice(item: Pick<CheapestItem, 'unit' | 'unit_price_cents'>, country: Country): string {
   const formatter = FORMATTERS[country]
   switch (item.unit) {
     case 'each':

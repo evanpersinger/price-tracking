@@ -1,4 +1,4 @@
-import { formatPrice, isZeroMoney, itemParts } from './format.ts'
+import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
 
@@ -30,7 +30,15 @@ export function StoreTable({ store, country }: StoreTableProps) {
         </thead>
         <tbody>
           {store.items.map((item, index) => {
-            const { name, amounts, unitPrice } = itemParts(item)
+            const { name, amounts, unitPrice: typedUnitPrice } = itemParts(item)
+            // No typed unit price: work one out from the price and size, per item, else per gram, else per ml
+            const unit = item.item_count ? 'each' : item.weight_g ? 'g' : item.volume_ml ? 'ml' : null
+            const size = item.item_count || item.weight_g || item.volume_ml
+            const unitPrice =
+              typedUnitPrice ??
+              (unit && size && item.price_cents !== null
+                ? formatUnitPrice({ unit, unit_price_cents: item.price_cents / size }, country)
+                : null)
             return (
               <tr key={item.id}>
                 <td className="row-number">{index + 1}</td>
