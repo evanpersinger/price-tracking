@@ -142,21 +142,26 @@ function singularize(word: string): string {
 
 // Nouns worth naming more specifically than the last word of the item alone gives, since nothing in the text
 // supplies the extra word: bacon isn't sold loose so "strips" is implied, "buns" alone is ambiguous between
-// hamburger and hotdog buns, and "dogs" alone (from "hot dogs") loses the "hot". Checked against the full name, not
-// just the last word.
+// hamburger and hotdog buns, and "dogs" alone (from "hot dogs") loses the "hot". Zero sugar sodas end in "sugar" or
+// "zeros" but are counted in cans. Checked against the full name, not just the last word.
 function overrideCountNoun(base: string, name: Segment[]): string {
-  if (base !== 'bacon' && base !== 'buns' && base !== 'dogs') return base
+  if (base !== 'bacon' && base !== 'buns' && base !== 'dogs' && base !== 'sugar' && base !== 'zeros') return base
   const text = name
     .filter((segment) => segment.kind === 'name')
     .map((segment) => segment.text)
     .join(' ')
     .toLowerCase()
   if (base === 'bacon') return 'bacon strips'
+  if (base === 'sugar' || base === 'zeros') return text.includes('zero') ? 'cans' : base
   if (base === 'dogs') return text.includes('hotdog') || text.includes('hot dog') ? 'hot dogs' : base
   if (text.includes('hamburger')) return 'hamburger buns'
   if (text.includes('hotdog') || text.includes('hot dog')) return 'hotdog buns'
   return base
 }
+
+// Units counted on their own, "30 Rolls" of toilet paper, "21 Boxes" of tissues and "4 Tubes" of toothpaste, not
+// "30 Paper Rolls".
+const COUNTED_ALONE = new Set(['roll', 'box', 'tube'])
 
 // The word to count by for a "Nx" amount. A typed unit price names it directly ("per bag" -> "bags"), pluralized
 // and, if it's a different word than the item's own name, paired with that name ("tea" + "bags" -> "tea bags").
@@ -170,7 +175,14 @@ function countNoun(name: Segment[]): string {
     if (!perNoun) return productNoun
     const perNounPlural = pluralize(perNoun)
     // Same word either way ("container" vs "containers", "head" vs "heads") -> just the one word, not both.
-    if (!productNoun || perNounPlural === productNoun || perNounPlural === pluralize(productNoun)) return perNounPlural
+    if (
+      !productNoun ||
+      COUNTED_ALONE.has(perNoun.toLowerCase()) ||
+      perNounPlural === productNoun ||
+      perNounPlural === pluralize(productNoun)
+    ) {
+      return perNounPlural
+    }
     return `${singularize(productNoun)} ${perNounPlural}`
   })()
   return overrideCountNoun(base, name)
