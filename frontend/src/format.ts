@@ -123,6 +123,7 @@ const INVARIANT_PLURALS = new Set(['salmon', 'trout', 'fish', 'deer', 'sheep', '
 
 function pluralize(word: string): string {
   if (INVARIANT_PLURALS.has(word)) return word
+  if (word === 'loaf') return 'loaves'
   if (/[sxz]$/i.test(word) || /(ch|sh)$/i.test(word)) return `${word}es`
   if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`
   return `${word}s`
@@ -143,8 +144,11 @@ function singularize(word: string): string {
 // Nouns worth naming more specifically than the last word of the item alone gives, since nothing in the text
 // supplies the extra word: bacon isn't sold loose so "strips" is implied, "buns" alone is ambiguous between
 // hamburger and hotdog buns, and "dogs" alone (from "hot dogs") loses the "hot". Zero sugar sodas end in "sugar" or
-// "zeros" but are counted in cans. Checked against the full name, not just the last word.
+// "zeros" but are counted in cans, the shakes are protein shakes and bags of cookies are just bags. Checked against
+// the full name, not just the last word.
 function overrideCountNoun(base: string, name: Segment[]): string {
+  if (base === 'shakes') return 'protein shakes'
+  if (base === 'cookie bags') return 'bags'
   if (base !== 'bacon' && base !== 'buns' && base !== 'dogs' && base !== 'sugar' && base !== 'zeros') return base
   const text = name
     .filter((segment) => segment.kind === 'name')
@@ -159,9 +163,9 @@ function overrideCountNoun(base: string, name: Segment[]): string {
   return base
 }
 
-// Units counted on their own, "30 Rolls" of toilet paper, "21 Boxes" of tissues and "4 Tubes" of toothpaste, not
-// "30 Paper Rolls".
-const COUNTED_ALONE = new Set(['roll', 'box', 'tube'])
+// Units counted on their own, "30 Rolls" of toilet paper, "21 Boxes" of tissues, "4 Tubes" of toothpaste and "2 Loaves"
+// of bread, not "30 Paper Rolls".
+const COUNTED_ALONE = new Set(['roll', 'box', 'tube', 'loaf'])
 
 // The word to count by for a "Nx" amount. A typed unit price names it directly ("per bag" -> "bags"), pluralized
 // and, if it's a different word than the item's own name, paired with that name ("tea" + "bags" -> "tea bags").
@@ -196,8 +200,8 @@ function capitalizeWords(text: string): string {
 }
 
 // A count of 1 says nothing a single listed item doesn't already say, so it's dropped. Other counts read as
-// "<n> <Noun>" (8 Buns, 24 Eggs, 50 Tea Bags). A weight or volume keeps its raw unit (500g, 1L) unless the name
-// calls out a container word, in which case that reads better ("1 Carton" over "1L").
+// "<n> <Noun>" (8 Buns, 24 Eggs, 50 Tea Bags). A weight or volume keeps its raw unit (500g, 3.46L) unless it's exactly
+// one and the name calls out a container word, in which case that reads better ("1 Carton" over "1L").
 function describeAmount(amount: string, forCount: string, forMeasure: string): string | null {
   const match = /^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/.exec(amount)
   if (!match) return capitalizeWords(amount)
@@ -206,7 +210,8 @@ function describeAmount(amount: string, forCount: string, forMeasure: string): s
     if (Number(numberText) === 1) return null
     return capitalizeWords(forCount ? `${numberText} ${forCount}` : amount)
   }
-  return capitalizeWords(CONTAINER_WORDS.has(forMeasure) ? `${numberText} ${forMeasure}` : amount)
+  const useContainerWord = Number(numberText) === 1 && CONTAINER_WORDS.has(forMeasure)
+  return capitalizeWords(useContainerWord ? `${numberText} ${forMeasure}` : amount)
 }
 
 // Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and

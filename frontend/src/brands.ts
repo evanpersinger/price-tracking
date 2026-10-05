@@ -12,6 +12,7 @@ export const BRANDS: string[] = [
   'Great Value',
   'Kawartha Dairy',
   'Kirkland',
+  'Lactantia',
   'Maple Leaf',
   'McCain',
   'Natrel',
