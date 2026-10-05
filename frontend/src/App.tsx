@@ -30,7 +30,11 @@ export default function App() {
 
   return (
     // A dropped file outside the modal must do nothing, not open the image in the tab
-    <div className="page" onDragOver={(event) => event.preventDefault()} onDrop={(event) => event.preventDefault()}>
+    <div
+      className={review === null && !showAbbreviations ? 'page page-split' : 'page'}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => event.preventDefault()}
+    >
       {review === null && (
         <button type="button" className="add-item-button" onClick={() => setIsReceiptModalOpen(true)}>
           Add Item

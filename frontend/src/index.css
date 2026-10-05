@@ -5,6 +5,11 @@
   --hover-fill: #2a2a2a;
   --table-border: #606060; /* stronger than --border, for visible data table grid lines */
 
+  /* The stores and cheapest pages are two colors: the lighter top half (title, nav, store buttons) and the black
+     bottom half (the data, table included) */
+  --top-bg: #2a2f38;
+  --bottom-bg: #000000;
+
   /* One color per kind of text */
   --heading: #f2f2f2; /* page title */
   --store: #7dd3fc; /* store names */
@@ -317,6 +322,32 @@ main {
   border-radius: var(--radius);
   font-size: 1.5rem;
   box-sizing: border-box;
+}
+
+/* Two colors: the page color is the lighter top half, and everything under the store buttons is a black band that
+   runs full width down to the bottom of the screen, with the store's table sitting directly on it. */
+body:has(.page-split) {
+  background: var(--top-bg);
+}
+
+.page-split {
+  padding-bottom: 0;
+}
+
+.page-split .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.page-split .store-viewport {
+  padding-top: 16px;
+  padding-bottom: 64px;
+  background: var(--bottom-bg);
+}
+
+.page-split .store {
+  background: none;
+  border: none;
+  border-radius: 0;
 }
 
 .store-head {
