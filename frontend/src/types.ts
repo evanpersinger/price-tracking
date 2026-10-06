@@ -40,6 +40,27 @@ export interface CheapestStore {
   items: CheapestItem[]
 }
 
+// One store's offer in a search result, price_cents is what that store sells it for
+export interface SearchOffer {
+  id: number
+  store_id: number
+  store_name: string
+  name: string
+  price_cents: number
+  unit_price_cents: number // per the unit of the list it is in
+  item_count: number | null
+  weight_g: number | null
+  volume_ml: number | null
+  brand: string | null
+  item_code: string | null
+}
+
+// Offers that can be ranked against each other, cheapest first
+export interface SearchList {
+  unit: 'each' | 'g' | 'ml'
+  offers: SearchOffer[]
+}
+
 // The body of POST /api/items. A size (item_count, weight_g or volume_ml) is required, at least one of the three.
 export interface NewItem {
   country: Country

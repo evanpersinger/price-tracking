@@ -10,6 +10,13 @@
   --top-bg: #2a2f38;
   --bottom-bg: #000000;
 
+  /* Buttons: solid and saturated, not the pastel text colors */
+  --btn-bg: #3730a3;
+  --btn-hover: #4f46e5;
+  --btn-text: #ffffff;
+  --btn-active: linear-gradient(135deg, #0284c7, #7c3aed); /* the selected one, and the next/previous store arrows */
+  --btn-add: #16a34a;
+
   /* One color per kind of text */
   --heading: #f2f2f2; /* page title */
   --store: #7dd3fc; /* store names */
@@ -57,10 +64,10 @@ body {
   top: 16px;
   left: 16px;
   padding: 36px 72px;
-  background: var(--accent);
+  background: var(--btn-add);
   border: none;
   border-radius: 999px;
-  color: var(--bg);
+  color: var(--btn-text);
   font: inherit;
   font-size: 2.5rem;
   font-weight: 600;
@@ -198,27 +205,26 @@ main {
 
 .nav {
   display: flex;
-  gap: 4px;
+  gap: 8px;
 }
 
 .nav-link {
   padding: 6px 14px;
   border-radius: 999px;
-  color: var(--text-muted);
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
 }
 
 .nav-link:hover {
-  background: var(--hover-fill);
-  color: var(--text);
+  background: var(--btn-hover);
 }
 
 .nav-link[aria-current='page'],
 .nav-link[aria-current='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--btn-active);
 }
 
 .nav-link:focus-visible,
@@ -266,7 +272,7 @@ main {
 .store-jump {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
   margin-top: 24px;
   padding-top: 24px;
   margin-bottom: 16px;
@@ -277,9 +283,42 @@ main {
   padding: 10px 22px;
   font: inherit;
   font-size: 1.375rem;
-  background: none;
   border: none;
   border-radius: 0;
+}
+
+.search-box {
+  width: 100%;
+  margin: 24px 0 16px;
+  padding: 16px 22px;
+  background: var(--bg);
+  border: 2px solid var(--btn-bg);
+  border-radius: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.5rem;
+}
+
+.search-box:focus {
+  outline: none;
+  border-color: var(--btn-hover);
+}
+
+/* The store buttons right under the search box don't need the space that separates them from the nav */
+.search-box + .store-jump {
+  margin-top: 0;
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 16px;
+}
+
+td.store-column {
+  color: #f87171;
+  font-weight: 600;
 }
 
 .store-viewport {
@@ -312,9 +351,9 @@ main {
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--unit-price));
+  background: var(--btn-active);
   border: none;
-  color: var(--bg);
+  color: var(--btn-text);
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
@@ -344,10 +383,6 @@ body:has(.page-split) {
 
 .page-split {
   padding-bottom: 0;
-}
-
-.page-split .nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .page-split .store-viewport {

@@ -15,7 +15,7 @@ from typing import Literal, NamedTuple
 
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect
@@ -326,6 +326,18 @@ def _pick_winners(group: list[Offer]) -> list[Winner]:
     return [Winner(offer, 0, *_own_unit(offer)) for offer in group]
 
 
+def _sized_offers(country: str) -> list[Offer]:
+    """Every priced item in a country's stores that has a size, in the order they were added."""
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
+            "i.item_code FROM items i JOIN stores s ON s.id = i.store_id "
+            "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
+            (country,),
+        ).fetchall()
+    return [offer for offer in _make_offers(rows) if offer.amounts]
+
+
 class CheapestItem(BaseModel):
     id: int
     name: str
@@ -356,16 +368,8 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     volume_ml, or from the name when those are empty. An item sold at one store only counts as cheapest there,
     ties list it under every tied store, and items with no price or no size are left out.
     """
-    with closing(connect()) as conn:
-        rows = conn.execute(
-            "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
-            "i.item_code FROM items i JOIN stores s ON s.id = i.store_id "
-            "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
-            (country,),
-        ).fetchall()
-
     cheapest: dict[int, CheapestStore] = {}
-    for group in _group_items([offer for offer in _make_offers(rows) if offer.amounts]):
+    for group in _group_items(_sized_offers(country)):
         for winner in _pick_winners(group):
             offer = winner.offer
             store = cheapest.setdefault(offer.store_id, CheapestStore(id=offer.store_id, name=offer.store_name, items=[]))
@@ -379,6 +383,65 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     for store in cheapest.values():
         store.items.sort(key=lambda item: item.id)  # back into the order they were added
     return [cheapest[store_id] for store_id in sorted(cheapest)]
+
+
+class SearchOffer(BaseModel):
+    id: int
+    store_id: int
+    store_name: str
+    name: str
+    price_cents: int  # what this store sells it for
+    unit_price_cents: float  # per the unit of the list it is in
+    item_count: int | None
+    weight_g: float | None
+    volume_ml: float | None
+    brand: str | None
+    item_code: str | None
+
+
+class SearchList(BaseModel):
+    unit: Literal["each", "g", "ml"]  # what unit_price_cents is per for every offer in this list
+    offers: list[SearchOffer]  # cheapest first
+
+
+def _search_offer(offer: Offer, unit_price_cents: float) -> SearchOffer:
+    return SearchOffer(
+        id=offer.id, store_id=offer.store_id, store_name=offer.store_name, name=offer.name,
+        price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4), item_count=offer.item_count,
+        weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
+    )
+
+
+@app.get("/api/search")
+def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> list[SearchList]:
+    """What every store sells an item for, cheapest first, for every item whose name has all the words in q.
+
+    Offers are ranked on their own unit price, per item if they have a count, else per gram, else per ml. Each unit
+    gets its own list because they can't be ranked against each other. A store that has the same item and size more
+    than once only counts at its cheapest. Case doesn't matter, and items with no price or no size are left out.
+    More optional arguments, like a brand or a store, can be added next to q later.
+    """
+    terms = q.lower().split()
+    if not terms:
+        return []
+
+    cheapest_repeat: dict[tuple, Offer] = {}
+    for offer in _sized_offers(country):
+        if not all(term in offer.words for term in terms):
+            continue
+        key = (offer.store_id, offer.words, tuple(sorted(offer.amounts.items())))
+        if key not in cheapest_repeat or offer.price_cents < cheapest_repeat[key].price_cents:
+            cheapest_repeat[key] = offer
+
+    by_unit: dict[str, list[SearchOffer]] = {unit: [] for unit in PER_UNIT.values()}
+    for offer in cheapest_repeat.values():
+        unit, unit_price_cents = _own_unit(offer)
+        by_unit[unit].append(_search_offer(offer, unit_price_cents))
+    return [
+        SearchList(unit=unit, offers=sorted(offers, key=lambda found: found.unit_price_cents))
+        for unit, offers in by_unit.items()
+        if offers
+    ]
 
 
 if __name__ == "__main__":
