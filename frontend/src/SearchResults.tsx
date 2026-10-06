@@ -45,7 +45,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                       <th scope="col" className="store-column">Store</th>
                       <th scope="col" className="item-code">Item code</th>
                       <th scope="col" className="brand">Brand</th>
-                      <th scope="col" className="item">Item</th>
+                      <th scope="col" className="item">Item name</th>
                       <th scope="col" className="amount">Amount</th>
                       <th scope="col" className="unit-price">Unit price</th>
                       <th scope="col" className="price">Price</th>

@@ -19,9 +19,9 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
         <thead>
           <tr>
             <th scope="col" className="row-number">#</th>
-            <th scope="col" className="brand">Brand</th>
             <th scope="col" className="item-code">Item code</th>
-            <th scope="col" className="item">Item</th>
+            <th scope="col" className="brand">Brand</th>
+            <th scope="col" className="item">Item name</th>
             <th scope="col" className="amount">Amount</th>
             <th scope="col" className="unit-price">Unit price</th>
             <th scope="col" className="price">Price</th>
@@ -34,8 +34,8 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
             return (
               <tr key={item.id}>
                 <td className="row-number">{index + 1}</td>
-                <td className="brand">{item.brand}</td>
                 <td className="item-code">{item.item_code}</td>
+                <td className="brand">{item.brand}</td>
                 <td className="item">
                   <ItemName segments={name} />
                 </td>

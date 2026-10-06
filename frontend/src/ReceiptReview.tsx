@@ -287,7 +287,7 @@ export function ReceiptReview({ result, onDone }: Props) {
             <thead>
               <tr>
                 <th>Add</th>
-                <th>Item</th>
+                <th>Item name</th>
                 <th>Price</th>
                 <th>Count</th>
                 <th className="has-tip" tabIndex={0} aria-describedby="size-tip">

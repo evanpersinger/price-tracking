@@ -22,5 +22,6 @@ export const BRANDS: string[] = [
   'Quest',
   'Sunrise Farms',
   'SunRype',
+  'Top Dog',
   'Twinings',
 ]
