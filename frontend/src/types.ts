@@ -88,5 +88,6 @@ export interface ReceiptResult {
   purchase_date: string | null
   purchase_time?: string | null // HH:MM, shown on the review page but not saved
   store: string | null
+  store_address?: string | null // the address printed under the store name, used to guess the country
   items: ReceiptItem[]
 }

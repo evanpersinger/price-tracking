@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { addItem } from './api.ts'
 import { COUNTRIES } from './countries.ts'
 import { splitItemCode } from './itemCode.ts'
+import { guessCountry } from './guessCountry.ts'
 import { findKnownItem } from './knownItems.ts'
 import { useLoad } from './useLoad.ts'
 import { formatPrice } from './format.ts'
@@ -132,7 +133,7 @@ function rowStatus(row: Row, problems: string[]): { text: string; className: str
 }
 
 export function ReceiptReview({ result, onDone }: Props) {
-  const [country, setCountry] = useState<Country | null>(null)
+  const [pickedCountry, setPickedCountry] = useState<Country | null>(null)
   const [store, setStore] = useState(result.store ?? '')
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
   const [rows, setRows] = useState<Row[]>(() =>
@@ -142,6 +143,12 @@ export function ReceiptReview({ result, onDone }: Props) {
 
   const caStores = useLoad<Store[]>('/api/stores?country=CA')
   const usStores = useLoad<Store[]>('/api/stores?country=US')
+  // The person's pick wins, otherwise the country the store name points to, when only one country has that store
+  const guessedCountry =
+    caStores.status === 'ready' && usStores.status === 'ready'
+      ? guessCountry(store, result.store_address, caStores.data, usStores.data)
+      : null
+  const country = pickedCountry ?? guessedCountry
   const storeState = country === 'CA' ? caStores : country === 'US' ? usStores : null
   const storeList = storeState?.status === 'ready' ? storeState.data : null
 
@@ -232,7 +239,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                 className="nav-link country-pick"
                 aria-current={candidate.code === country ? 'true' : undefined}
                 disabled={isSaving}
-                onClick={() => setCountry(candidate.code)}
+                onClick={() => setPickedCountry(candidate.code)}
               >
                 {candidate.label}
               </button>

@@ -29,7 +29,9 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 _RECEIPT_PROMPT = (  # Prompt given to LLM
     "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), "
-    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, and items. Each item has "
+    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, store_address (the store's "
+    "address as printed near the top, with its city, province or state and postal code or ZIP, "
+    "null if it isn't printed), and items. Each item has "
     "raw_name (exactly as printed on the receipt), item_name (a clean, consistent product name, "
     "e.g. 'Organic Bananas'), price (a number), category (what kind of item it is, e.g. produce), "
     "and quantity_info.\n"
@@ -156,11 +158,14 @@ def _image_script(_model: str | None, image_b64: str, _media_type: str) -> str:
 
     items = [item for line in item_text.splitlines() if (item := _parse_item_line(line)) is not None]
     date_match = _DATE_RE.search(full_text)
-    store = next((line.strip() for line in full_text.splitlines() if line.strip()), None)
+    header = [line.strip() for line in full_text.splitlines() if line.strip()]
+    store = header[0] if header else None
+    store_address = " ".join(header[1:4]) or None  # the lines under the store name, where the address usually is
 
     return json.dumps({
         "purchase_date": date_match.group() if date_match else None,
         "store": store,
+        "store_address": store_address,
         "items": items,
     })
 

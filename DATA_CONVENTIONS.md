@@ -51,6 +51,25 @@ Hamburger buns or cheese slices that carry a count naturally end up compared per
 Nothing needs to be configured per category, it falls out of whatever size fields the
 item was given.
 
+## Typed unit price in a name
+
+Imported items carry a unit price in brackets at the end of the name, which the UI shows
+in the Unit price column and the API ignores (it works the comparison out itself). The
+conventions used when filling these in by hand:
+
+- Weight or volume: `($4.41 per 100g)` or `($0.30 per 100ml)`, rounded to the cent, or
+  three decimals when it's under 10 cents.
+- A count: `($0.50 per bun)`, with the word after `per` naming the thing, never a bare
+  `per`.
+- A single pack, bottle or carton that has no useful per-weight price: `($5.50 per pack)`,
+  `($14.00 per bottle)`, `($4.00 per carton)`.
+- An item with only `(1x)` and no size is left blank.
+- The size is the whole pack's total (`(2000g)` for 4 packs of 500g), and only one
+  measurement is kept, not both `(1lb)` and `(454g)`.
+- The Amount column's wording ("12 Cans", "4 Chops") comes from the name and the word after
+  `per`, so it can't be set by writing it in the name. See `overrideCountNoun` in
+  `frontend/src/format.ts`.
+
 ## Spelling
 
 Typos in imported item names (e.g. "Camoille" for Chamomile, "Vineagar") are generally
