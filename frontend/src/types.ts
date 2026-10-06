@@ -11,6 +11,7 @@ export interface Item {
   purchased_on: string | null
   brand: string | null
   item_code: string | null // the product code the store prints on the receipt, empty for imported items
+  fuel_type: string | null // what the fuel is on a gas receipt, as printed (Unleaded, 87, Diesel), empty for the rest
 }
 
 export interface Store {
@@ -73,6 +74,7 @@ export interface NewItem {
   purchased_on?: string // YYYY-MM-DD, the server uses today if left out
   brand?: string
   item_code?: string
+  fuel_type?: string
 }
 
 // What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.
@@ -82,6 +84,7 @@ export interface ReceiptItem {
   price: number
   category: string | null
   quantity_info?: string | null // a line like "3 @ 2.79" printed under the item, as printed
+  fuel_type?: string | null // only on a gas receipt: the grade or fuel as printed
 }
 
 export interface ReceiptResult {

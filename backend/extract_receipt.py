@@ -55,15 +55,38 @@ _RECEIPT_PROMPT = (  # Prompt given to LLM
     "Output only the JSON."
 )
 
+_FUEL_PROMPT = (  # Prompt for a gas station receipt, which has no item lines, only the fuel sale
+    "Read this fuel receipt from a gas station and return a JSON object with purchase_date (YYYY-MM-DD), "
+    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, store_address (the station's "
+    "address as printed near the top, with its city, province or state and postal code or ZIP, "
+    "null if it isn't printed), and items.\n"
+    "Items has exactly one item, the fuel: raw_name is the grade as printed (like 'Unleaded'), item_name "
+    "is 'Gas', fuel_type is the grade or fuel as printed (like 'Unleaded', '87', 'Premium 91' or 'Diesel'), "
+    "price is the Fuel Sale amount as a number (not the HST line), category is 'fuel', and quantity_info "
+    "is '<litres> L @ <price per litre>/L' with the numbers as printed.\n"
+    "Output only the JSON."
+)
+
+# Words a fuel receipt prints. One alone isn't enough (Grade A eggs), so two or more make it a fuel receipt.
+_FUEL_WORDS = (
+    r"\bpump\b", r"\bgrade\b", r"\blitres?\b", r"\bliters?\b", r"price\s*/\s*lit", r"\bfuel\s+sale\b", r"\bunleaded\b",
+    r"\bdiesel\b",
+)
+_FUEL_WORDS_NEEDED = 2
+
 
 # Local (Ollama)
 def _image_ollama(model: str, image_b64: str, _media_type: str) -> str:
-    """Send the receipt to the local Ollama vision model and return its JSON reply."""
+    """Send the receipt to the local Ollama vision model and return its JSON reply.
+
+    A fuel receipt gets its own prompt, picked from the words on the receipt, so the grocery prompt stays as it was.
+    """
+    prompt = _FUEL_PROMPT if _is_fuel_receipt(image_b64) else _RECEIPT_PROMPT
     response = requests.post(
         f"{OLLAMA_HOST}/api/chat",
         json={
             "model": model,
-            "messages": [{"role": "user", "content": _RECEIPT_PROMPT, "images": [image_b64]}],
+            "messages": [{"role": "user", "content": prompt, "images": [image_b64]}],
             "format": "json",
             "stream": False,
             "options": {"temperature": 0},
@@ -88,6 +111,19 @@ def _preprocess_for_ocr(image: Image.Image) -> Image.Image:
     image = ImageEnhance.Contrast(image).enhance(1.5)
     image = ImageEnhance.Sharpness(image).enhance(1.2)
     return image.filter(ImageFilter.MedianFilter(size=3))
+
+
+def _is_fuel_receipt(image_b64: str) -> bool:
+    """Whether the words on the receipt say it is from a gas station, found with OCR before the model reads it.
+
+    A grocery receipt is assumed when OCR can't run, so a broken Tesseract never blocks a receipt from being read.
+    """
+    try:
+        image = Image.open(io.BytesIO(base64.standard_b64decode(image_b64)))
+        text = pytesseract.image_to_string(_preprocess_for_ocr(image), config=r"--oem 3 --psm 6")
+    except (pytesseract.TesseractError, OSError):  # TesseractNotFoundError and a bad image are both OSErrors
+        return False
+    return sum(bool(re.search(word, text, re.IGNORECASE)) for word in _FUEL_WORDS) >= _FUEL_WORDS_NEEDED
 
 
 def _ocr_lines(image: Image.Image) -> list[tuple[int, int, str]]:

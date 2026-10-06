@@ -42,6 +42,7 @@ class Item(BaseModel):
     purchased_on: str | None
     brand: str | None
     item_code: str | None
+    fuel_type: str | None  # what the fuel is on a gas receipt, as printed, empty for everything else
 
 
 class Store(BaseModel):
@@ -60,17 +61,18 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         ).fetchall()
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
-            "i.purchased_on, i.brand, i.item_code FROM items i JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
-            "ORDER BY i.id",
+            "i.purchased_on, i.brand, i.item_code, i.fuel_type FROM items i JOIN stores s ON s.id = i.store_id "
+            "WHERE s.country = ? ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
     for (id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
-         item_code) in item_rows:
+         item_code, fuel_type) in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
             weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand, item_code=item_code,
+            fuel_type=fuel_type,
         ))
 
     return [
@@ -90,6 +92,7 @@ class NewItem(BaseModel):
     purchased_on: date | None = None  # today if left out
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
+    fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
 
     model_config = {"str_strip_whitespace": True}
 
@@ -125,7 +128,7 @@ def add_item(new_item: NewItem) -> AddedItem:
                 brand,
             )
         values = (new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g, new_item.volume_ml,
-                  purchased_on, brand, new_item.item_code)
+                  purchased_on, brand, new_item.item_code, new_item.fuel_type)
         # A code the store already has means the same product at a new price, so overwrite that row
         existing = conn.execute(
             "SELECT id FROM items WHERE store_id = ? AND item_code = ?", (store_id, new_item.item_code)
@@ -134,20 +137,20 @@ def add_item(new_item: NewItem) -> AddedItem:
             item_id = existing[0]
             conn.execute(
                 "UPDATE items SET name = ?, price_cents = ?, item_count = ?, weight_g = ?, volume_ml = ?, "
-                "purchased_on = ?, brand = ?, item_code = ? WHERE id = ?",
+                "purchased_on = ?, brand = ?, item_code = ?, fuel_type = ? WHERE id = ?",
                 (*values, item_id),
             )
         else:
             item_id = conn.execute(
                 "INSERT INTO items (name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand, "
-                "item_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "item_code, fuel_type, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
         item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
-        purchased_on=purchased_on, brand=brand, item_code=new_item.item_code,
+        purchased_on=purchased_on, brand=brand, item_code=new_item.item_code, fuel_type=new_item.fuel_type,
     )
 
 
@@ -327,12 +330,15 @@ def _pick_winners(group: list[Offer]) -> list[Winner]:
 
 
 def _sized_offers(country: str) -> list[Offer]:
-    """Every priced item in a country's stores that has a size, in the order they were added."""
+    """Every priced grocery item in a country's stores that has a size, in the order they were added.
+
+    Gas (anything with a fuel_type) is left out, it is compared on its own Gas Prices page and not per item.
+    """
     with closing(connect()) as conn:
         rows = conn.execute(
             "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
             "i.item_code FROM items i JOIN stores s ON s.id = i.store_id "
-            "WHERE s.country = ? AND i.price_cents IS NOT NULL ORDER BY i.id",
+            "WHERE s.country = ? AND i.price_cents IS NOT NULL AND i.fuel_type IS NULL ORDER BY i.id",
             (country,),
         ).fetchall()
     return [offer for offer in _make_offers(rows) if offer.amounts]

@@ -92,6 +92,14 @@ def test_a_new_brand_keeps_the_spelling_it_was_typed_with(client: TestClient, ad
     assert brands == ["Arm&Hammer", "Windsor"]
 
 
+def test_a_fuel_type_is_saved_and_listed(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=26204)
+    add_item(name="Salt")
+
+    fuel, grocery = stores_in(client)[0]["items"]
+    assert (fuel["fuel_type"], grocery["fuel_type"]) == ("Unleaded", None)
+
+
 def test_items_without_a_code_are_never_overwritten(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item()
     add_item()

@@ -43,6 +43,7 @@ _ADDED_ITEM_COLUMNS = {
     "volume_ml": "REAL",
     "brand": "TEXT",
     "item_code": "TEXT",  # the product code the store prints on the receipt line, empty for the imported rows
+    "fuel_type": "TEXT",  # what a gas receipt's fuel is, as printed (Unleaded, 87, Diesel), empty for everything else
 }
 
 

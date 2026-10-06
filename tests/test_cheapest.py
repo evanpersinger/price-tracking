@@ -59,6 +59,13 @@ def test_an_item_with_no_size_is_left_out(client: TestClient, add_imported: Call
     assert cheapest(client) == []
 
 
+def test_gas_is_left_out_of_the_cheapest_items_and_search(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(store="Shell", name="Gas", fuel_type="Regular", item_count=1, volume_ml=26204, price_cents=4583)
+
+    assert cheapest(client) == []
+    assert client.get("/api/search", params={"country": "CA", "q": "gas"}).json() == []
+
+
 def test_stores_in_another_country_are_not_compared(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(country="CA", store="Costco", price_cents=1200, item_count=24)
     add_item(country="US", store="Costco", price_cents=900, item_count=12)

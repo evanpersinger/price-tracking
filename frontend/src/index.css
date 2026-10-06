@@ -459,7 +459,8 @@ body:has(.page-split) {
   text-align: right;
 }
 
-.items td.item-code {
+.items td.item-code,
+.items td.date {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -468,7 +469,8 @@ body:has(.page-split) {
   color: var(--item);
 }
 
-.items td.brand {
+.items td.brand,
+.items td.fuel-type {
   color: var(--store);
 }
 

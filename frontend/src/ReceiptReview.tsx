@@ -3,7 +3,10 @@ import { addItem } from './api.ts'
 import { COUNTRIES } from './countries.ts'
 import { splitItemCode } from './itemCode.ts'
 import { guessCountry } from './guessCountry.ts'
+import { pricePerLitre } from './fuel.ts'
 import { findKnownItem } from './knownItems.ts'
+import { matchSavedStore } from './matchSavedStore.ts'
+import { litresIn } from './quantityInfo.ts'
 import { useLoad } from './useLoad.ts'
 import { formatPrice } from './format.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
@@ -38,6 +41,7 @@ interface Row {
   size: string
   unit: SizeUnit | '' // '' until the user picks one, there is no default
   brand: string
+  fuelType: string // what the fuel is on a gas receipt, empty for every other row
   hasNoSize: boolean // a known item sold by count alone (like toilet paper), so the size box and unit are left out
   known: boolean // matched an entry in knownItems.ts, which wins over a saved item
   saved: Item | null // the item already in this store with the same code, saving overwrites it
@@ -46,22 +50,25 @@ interface Row {
   error: string | null
 }
 
-type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand'>
+type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type'>
 
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
   const printed = splitItemCode(item.raw_name ?? '')
+  // A fuel receipt prints its size, so a litre line makes it one item of that many litres without being typed
+  const litres = litresIn(item.quantity_info)
   return {
     id,
     rawName: printed.name,
     code: printed.code,
     quantityInfo: item.quantity_info ?? '',
-    name: known?.name ?? (item.item_name || item.raw_name || ''),
+    name: known?.name ?? (litres ? 'Gas' : item.item_name || item.raw_name || ''),
     price: typeof item.price === 'number' ? String(item.price) : '',
-    count: known ? String(known.count) : '',
-    size: known?.size !== undefined ? String(known.size) : '',
-    unit: known?.unit ?? '',
+    count: known ? String(known.count) : litres ? '1' : '',
+    size: known?.size !== undefined ? String(known.size) : (litres ?? ''),
+    unit: known?.unit ?? (litres ? 'L' : ''),
     brand: known?.brand ?? '',
+    fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',
     known: known !== undefined,
     saved: null,
@@ -119,6 +126,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
       weight_g: row.unit === 'g' ? (size ?? undefined) : undefined,
       volume_ml: row.unit === 'ml' ? (size ?? undefined) : row.unit === 'L' && size !== null ? Math.round(size * 1000) : undefined,
       brand: row.brand.trim() || NO_BRAND,
+      fuel_type: row.fuelType.trim() || undefined,
     },
   }
 }
@@ -134,7 +142,11 @@ function rowStatus(row: Row, problems: string[]): { text: string; className: str
 
 export function ReceiptReview({ result, onDone }: Props) {
   const [pickedCountry, setPickedCountry] = useState<Country | null>(null)
-  const [store, setStore] = useState(result.store ?? '')
+  const [typedStore, setTypedStore] = useState<string | null>(null) // null until the person edits the store box
+  const receiptStore = result.store ?? ''
+  // A litre line means a fuel receipt, where a brand makes no sense, so the Brand column becomes Fuel type and the item
+  // saves as No Brand
+  const isFuelReceipt = (result.items ?? []).some((item) => litresIn(item.quantity_info) !== undefined)
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
   const [rows, setRows] = useState<Row[]>(() =>
     (result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
@@ -146,11 +158,15 @@ export function ReceiptReview({ result, onDone }: Props) {
   // The person's pick wins, otherwise the country the store name points to, when only one country has that store
   const guessedCountry =
     caStores.status === 'ready' && usStores.status === 'ready'
-      ? guessCountry(store, result.store_address, caStores.data, usStores.data)
+      ? guessCountry(typedStore ?? receiptStore, result.store_address, caStores.data, usStores.data)
       : null
   const country = pickedCountry ?? guessedCountry
   const storeState = country === 'CA' ? caStores : country === 'US' ? usStores : null
   const storeList = storeState?.status === 'ready' ? storeState.data : null
+
+  // The saved store the receipt's name points to ("Costco 530" for "Costco") fills the store box, until the person types
+  const matchedStore = storeList !== null && typedStore === null ? matchSavedStore(receiptStore, storeList) : null
+  const store = typedStore ?? matchedStore?.name ?? receiptStore
 
   const trimmedStore = store.trim()
   const countryLabel = COUNTRIES.find((candidate) => candidate.code === country)?.label ?? ''
@@ -207,14 +223,7 @@ export function ReceiptReview({ result, onDone }: Props) {
         </p>
       )
     }
-    if (existingStore) {
-      return (
-        <p className="store-banner">
-          Items will be added to <strong>{existingStore.name}</strong> ({countryLabel}, {existingStore.items.length}{' '}
-          items now).
-        </p>
-      )
-    }
+    if (existingStore) return null // nothing to warn about, the Add button names the store
     return (
       <p className="store-banner store-banner-warn">
         <strong>&quot;{trimmedStore}&quot;</strong> isn&apos;t an existing {countryLabel} store, a new one will be created.
@@ -253,7 +262,7 @@ export function ReceiptReview({ result, onDone }: Props) {
             list="receipt-stores"
             value={store}
             disabled={isSaving}
-            onChange={(event) => setStore(event.target.value)}
+            onChange={(event) => setTypedStore(event.target.value)}
           />
           <datalist id="receipt-stores">
             {storeList?.map((candidate) => <option key={candidate.id} value={candidate.name} />)}
@@ -289,19 +298,30 @@ export function ReceiptReview({ result, onDone }: Props) {
                 <th>Add</th>
                 <th>Item name</th>
                 <th>Price</th>
-                <th>Count</th>
-                <th className="has-tip" tabIndex={0} aria-describedby="size-tip">
-                  Size (whole pack)
-                  <span id="size-tip" role="tooltip" className="tip">
-                    The total size of everything in the pack, not each item. For example, 6 boxes of 454g is 2724g.
-                  </span>
-                </th>
-                <th className="has-tip" tabIndex={0} aria-describedby="brand-tip">
-                  Brand
-                  <span id="brand-tip" role="tooltip" className="tip tip-right">
-                    Enter the brand name as accurately as possible. Upper and lowercase don't matter.
-                  </span>
-                </th>
+                {!isFuelReceipt && <th>Count</th>}
+                {isFuelReceipt ? (
+                  <>
+                    <th>Litres</th>
+                    <th>Price per litre</th>
+                  </>
+                ) : (
+                  <th className="has-tip" tabIndex={0} aria-describedby="size-tip">
+                    Size (whole pack)
+                    <span id="size-tip" role="tooltip" className="tip">
+                      The total size of everything in the pack, not each item. For example, 6 boxes of 454g is 2724g.
+                    </span>
+                  </th>
+                )}
+                {isFuelReceipt ? (
+                  <th>Fuel type</th>
+                ) : (
+                  <th className="has-tip" tabIndex={0} aria-describedby="brand-tip">
+                    Brand
+                    <span id="brand-tip" role="tooltip" className="tip tip-right">
+                      Enter the brand name as accurately as possible. Upper and lowercase don't matter.
+                    </span>
+                  </th>
+                )}
                 <th>Status</th>
               </tr>
             </thead>
@@ -311,6 +331,12 @@ export function ReceiptReview({ result, onDone }: Props) {
                 const status = rowStatus(row, problems)
                 const locked = isSaving || row.status === 'added'
                 const rowNumber = index + 1
+                const fuelPrice = parsePositive(row.price)
+                const litres = parsePositive(row.size)
+                const litrePrice =
+                  fuelPrice !== null && litres !== null
+                    ? pricePerLitre(Math.round(fuelPrice * 100), litres * 1000, country ?? 'CA')
+                    : null
                 return (
                   <tr key={row.id}>
                     <td>
@@ -330,11 +356,15 @@ export function ReceiptReview({ result, onDone }: Props) {
                         disabled={locked}
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
-                      <div className="raw-name">
-                        Printed as {row.rawName || 'nothing'}
-                        {row.code ? `, code ${row.code}` : ''}
-                      </div>
-                      {row.quantityInfo && <div className="raw-name">Quantity line: {row.quantityInfo}</div>}
+                      {!isFuelReceipt && (
+                        <div className="raw-name">
+                          Printed as {row.rawName || 'nothing'}
+                          {row.code ? `, code ${row.code}` : ''}
+                        </div>
+                      )}
+                      {!isFuelReceipt && row.quantityInfo && (
+                        <div className="raw-name">Quantity line: {row.quantityInfo}</div>
+                      )}
                       {row.saved && country !== null && (
                         <div className="raw-name">
                           Matched saved item, overwrites its price of{' '}
@@ -354,20 +384,34 @@ export function ReceiptReview({ result, onDone }: Props) {
                         onChange={(event) => patchRow(row.id, { price: event.target.value })}
                       />
                     </td>
+                    {!isFuelReceipt && (
+                      <td>
+                        <input
+                          className="review-input review-input-number"
+                          type="number"
+                          min="1"
+                          step="1"
+                          aria-label={`Count of item ${rowNumber}`}
+                          value={row.count}
+                          disabled={locked}
+                          onChange={(event) => patchRow(row.id, { count: event.target.value })}
+                        />
+                      </td>
+                    )}
                     <td>
-                      <input
-                        className="review-input review-input-number"
-                        type="number"
-                        min="1"
-                        step="1"
-                        aria-label={`Count of item ${rowNumber}`}
-                        value={row.count}
-                        disabled={locked}
-                        onChange={(event) => patchRow(row.id, { count: event.target.value })}
-                      />
-                    </td>
-                    <td>
-                      {!row.hasNoSize && (
+                      {isFuelReceipt && (
+                        <input
+                          className="review-input review-input-number"
+                          type="number"
+                          min="0"
+                          step="any"
+                          aria-label={`Litres of item ${rowNumber}`}
+                          value={row.size}
+                          disabled={locked}
+                          onChange={(event) => patchRow(row.id, { size: event.target.value })}
+                        />
+                      )}
+                      {!isFuelReceipt && !row.hasNoSize && (
                         <div className="review-size">
                           <input
                             className="review-input review-input-number"
@@ -399,14 +443,25 @@ export function ReceiptReview({ result, onDone }: Props) {
                         </div>
                       )}
                     </td>
+                    {isFuelReceipt && <td>{litrePrice}</td>}
                     <td>
-                      <input
-                        className="review-input"
-                        aria-label={`Brand of item ${rowNumber}`}
-                        value={row.brand}
-                        disabled={locked}
-                        onChange={(event) => patchRow(row.id, { brand: event.target.value })}
-                      />
+                      {isFuelReceipt ? (
+                        <input
+                          className="review-input"
+                          aria-label={`Fuel type of item ${rowNumber}`}
+                          value={row.fuelType}
+                          disabled={locked}
+                          onChange={(event) => patchRow(row.id, { fuelType: event.target.value })}
+                        />
+                      ) : (
+                        <input
+                          className="review-input"
+                          aria-label={`Brand of item ${rowNumber}`}
+                          value={row.brand}
+                          disabled={locked}
+                          onChange={(event) => patchRow(row.id, { brand: event.target.value })}
+                        />
+                      )}
                     </td>
                     <td className={status.className}>{status.text}</td>
                   </tr>
