@@ -43,6 +43,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                     <tr>
                       <th scope="col" className="row-number">#</th>
                       <th scope="col" className="store-column">Store</th>
+                      <th scope="col" className="item-code">Item code</th>
                       <th scope="col" className="brand">Brand</th>
                       <th scope="col" className="item">Item</th>
                       <th scope="col" className="amount">Amount</th>
@@ -58,6 +59,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                         <tr key={offer.id}>
                           <td className="row-number">{index + 1}</td>
                           <td className="store-column">{offer.store_name}</td>
+                          <td className="item-code">{offer.item_code}</td>
                           <td className="brand">{offer.brand}</td>
                           <td className="item">
                             <ItemName segments={name} />

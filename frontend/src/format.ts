@@ -106,12 +106,13 @@ function headNoun(name: Segment[]): string {
 // Weight and volume units, not countable nouns, so "$0 per gram" doesn't turn a head count into "3 lettuce grams".
 const MEASURE_UNITS = new Set(['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'ml', 'l', 'litre', 'litres', 'liter', 'liters', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds'])
 
-// The noun after "per" in a typed unit price, e.g. "($0.20 per bag)" gives "bag". Only plain, countable words
-// match, so "per gram" or "per 100ml" (a weight or volume rate, not a countable noun) are left alone.
+// The noun after "per" in a typed unit price, e.g. "($0.20 per bag)" gives "bag", and the last word of a longer one
+// ("per tea bag") since that's the thing counted. Only plain, countable words match, so "per gram" or "per 100ml" (a
+// weight or volume rate, not a countable noun) are left alone.
 function perUnitNoun(name: Segment[]): string | undefined {
   for (const segment of name) {
     if (segment.kind !== 'unit-price') continue
-    const match = /per\s+([a-zA-Z]+)$/i.exec(segment.text.slice(0, -1))
+    const match = /per\s+(?:[a-zA-Z]+\s+)*([a-zA-Z]+)$/i.exec(segment.text.slice(0, -1))
     if (match && !MEASURE_UNITS.has(match[1].toLowerCase())) return match[1].toLowerCase()
   }
   return undefined
@@ -163,9 +164,9 @@ function overrideCountNoun(base: string, name: Segment[]): string {
   return base
 }
 
-// Units counted on their own, "30 Rolls" of toilet paper, "21 Boxes" of tissues, "4 Tubes" of toothpaste and "2 Loaves"
-// of bread, not "30 Paper Rolls".
-const COUNTED_ALONE = new Set(['roll', 'box', 'tube', 'loaf'])
+// Units counted on their own, "30 Rolls" of toilet paper, "21 Boxes" of tissues, "4 Tubes" of toothpaste, "2 Loaves"
+// of bread and "12 Cans" of hard iced tea, not "30 Paper Rolls".
+const COUNTED_ALONE = new Set(['roll', 'box', 'tube', 'loaf', 'can'])
 
 // The word to count by for a "Nx" amount. A typed unit price names it directly ("per bag" -> "bags"), pluralized
 // and, if it's a different word than the item's own name, paired with that name ("tea" + "bags" -> "tea bags").
