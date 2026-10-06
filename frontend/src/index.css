@@ -54,7 +54,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  max-width: 720px;
+  max-width: 1400px; /* wide enough for the button rows to sit on one line each */
   margin: 0 auto;
   padding: 24px var(--gutter) 64px;
 }
@@ -205,10 +205,12 @@ main {
 
 .nav {
   display: flex;
+  flex-wrap: wrap; /* a button that doesn't fit moves to the next row whole, its words never split over two lines */
   gap: 8px;
 }
 
 .nav-link {
+  white-space: nowrap;
   padding: 6px 14px;
   border-radius: 999px;
   background: var(--btn-bg);
@@ -234,6 +236,7 @@ main {
 }
 
 .view-nav {
+  justify-content: center;
   margin-top: 12px;
 }
 
@@ -272,6 +275,7 @@ main {
 .store-jump {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-top: 24px;
   padding-top: 24px;
@@ -288,8 +292,10 @@ main {
 }
 
 .search-box {
+  display: block;
   width: 100%;
-  margin: 24px 0 16px;
+  max-width: 720px;
+  margin: 24px auto 16px;
   padding: 16px 22px;
   background: var(--bg);
   border: 2px solid var(--btn-bg);
@@ -331,6 +337,7 @@ td.store-column {
   padding-left: var(--gutter);
   padding-right: var(--gutter);
   box-sizing: border-box;
+  overflow-x: hidden; /* never a sideways scrollbar, the table narrows to fit instead */
   overflow-y: auto;
 }
 
@@ -340,8 +347,8 @@ td.store-column {
   align-items: center;
   gap: 12px;
   align-self: flex-start;
-  /* Fixed width, wider than the buttons need, room reserved for more here later, centered within it. */
-  flex: 0 0 280px;
+  /* Just wide enough for the arrow buttons, so the table gets the rest of the width. */
+  flex: 0 0 112px;
 }
 
 .store-nav-button {
@@ -367,11 +374,11 @@ td.store-column {
   width: auto;
   flex: 1;
   margin-bottom: 16px;
-  padding: 32px;
+  padding: 24px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 1.3vw, 1.5rem); /* grows with the window, so the table and its arrow button always fit */
   box-sizing: border-box;
 }
 
@@ -425,8 +432,7 @@ body:has(.page-split) {
 }
 
 .items {
-  width: auto;
-  max-width: 100%;
+  width: 100%; /* fills the card up to the arrow button, so a short table doesn't leave empty space beside it */
   border-collapse: collapse;
 }
 
@@ -436,6 +442,20 @@ body:has(.page-split) {
   white-space: nowrap;
   padding: 10px 16px;
   border: 1px solid var(--table-border);
+}
+
+/* The store, cheapest, search and gas tables get roomier cells than the receipt review table */
+.store .items th,
+.store .items td {
+  padding: clamp(8px, 0.6vw, 14px) clamp(10px, 1vw, 22px);
+}
+
+/* On a window too narrow for the table on one line per row, cell text wraps so the table narrows instead of scrolling */
+@media (max-width: 1700px) {
+  .items th,
+  .items td {
+    white-space: normal;
+  }
 }
 
 .items th {
