@@ -343,6 +343,45 @@ td.store-column {
   overflow-y: auto;
 }
 
+/* The regular-items table and the sold-by-weight table for one store, stacked close together, sharing the nav
+   arrows beside them. Overrides .store's own margin-bottom, meant for spacing below a single card, which would
+   otherwise add on top of this gap and push the two tables further apart than intended. */
+.store-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* .store's own flex: 1 and min-height: 100% are meant for a single card filling the row beside the nav arrows; nested
+   in this column instead, they'd stretch each stacked card to fill the whole viewport height instead of its content */
+.store-stack .store {
+  flex: none;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+/* Each .store card's own padding would otherwise add on top of the gap at the seam between the two tables */
+.store-stack .store:not(:last-child) {
+  padding-bottom: 0;
+}
+
+.store-stack .store:not(:first-child) {
+  padding-top: 0;
+}
+
+/* The sold-by-weight table has only 3 columns, so it doesn't need to stretch to the regular table's width above it */
+.store-compact {
+  align-self: flex-start;
+  width: fit-content;
+  min-width: 28rem;
+}
+
+.store-compact .items {
+  width: auto;
+}
+
 .store-nav {
   display: flex;
   flex-direction: column;

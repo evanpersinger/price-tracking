@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Arrow } from './Arrow.tsx'
+import { ByWeightTable } from './ByWeightTable.tsx'
 import { itemParts } from './format.ts'
 import { isFuelItem } from './fuel.ts'
 import { Loaded } from './Loaded.tsx'
@@ -36,6 +37,14 @@ export function StoresView({ country }: StoresViewProps) {
         }
         const activeIndexInRange = Math.min(activeIndex, withItems.length - 1)
         const activeStore = withItems[activeIndexInRange]
+        // Anything picked out loose and priced by weight (produce, a bulk bin: no package size, just a per-kg or
+        // per-100g rate) gets its own plainer table. Everything else, including a flat-priced item with no size at
+        // all (the size just wasn't recorded, it isn't sold by weight), stays in the regular table.
+        const byWeightItems = activeStore.items.filter((item) => {
+          const parts = itemParts(item)
+          return parts.amounts.length === 0 && parts.unitPrice !== null
+        })
+        const packagedItems = activeStore.items.filter((item) => !byWeightItems.includes(item))
         return (
           <>
             <div className="store-jump">
@@ -52,7 +61,24 @@ export function StoresView({ country }: StoresViewProps) {
               ))}
             </div>
             <div className="store-viewport">
-              <StoreTable key={activeStore.id} store={activeStore} country={country} />
+              <div className="store-stack">
+                {packagedItems.length > 0 && (
+                  <StoreTable
+                    key={`${activeStore.id}-packaged`}
+                    store={{ ...activeStore, items: packagedItems }}
+                    country={country}
+                  />
+                )}
+                {byWeightItems.length > 0 && (
+                  <ByWeightTable
+                    key={`${activeStore.id}-by-weight`}
+                    store={activeStore}
+                    items={byWeightItems}
+                    country={country}
+                    startIndex={packagedItems.length}
+                  />
+                )}
+              </div>
               <div className="store-nav">
                 {activeIndexInRange < withItems.length - 1 && (
                   <button
