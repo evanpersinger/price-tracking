@@ -133,11 +133,39 @@ def add_item(new_item: NewItem) -> AddedItem:
             )
         values = (new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g, new_item.volume_ml,
                   purchased_on, brand, new_item.item_code, new_item.fuel_type)
-        # A code the store already has means the same product at a new price, so overwrite that row
-        existing = conn.execute(
-            "SELECT id, name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type FROM items "
-            "WHERE store_id = ? AND item_code = ?", (store_id, new_item.item_code)
-        ).fetchone() if new_item.item_code else None
+        existing_columns = "id, name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type"
+        if new_item.item_code:
+            # A code the store already has means the same product at a new price, so overwrite that row
+            existing = conn.execute(
+                f"SELECT {existing_columns} FROM items WHERE store_id = ? AND item_code = ?",
+                (store_id, new_item.item_code),
+            ).fetchone()
+        elif new_item.fuel_type:
+            # No code on a gas receipt by design, every fill-up is its own row even if the grade repeats
+            existing = None
+        else:
+            # No code to go by (the receipt reader missed it, or this store never prints one): the same brand, a
+            # near-identical core name (tolerating OCR noise) and the same size together mean a repeat of the same
+            # product, so it overwrites that row instead of piling up duplicates. Brand, size and price alone
+            # aren't enough on their own, different products commonly share any one of them (two items can both be
+            # "(1x)" at the same price point), and the name alone isn't enough either, since stripping the size to
+            # compare names would make "Chamomile Tea" 50 bags and 20 bags look identical. Both have to agree.
+            new_words, new_text_amounts = _split_name(new_item.name)
+            new_amounts = _effective_amounts(new_item.item_count, new_item.weight_g, new_item.volume_ml, new_text_amounts)
+            candidates = conn.execute(
+                f"SELECT {existing_columns} FROM items WHERE store_id = ? AND lower(coalesce(brand, '')) = lower(?)",
+                (store_id, brand or ""),
+            ).fetchall()
+            existing = None
+            for row in candidates:
+                row_words, row_text_amounts = _split_name(row[1])
+                row_amounts = _effective_amounts(row[3], row[4], row[5], row_text_amounts)
+                if (
+                    _same_sizes(new_amounts, row_amounts)
+                    and difflib.SequenceMatcher(None, new_words, row_words).ratio() >= DUPLICATE_NAME_SIMILARITY
+                ):
+                    existing = row
+                    break
         if existing:
             item_id = existing[0]
             conn.execute(
@@ -230,6 +258,10 @@ async def read_receipt(request: Request) -> dict:
 UNIT_PRICE = re.compile(r"\([^()]*\$[^()]*\)")  # e.g. "($0.57 per pill)", worked out from the price
 AMOUNT = re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
 SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
+# A stricter bar than SIMILARITY above: this one decides whether a new item overwrites an existing row (so a
+# false match loses data) rather than just grouping two offers for display, and it's paired with an exact size
+# match (see add_item), so this only needs to tolerate OCR noise, not genuinely different wording.
+DUPLICATE_NAME_SIMILARITY = 0.9
 SIZE_TOLERANCE = 0.02  # 1lb (453.6g) and 454g are the same amount
 WEIGHT_G = {"g": 1, "kg": 1000, "lb": 453.592, "lbs": 453.592, "oz": 28.3495}
 VOLUME_ML = {"ml": 1, "l": 1000, "lt": 1000}
@@ -290,22 +322,26 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
     return " ".join(text.split()), amounts
 
 
-def _make_offers(rows: list[tuple]) -> list[Offer]:
-    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code) rows.
+def _effective_amounts(
+    item_count: int | None, weight_g: float | None, volume_ml: float | None, text_amounts: dict[str, float]
+) -> dict[str, float]:
+    """The size typed into item_count/weight_g/volume_ml, or the size written in the name when those are all empty."""
+    typed = {
+        kind: amount
+        for kind, amount in (("count", item_count), ("weight", weight_g), ("volume", volume_ml))
+        if amount
+    }
+    return typed or text_amounts
 
-    The size typed into item_count, weight_g and volume_ml wins, the size written in the name is only used when
-    those are all empty.
-    """
+
+def _make_offers(rows: list[tuple]) -> list[Offer]:
+    """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code) rows."""
     offers = []
     for item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code in rows:
-        words, amounts = _split_name(name)
-        typed = {
-            kind: amount
-            for kind, amount in (("count", item_count), ("weight", weight_g), ("volume", volume_ml))
-            if amount
-        }
+        words, text_amounts = _split_name(name)
+        amounts = _effective_amounts(item_count, weight_g, volume_ml, text_amounts)
         offers.append(Offer(
-            item_id, store_id, store_name, name, price_cents, words, typed or amounts, item_count, weight_g,
+            item_id, store_id, store_name, name, price_cents, words, amounts, item_count, weight_g,
             volume_ml, brand, item_code,
         ))
     return offers

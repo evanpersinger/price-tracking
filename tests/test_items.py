@@ -169,8 +169,55 @@ def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, 
     assert history() == []
 
 
-def test_items_without_a_code_are_never_overwritten(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item()
-    add_item()
+def test_same_name_brand_and_size_without_a_code_overwrites_the_saved_item(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    first = add_item(brand="Kirkland", price_cents=1000)
+    second = add_item(brand="Kirkland", price_cents=1200)
+
+    assert second["id"] == first["id"]
+    assert len(stores_in(client)[0]["items"]) == 1
+
+
+def test_near_identical_name_without_a_code_still_overwrites_the_saved_item(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    """Tolerates the kind of noise an OCR misread introduces, one dropped letter."""
+    first = add_item(name="Chicken Strips", item_count=1, weight_g=1200)
+    second = add_item(name="Chickn Strips", item_count=1, weight_g=1200)
+
+    assert second["id"] == first["id"]
+    assert len(stores_in(client)[0]["items"]) == 1
+
+
+def test_different_brand_without_a_code_is_a_new_item(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(brand="Kirkland")
+    add_item(brand="Great Value")
+
+    assert len(stores_in(client)[0]["items"]) == 2
+
+
+def test_different_name_without_a_code_is_a_new_item(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Large Eggs")
+    add_item(name="Medium Eggs")
+
+    assert len(stores_in(client)[0]["items"]) == 2
+
+
+def test_same_name_but_different_size_without_a_code_is_a_new_item(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    """A smaller or bigger pack of the same product is a different item, not a repeat purchase."""
+    add_item(name="Chamomile Tea", item_count=50)
+    add_item(name="Chamomile Tea", item_count=20)
+
+    assert len(stores_in(client)[0]["items"]) == 2
+
+
+def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=26204)
+    add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=30000)
 
     assert len(stores_in(client)[0]["items"]) == 2
