@@ -39,7 +39,8 @@ interface Row {
   price: string
   count: string
   size: string
-  unit: SizeUnit | '' // '' until the user picks one, there is no default
+  unit: SizeUnit | '' // defaults to 'none' (sold as whole units, no size needed) unless the receipt or a known item
+  // gives a real weight/volume; '' only once the person clears the dropdown themselves
   brand: string
   fuelType: string // what the fuel is on a gas receipt, empty for every other row
   hasNoSize: boolean // a known item sold by count alone (like toilet paper), so the size box and unit are left out
@@ -69,7 +70,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     price: price === null ? '' : String(price),
     count: known ? String(known.count) : (quantity?.count ?? ''),
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
-    unit: known?.unit ?? quantity?.unit ?? '',
+    unit: known?.unit ?? quantity?.unit ?? 'none',
     brand: known?.brand ?? '',
     fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',

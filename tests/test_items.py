@@ -1,5 +1,6 @@
 """POST /api/items and GET /api/stores."""
 
+import json
 from collections.abc import Callable
 from contextlib import closing
 
@@ -13,6 +14,14 @@ def history() -> list[tuple]:
     """Every price_history row as (item id, price in cents, date), oldest first."""
     with closing(db.connect()) as conn:
         return conn.execute("SELECT item_id, price_cents, purchased_on FROM price_history ORDER BY id").fetchall()
+
+
+def activity_log() -> list[dict]:
+    """Every line written to activity.log so far, oldest first."""
+    log_path = db.DB_PATH.parent / "activity.log"
+    if not log_path.exists():
+        return []
+    return [json.loads(line) for line in log_path.read_text().splitlines()]
 
 
 def stores_in(client: TestClient, country: str = "CA") -> list[dict]:
@@ -78,6 +87,28 @@ def test_same_item_code_at_another_store_is_a_new_item(add_item: Callable[..., d
     fresco = add_item(store="Fresco", item_code="123456")
 
     assert costco["id"] != fresco["id"]
+
+
+def test_adding_an_item_logs_an_insert(add_item: Callable[..., dict]) -> None:
+    add_item(store="Costco", name="Large Eggs", price_cents=1299, brand="Kirkland")
+
+    [entry] = activity_log()
+    assert entry["action"] == "insert"
+    assert (entry["store"], entry["name"], entry["price_cents"], entry["brand"]) == (
+        "Costco", "Large Eggs", 1299, "Kirkland",
+    )
+
+
+def test_overwriting_an_item_logs_only_the_changed_fields(add_item: Callable[..., dict]) -> None:
+    add_item(item_code="123456", price_cents=1000)
+    add_item(item_code="123456", price_cents=1200, name="Large Eggs 12")
+
+    [_, overwrite] = activity_log()
+    assert overwrite["action"] == "overwrite"
+    assert overwrite["changes"] == {
+        "name": {"old": "Large Eggs", "new": "Large Eggs 12"},
+        "price_cents": {"old": 1000, "new": 1200},
+    }
 
 
 def test_a_brand_in_different_capitals_takes_the_saved_spelling(add_item: Callable[..., dict]) -> None:

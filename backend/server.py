@@ -18,7 +18,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
-from db import connect
+from db import connect, log_activity
 from extract_receipt import extract_receipt
 
 PORT = 8021  # registered in ~/dotfiles/.claude/PORTS.md
@@ -135,7 +135,8 @@ def add_item(new_item: NewItem) -> AddedItem:
                   purchased_on, brand, new_item.item_code, new_item.fuel_type)
         # A code the store already has means the same product at a new price, so overwrite that row
         existing = conn.execute(
-            "SELECT id FROM items WHERE store_id = ? AND item_code = ?", (store_id, new_item.item_code)
+            "SELECT id, name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type FROM items "
+            "WHERE store_id = ? AND item_code = ?", (store_id, new_item.item_code)
         ).fetchone() if new_item.item_code else None
         if existing:
             item_id = existing[0]
@@ -155,6 +156,25 @@ def add_item(new_item: NewItem) -> AddedItem:
                 "INSERT INTO price_history (item_id, price_cents, purchased_on) VALUES (?, ?, ?)",
                 (item_id, new_item.price_cents, purchased_on),
             )
+
+    if existing:
+        old_fields = dict(zip(
+            ("name", "price_cents", "item_count", "weight_g", "volume_ml", "brand", "fuel_type"), existing[1:],
+        ))
+        new_fields = {
+            "name": new_item.name, "price_cents": new_item.price_cents, "item_count": new_item.item_count,
+            "weight_g": new_item.weight_g, "volume_ml": new_item.volume_ml, "brand": brand,
+            "fuel_type": new_item.fuel_type,
+        }
+        changes = {field: {"old": old, "new": new_fields[field]}
+                   for field, old in old_fields.items() if old != new_fields[field]}
+        log_activity("overwrite", store=new_item.store, country=new_item.country, item_id=item_id,
+                      item_code=new_item.item_code, changes=changes)
+    else:
+        log_activity("insert", store=new_item.store, country=new_item.country, item_id=item_id,
+                      name=new_item.name, price_cents=new_item.price_cents, item_count=new_item.item_count,
+                      weight_g=new_item.weight_g, volume_ml=new_item.volume_ml, brand=brand,
+                      item_code=new_item.item_code, fuel_type=new_item.fuel_type)
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,

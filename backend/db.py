@@ -1,7 +1,9 @@
 """SQLite connection and tables for the price database, backend/data/prices.db unless PRICES_DB says otherwise."""
 
+import json
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path(os.environ.get("PRICES_DB", Path(__file__).resolve().parent / "data" / "prices.db"))
@@ -71,3 +73,12 @@ def connect() -> sqlite3.Connection:
     conn.executescript(_SCHEMA)
     _add_missing_columns(conn)
     return conn
+
+
+def log_activity(action: str, **fields: object) -> None:
+    """Appends one JSON line to activity.log next to the database: every write an API endpoint makes, so what got
+    added or changed where can be reviewed for debugging. Not read by the app itself."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    entry = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "action": action, **fields}
+    with (DB_PATH.parent / "activity.log").open("a") as log_file:
+        log_file.write(json.dumps(entry) + "\n")
