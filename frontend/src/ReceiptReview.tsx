@@ -449,7 +449,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                     <td>
                       {isFuelReceipt ? (
                         <input
-                          className="review-input"
+                          className="review-input review-input-short"
                           aria-label={`Fuel type of item ${rowNumber}`}
                           value={row.fuelType}
                           disabled={locked}
@@ -457,7 +457,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         />
                       ) : (
                         <input
-                          className="review-input"
+                          className="review-input review-input-short"
                           aria-label={`Brand of item ${rowNumber}`}
                           value={row.brand}
                           disabled={locked}
