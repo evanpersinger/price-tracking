@@ -66,7 +66,9 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     id,
     rawName: printed.name,
     code: printed.code,
-    name: known?.name ?? (litres ? 'Gas' : item.item_name || item.raw_name || ''),
+    // The name is always what's actually printed, not a model-invented rewording or a known item's own name, so a
+    // later repeat purchase can still be matched up by its name (see add_item's dedup check)
+    name: litres ? 'Gas' : printed.name || item.item_name || item.raw_name || '',
     price: price === null ? '' : String(price),
     count: known ? String(known.count) : (quantity?.count ?? ''),
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
@@ -305,6 +307,7 @@ export function ReceiptReview({ result, onDone }: Props) {
             <thead>
               <tr>
                 <th className="review-fit">Add</th>
+                {!isFuelReceipt && <th className="review-fit">Item code</th>}
                 <th>Item name</th>
                 <th className="review-fit">Price</th>
                 {!isFuelReceipt && <th className="review-fit">Count</th>}
@@ -357,6 +360,17 @@ export function ReceiptReview({ result, onDone }: Props) {
                         onChange={(event) => patchRow(row.id, { include: event.target.checked })}
                       />
                     </td>
+                    {!isFuelReceipt && (
+                      <td>
+                        <input
+                          className="review-input review-input-short"
+                          aria-label={`Item code of item ${rowNumber}`}
+                          value={row.code ?? ''}
+                          disabled={locked}
+                          onChange={(event) => patchRow(row.id, { code: event.target.value || undefined })}
+                        />
+                      </td>
+                    )}
                     <td>
                       <input
                         className="review-input review-input-name"
@@ -366,10 +380,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
                       {!isFuelReceipt && (
-                        <div className="raw-name">
-                          Printed as {row.rawName || 'nothing'}
-                          {row.code ? `, code ${row.code}` : ''}
-                        </div>
+                        <div className="raw-name">Printed as {row.rawName || 'nothing'}</div>
                       )}
                       {row.saved && country !== null && (
                         <div className="raw-name">

@@ -169,11 +169,11 @@ def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, 
     assert history() == []
 
 
-def test_same_name_brand_and_size_without_a_code_overwrites_the_saved_item(
+def test_same_name_without_a_code_overwrites_the_saved_item(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
-    first = add_item(brand="Kirkland", price_cents=1000)
-    second = add_item(brand="Kirkland", price_cents=1200)
+    first = add_item(price_cents=1000)
+    second = add_item(price_cents=1200)
 
     assert second["id"] == first["id"]
     assert len(stores_in(client)[0]["items"]) == 1
@@ -183,18 +183,11 @@ def test_near_identical_name_without_a_code_still_overwrites_the_saved_item(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
     """Tolerates the kind of noise an OCR misread introduces, one dropped letter."""
-    first = add_item(name="Chicken Strips", item_count=1, weight_g=1200)
-    second = add_item(name="Chickn Strips", item_count=1, weight_g=1200)
+    first = add_item(name="Chicken Strips")
+    second = add_item(name="Chickn Strips")
 
     assert second["id"] == first["id"]
     assert len(stores_in(client)[0]["items"]) == 1
-
-
-def test_different_brand_without_a_code_is_a_new_item(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item(brand="Kirkland")
-    add_item(brand="Great Value")
-
-    assert len(stores_in(client)[0]["items"]) == 2
 
 
 def test_different_name_without_a_code_is_a_new_item(client: TestClient, add_item: Callable[..., dict]) -> None:
@@ -204,14 +197,16 @@ def test_different_name_without_a_code_is_a_new_item(client: TestClient, add_ite
     assert len(stores_in(client)[0]["items"]) == 2
 
 
-def test_same_name_but_different_size_without_a_code_is_a_new_item(
+def test_a_different_brand_or_size_with_the_same_name_without_a_code_still_overwrites(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
-    """A smaller or bigger pack of the same product is a different item, not a repeat purchase."""
-    add_item(name="Chamomile Tea", item_count=50)
-    add_item(name="Chamomile Tea", item_count=20)
+    """The name is always the receipt's own printed text (see ReceiptReview's toRow), so it's the only thing that
+    needs to match; brand and size no longer factor in."""
+    first = add_item(name="Chamomile Tea", brand="Kirkland", item_count=50)
+    second = add_item(name="Chamomile Tea", brand="Great Value", item_count=20)
 
-    assert len(stores_in(client)[0]["items"]) == 2
+    assert second["id"] == first["id"]
+    assert len(stores_in(client)[0]["items"]) == 1
 
 
 def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(

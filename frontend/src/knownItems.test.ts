@@ -18,6 +18,11 @@ describe('findKnownItem', () => {
     expect(findKnownItem('Costco', 'COOKIES CHOC CHIP')?.name).toBe('Cookies')
   })
 
+  it('matches a more specific contains rule before a more general one that also fits', () => {
+    expect(findKnownItem('Costco', 'GINGER COOKI')?.name).toBe('Ginger Cookies')
+    expect(findKnownItem('Costco', 'COOKI')?.name).toBe('Cookies')
+  })
+
   it('uses a store group when the receipt name only contains it', () => {
     expect(findKnownItem('Costco Wholesale - North London', 'KS BATH')?.name).toBe('Bath Tissue')
   })

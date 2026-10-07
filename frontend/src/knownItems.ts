@@ -28,6 +28,8 @@ export const KNOWN_ITEMS: Record<string, KnownItem[]> = {
       unit: 'g',
       size: 1200, // 1.2 kg
     },
+    // Checked before the generic COOKI rule below, since "GINGER COOKI" also contains "COOKI"
+    { printedAs: 'GINGER COOKI', matches: 'contains', name: 'Ginger Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
     // Every Costco cookie box has 24, Kirkland brand
     { printedAs: 'COOKI', matches: 'contains', name: 'Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
   ],

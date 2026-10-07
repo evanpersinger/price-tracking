@@ -144,28 +144,19 @@ def add_item(new_item: NewItem) -> AddedItem:
             # No code on a gas receipt by design, every fill-up is its own row even if the grade repeats
             existing = None
         else:
-            # No code to go by (the receipt reader missed it, or this store never prints one): the same brand, a
-            # near-identical core name (tolerating OCR noise) and the same size together mean a repeat of the same
-            # product, so it overwrites that row instead of piling up duplicates. Brand, size and price alone
-            # aren't enough on their own, different products commonly share any one of them (two items can both be
-            # "(1x)" at the same price point), and the name alone isn't enough either, since stripping the size to
-            # compare names would make "Chamomile Tea" 50 bags and 20 bags look identical. Both have to agree.
-            new_words, new_text_amounts = _split_name(new_item.name)
-            new_amounts = _effective_amounts(new_item.item_count, new_item.weight_g, new_item.volume_ml, new_text_amounts)
+            # No code to go by (the receipt reader missed it, or this store never prints one): the name is always
+            # the receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so
+            # a near-identical name at this store (tolerating OCR noise, not requiring an exact match) is enough on
+            # its own to mean a repeat of the same product.
             candidates = conn.execute(
-                f"SELECT {existing_columns} FROM items WHERE store_id = ? AND lower(coalesce(brand, '')) = lower(?)",
-                (store_id, brand or ""),
+                f"SELECT {existing_columns} FROM items WHERE store_id = ?", (store_id,)
             ).fetchall()
-            existing = None
-            for row in candidates:
-                row_words, row_text_amounts = _split_name(row[1])
-                row_amounts = _effective_amounts(row[3], row[4], row[5], row_text_amounts)
-                if (
-                    _same_sizes(new_amounts, row_amounts)
-                    and difflib.SequenceMatcher(None, new_words, row_words).ratio() >= DUPLICATE_NAME_SIMILARITY
-                ):
-                    existing = row
-                    break
+            existing = next(
+                (row for row in candidates
+                 if difflib.SequenceMatcher(None, new_item.name.lower(), row[1].lower()).ratio()
+                 >= DUPLICATE_NAME_SIMILARITY),
+                None,
+            )
         if existing:
             item_id = existing[0]
             conn.execute(
