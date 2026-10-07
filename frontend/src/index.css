@@ -470,6 +470,50 @@ body:has(.page-split) {
   margin-bottom: 8px;
 }
 
+/* A store table's heading: the name on the left and its search box in the middle of the table, the right side stays
+   empty so the box is centered over the table */
+.store-head-search {
+  display: grid;
+  grid-template-columns: 1fr 22rem 1fr;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.store-head-search .store-search {
+  grid-column: 2;
+  width: 100%;
+}
+
+/* Too narrow to keep the name and the box on one row, so the box goes under the name */
+@media (max-width: 999px) {
+  .store-head-search {
+    grid-template-columns: 1fr;
+  }
+
+  .store-head-search .store-search {
+    grid-column: 1;
+    justify-self: center;
+    width: min(22rem, 100%);
+  }
+}
+
+/* The search box beside a store's name, it only narrows that store's table */
+.store-search {
+  width: min(22rem, 100%);
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 2px solid var(--btn-bg);
+  border-radius: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.7rem; /* big enough that "Search for an item name" nearly fills the box */
+}
+
+.store-search:focus {
+  outline: none;
+  border-color: var(--btn-hover);
+}
+
 .store-name {
   margin: 0;
   /* Red on purpose, separate from --store (still used for the Brand column) */

@@ -47,7 +47,7 @@ export function StoresView({ country }: StoresViewProps) {
               ))}
             </div>
             <div className="store-viewport">
-              <StoreTable store={activeStore} country={country} />
+              <StoreTable key={activeStore.id} store={activeStore} country={country} />
               <div className="store-nav">
                 {activeIndexInRange < withItems.length - 1 && (
                   <button

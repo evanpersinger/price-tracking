@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
@@ -9,14 +10,32 @@ interface StoreTableProps {
 
 export function StoreTable({ store, country }: StoreTableProps) {
   const headingId = `store-${store.id}`
+  const [query, setQuery] = useState('')
+  // Every word typed has to be in the item's name, ignoring case
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const items = store.items.filter((item) => {
+    const itemName = itemParts(item).name.map((segment) => segment.text).join('').toLowerCase()
+    return terms.every((term) => itemName.includes(term))
+  })
 
   return (
     <section className="store" aria-labelledby={headingId}>
-      <div className="store-head">
-        <h2 id={headingId} className="store-name">{store.name}</h2>
-        {store.discount_text && <p className="discount">{store.discount_text}</p>}
+      <div className="store-head store-head-search">
+        <div>
+          <h2 id={headingId} className="store-name">{store.name}</h2>
+          {store.discount_text && <p className="discount">{store.discount_text}</p>}
+        </div>
+        <input
+          type="search"
+          className="store-search"
+          aria-label={`Search ${store.name} for an item name`}
+          placeholder="Search for an item name"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
-      <table className="items">
+      {items.length === 0 && <p className="status">No item in {store.name} matches "{query.trim()}".</p>}
+      <table className="items" hidden={items.length === 0}>
         <thead>
           <tr>
             <th scope="col" className="row-number">#</th>
@@ -29,7 +48,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
           </tr>
         </thead>
         <tbody>
-          {store.items.map((item, index) => {
+          {items.map((item, index) => {
             const { name, amounts, unitPrice: typedUnitPrice } = itemParts(item)
             // No typed unit price: work one out from the price and size, per item, else per gram, else per ml
             const unit = item.item_count ? 'each' : item.weight_g ? 'g' : item.volume_ml ? 'ml' : null
