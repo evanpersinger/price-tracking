@@ -20,6 +20,10 @@ describe('splitItemCode', () => {
 
   it('does not mistake a price or a short number for a code', () => {
     expect(splitItemCode('MILK 4.99').code).toBeUndefined()
-    expect(splitItemCode('MILK 12345').code).toBeUndefined()
+    expect(splitItemCode('MILK 123').code).toBeUndefined()
+  })
+
+  it('takes a 4-digit code (Costco codes vary in length)', () => {
+    expect(splitItemCode('4725 BAKING SODA')).toEqual({ code: '4725', name: 'BAKING SODA' })
   })
 })
