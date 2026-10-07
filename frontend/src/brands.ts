@@ -49,7 +49,7 @@ export const BRANDS: string[] = [
   'Steeves Maples',
   'Sunrise Farms',
   'SunRype',
-  'Tia Rose',
+  'Tia Rosa',
   'Tide',
   'Top Dog',
   'Twinings',

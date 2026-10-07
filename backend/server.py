@@ -183,6 +183,23 @@ def add_item(new_item: NewItem) -> AddedItem:
     )
 
 
+@app.delete("/api/items/{item_id}", status_code=204)
+def delete_item(item_id: int) -> None:
+    """Delete an item and its price history, e.g. one added by mistake."""
+    with closing(connect()) as conn, conn:
+        item = conn.execute(
+            "SELECT i.name, i.price_cents, s.name FROM items i JOIN stores s ON s.id = i.store_id WHERE i.id = ?",
+            (item_id,),
+        ).fetchone()
+        if not item:
+            raise HTTPException(status_code=404, detail="No item with that id.")
+        conn.execute("DELETE FROM price_history WHERE item_id = ?", (item_id,))
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+
+    name, price_cents, store = item
+    log_activity("delete", item_id=item_id, name=name, price_cents=price_cents, store=store)
+
+
 @app.post("/api/receipt")
 async def read_receipt(request: Request) -> dict:
     """Read a receipt image (the raw JPEG or PNG as the request body) and return the items found on it.
