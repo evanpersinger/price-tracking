@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { addItem } from './api.ts'
+import { findClosestBrand } from './brands.ts'
 import { COUNTRIES } from './countries.ts'
 import { splitItemCode } from './itemCode.ts'
 import { guessCountry } from './guessCountry.ts'
@@ -461,6 +462,10 @@ export function ReceiptReview({ result, onDone }: Props) {
                           value={row.brand}
                           disabled={locked}
                           onChange={(event) => patchRow(row.id, { brand: event.target.value })}
+                          onBlur={() => {
+                            const closest = findClosestBrand(row.brand)
+                            if (closest && closest !== row.brand) patchRow(row.id, { brand: closest })
+                          }}
                         />
                       )}
                     </td>
