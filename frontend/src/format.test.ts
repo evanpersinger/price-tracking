@@ -73,8 +73,11 @@ describe('itemParts', () => {
     expect(parts.unitPrice).toBeNull()
   })
 
-  it('drops a count of 1 and keeps a weight as typed', () => {
-    expect(itemParts({ ...sized, name: 'Chicken Strips', item_count: 1, weight_g: 1200 }).amounts).toEqual(['1200g'])
+  it('names a count of 1 and keeps a weight as typed', () => {
+    expect(itemParts({ ...sized, name: 'Chicken Strips', item_count: 1, weight_g: 1200 }).amounts).toEqual([
+      '1 Strips',
+      '1200g',
+    ])
   })
 
   it('names the container for a size typed in the name', () => {

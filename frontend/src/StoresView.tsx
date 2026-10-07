@@ -19,11 +19,16 @@ export function StoresView({ country }: StoresViewProps) {
     <Loaded state={state}>
       {(stores) => {
         const withItems = stores
-          // No amount to show is not worth a row, for now. Once the item's data gets an amount, it reappears. Gas is
-          // left out, it has its own Gas Prices page.
+          // Nothing to show (no amount, no typed unit price, no price at all) is not worth a row, for now. A
+          // bulk-bin item (no package size, just a per-kg/per-100g rate) or a flat-priced item with no size still has
+          // something to show. Gas is left out, it has its own Gas Prices page.
           .map((store) => ({
             ...store,
-            items: store.items.filter((item) => !isFuelItem(item) && itemParts(item).amounts.length > 0),
+            items: store.items.filter((item) => {
+              if (isFuelItem(item)) return false
+              const parts = itemParts(item)
+              return parts.amounts.length > 0 || parts.unitPrice !== null || item.price_cents !== null
+            }),
           }))
           .filter((store) => store.items.length > 0)
         if (withItems.length === 0) {

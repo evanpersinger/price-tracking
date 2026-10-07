@@ -145,11 +145,12 @@ function singularize(word: string): string {
 // Nouns worth naming more specifically than the last word of the item alone gives, since nothing in the text
 // supplies the extra word: bacon isn't sold loose so "strips" is implied, "buns" alone is ambiguous between
 // hamburger and hotdog buns, and "dogs" alone (from "hot dogs") loses the "hot". Zero sugar sodas end in "sugar" or
-// "zeros" but are counted in cans, the shakes are protein shakes and bags of cookies are just bags. Checked against
-// the full name, not just the last word.
+// "zeros" but are counted in cans, the shakes are protein shakes and bags of cookies are just bags. Tongs (no
+// singular "1 tong") counts as a pair instead. Checked against the full name, not just the last word.
 function overrideCountNoun(base: string, name: Segment[]): string {
   if (base === 'shakes') return 'protein shakes'
   if (base === 'cookie bags') return 'bags'
+  if (base === 'tongs') return 'pair'
   if (base !== 'bacon' && base !== 'buns' && base !== 'dogs' && base !== 'sugar' && base !== 'zeros') return base
   const text = name
     .filter((segment) => segment.kind === 'name')
@@ -200,15 +201,14 @@ function capitalizeWords(text: string): string {
   return text.replace(/(^|\s)([a-z])/g, (_, before: string, letter: string) => before + letter.toUpperCase())
 }
 
-// A count of 1 says nothing a single listed item doesn't already say, so it's dropped. Other counts read as
-// "<n> <Noun>" (8 Buns, 24 Eggs, 50 Tea Bags). A weight or volume keeps its raw unit (500g, 3.46L) unless it's exactly
-// one and the name calls out a container word, in which case that reads better ("1 Carton" over "1L").
+// Counts read as "<n> <Noun>" (1 Sponge, 8 Buns, 24 Eggs, 50 Tea Bags). A weight or volume keeps its raw unit
+// (500g, 3.46L) unless it's exactly one and the name calls out a container word, in which case that reads better
+// ("1 Carton" over "1L").
 function describeAmount(amount: string, forCount: string, forMeasure: string): string | null {
   const match = /^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/.exec(amount)
   if (!match) return capitalizeWords(amount)
   const [, numberText, unit] = match
   if (unit.toLowerCase() === 'x') {
-    if (Number(numberText) === 1) return null
     return capitalizeWords(forCount ? `${numberText} ${forCount}` : amount)
   }
   const useContainerWord = Number(numberText) === 1 && CONTAINER_WORDS.has(forMeasure)
