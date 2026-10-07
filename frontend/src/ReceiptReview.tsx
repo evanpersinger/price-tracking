@@ -111,22 +111,25 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   const price = parsePositive(row.price)
   const count = parsePositive(row.count)
   const size = parsePositive(row.size)
+  // A count only makes sense for identical units (12 cans, 1 bath tissue pack), where it's the whole size. A
+  // weight or volume item (chicken strips, cheese) is already sized by weight_g/volume_ml, so it's optional there.
+  const countRequired = row.unit === 'none'
 
   const problems: string[] = []
   if (!row.name.trim()) problems.push('name')
   if (price === null || Math.round(price * 100) < 1) problems.push('price')
-  if (count === null) problems.push('count')
-  else if (!Number.isInteger(count)) problems.push('whole-number count')
+  if (countRequired && count === null) problems.push('count')
+  else if (count !== null && !Number.isInteger(count)) problems.push('whole-number count')
   if (row.unit === '') problems.push('unit')
   else if (row.unit !== 'none' && size === null) problems.push('size')
-  if (problems.length > 0 || price === null || count === null) return { problems, fields: null }
+  if (problems.length > 0 || price === null) return { problems, fields: null }
 
   return {
     problems,
     fields: {
       name: row.name.trim(),
       price_cents: Math.round(price * 100),
-      item_count: count,
+      item_count: count ?? undefined,
       weight_g: row.unit === 'g' ? (size ?? undefined) : undefined,
       volume_ml: row.unit === 'ml' ? (size ?? undefined) : row.unit === 'L' && size !== null ? Math.round(size * 1000) : undefined,
       brand: row.brand.trim() || NO_BRAND,

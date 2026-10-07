@@ -28,8 +28,8 @@ export const KNOWN_ITEMS: Record<string, KnownItem[]> = {
       unit: 'g',
       size: 1200, // 1.2 kg
     },
-    // Every Costco cookie box has 24
-    { printedAs: 'COOKI', matches: 'contains', name: 'Cookies', count: 24, unit: 'none' },
+    // Every Costco cookie box has 24, Kirkland brand
+    { printedAs: 'COOKI', matches: 'contains', name: 'Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
   ],
 }
 
