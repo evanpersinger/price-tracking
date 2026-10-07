@@ -18,5 +18,12 @@ def test_connect_adds_missing_item_columns_and_keeps_the_rows() -> None:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
         rows = conn.execute("SELECT name, price_cents, brand FROM items").fetchall()
 
-    assert {"item_count", "weight_g", "volume_ml", "brand", "item_code"} <= columns
+    assert {"item_count", "weight_g", "volume_ml", "brand", "item_code", "fuel_type"} <= columns
     assert rows == [("Rice", 449, None)]
+
+
+def test_connect_creates_the_price_history_table() -> None:
+    with closing(db.connect()) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(price_history)")}
+
+    assert columns == {"id", "item_id", "price_cents", "purchased_on"}

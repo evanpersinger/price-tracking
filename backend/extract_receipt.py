@@ -29,7 +29,7 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 _RECEIPT_PROMPT = (  # Prompt given to LLM
     "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), "
-    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, store_address (the store's "
+    "store, store_address (the store's "
     "address as printed near the top, with its city, province or state and postal code or ZIP, "
     "null if it isn't printed), and items. Each item has "
     "raw_name (exactly as printed on the receipt), item_name (a clean, consistent product name, "
@@ -57,7 +57,7 @@ _RECEIPT_PROMPT = (  # Prompt given to LLM
 
 _FUEL_PROMPT = (  # Prompt for a gas station receipt, which has no item lines, only the fuel sale
     "Read this fuel receipt from a gas station and return a JSON object with purchase_date (YYYY-MM-DD), "
-    "purchase_time (HH:MM, 24-hour, null if it isn't printed), store, store_address (the station's "
+    "store, store_address (the station's "
     "address as printed near the top, with its city, province or state and postal code or ZIP, "
     "null if it isn't printed), and items.\n"
     "Items has exactly one item, the fuel: raw_name is the grade as printed (like 'Unleaded'), item_name "

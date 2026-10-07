@@ -1,9 +1,18 @@
 """POST /api/items and GET /api/stores."""
 
 from collections.abc import Callable
+from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
+
+import db
+
+
+def history() -> list[tuple]:
+    """Every price_history row as (item id, price in cents, date), oldest first."""
+    with closing(db.connect()) as conn:
+        return conn.execute("SELECT item_id, price_cents, purchased_on FROM price_history ORDER BY id").fetchall()
 
 
 def stores_in(client: TestClient, country: str = "CA") -> list[dict]:
@@ -98,6 +107,35 @@ def test_a_fuel_type_is_saved_and_listed(client: TestClient, add_item: Callable[
 
     fuel, grocery = stores_in(client)[0]["items"]
     assert (fuel["fuel_type"], grocery["fuel_type"]) == ("Unleaded", None)
+
+
+def test_a_purchase_with_a_date_is_saved_and_recorded_in_the_history(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    item = add_item(price_cents=1299, purchased_on="2026-09-28")
+
+    [saved] = stores_in(client)[0]["items"]
+    assert saved["purchased_on"] == "2026-09-28"
+    assert history() == [(item["id"], 1299, "2026-09-28")]
+
+
+def test_a_repeat_purchase_overwrites_the_item_but_keeps_the_old_price_in_the_history(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="123456", price_cents=1000, purchased_on="2026-09-01")
+    add_item(item_code="123456", price_cents=1200, purchased_on="2026-09-20")
+
+    [saved] = stores_in(client)[0]["items"]
+    assert saved["price_cents"] == 1200
+    assert [(price, day) for _, price, day in history()] == [(1000, "2026-09-01"), (1200, "2026-09-20")]
+
+
+def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item()
+
+    [saved] = stores_in(client)[0]["items"]
+    assert saved["purchased_on"] is None
+    assert history() == []
 
 
 def test_items_without_a_code_are_never_overwritten(client: TestClient, add_item: Callable[..., dict]) -> None:

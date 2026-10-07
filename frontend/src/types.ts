@@ -41,6 +41,22 @@ export interface CheapestStore {
   items: CheapestItem[]
 }
 
+// One recorded purchase from the price history, newest first from GET /api/history
+export interface HistoryEntry {
+  id: number
+  item_id: number
+  store_id: number
+  store_name: string
+  item_name: string
+  brand: string | null
+  fuel_type: string | null
+  item_count: number | null
+  weight_g: number | null
+  volume_ml: number | null
+  price_cents: number // what it cost on that day
+  purchased_on: string
+}
+
 // One store's offer in a search result, price_cents is what that store sells it for
 export interface SearchOffer {
   id: number
@@ -71,7 +87,7 @@ export interface NewItem {
   item_count?: number
   weight_g?: number
   volume_ml?: number
-  purchased_on?: string // YYYY-MM-DD, the server uses today if left out
+  purchased_on?: string // YYYY-MM-DD from the receipt, left out when it couldn't be read, then no price history is kept
   brand?: string
   item_code?: string
   fuel_type?: string
@@ -89,7 +105,6 @@ export interface ReceiptItem {
 
 export interface ReceiptResult {
   purchase_date: string | null
-  purchase_time?: string | null // HH:MM, shown on the review page but not saved
   store: string | null
   store_address?: string | null // the address printed under the store name, used to guess the country
   items: ReceiptItem[]

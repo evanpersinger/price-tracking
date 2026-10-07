@@ -61,14 +61,14 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         ).fetchall()
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
-            "i.purchased_on, i.brand, i.item_code, i.fuel_type FROM items i JOIN stores s ON s.id = i.store_id "
-            "WHERE s.country = ? ORDER BY i.id",
+            "i.purchased_on, i.brand, i.item_code, i.fuel_type FROM items i "
+            "JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
-    for (id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
-         item_code, fuel_type) in item_rows:
+    for (id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand, item_code,
+         fuel_type) in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
             weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand, item_code=item_code,
@@ -89,7 +89,7 @@ class NewItem(BaseModel):
     item_count: int | None = Field(default=None, gt=0)  # how many items are in the pack, e.g. 24 buns
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
-    purchased_on: date | None = None  # today if left out
+    purchased_on: date | None = None  # from the receipt, left out when it couldn't be read, then no history is recorded
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
@@ -109,8 +109,12 @@ class AddedItem(Item):
 
 @app.post("/api/items", status_code=201)
 def add_item(new_item: NewItem) -> AddedItem:
-    """Add an item with its price to a store, creating the store if it isn't in that country yet."""
-    purchased_on = (new_item.purchased_on or date.today()).isoformat()
+    """Add an item with its price to a store, creating the store if it isn't in that country yet.
+
+    A purchase date is only saved when the receipt gave one, a guess like today's date would corrupt the price
+    history. With a date, the price is also recorded in price_history, even when an existing item is overwritten.
+    """
+    purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
         store = conn.execute(
             "SELECT id FROM stores WHERE country = ? AND lower(name) = lower(?)", (new_item.country, new_item.store)
@@ -146,6 +150,11 @@ def add_item(new_item: NewItem) -> AddedItem:
                 "item_code, fuel_type, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
+        if purchased_on:
+            conn.execute(
+                "INSERT INTO price_history (item_id, price_cents, purchased_on) VALUES (?, ?, ?)",
+                (item_id, new_item.price_cents, purchased_on),
+            )
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
@@ -389,6 +398,43 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     for store in cheapest.values():
         store.items.sort(key=lambda item: item.id)  # back into the order they were added
     return [cheapest[store_id] for store_id in sorted(cheapest)]
+
+
+class HistoryEntry(BaseModel):
+    id: int
+    item_id: int
+    store_id: int
+    store_name: str
+    item_name: str  # the item's name now, an item that was overwritten keeps its history under the newest name
+    brand: str | None
+    fuel_type: str | None
+    item_count: int | None
+    weight_g: float | None
+    volume_ml: float | None
+    price_cents: int  # what it cost on that day
+    purchased_on: str
+
+
+@app.get("/api/history")
+def list_history(country: Literal["CA", "US"]) -> list[HistoryEntry]:
+    """Every recorded purchase in a country's stores, newest first, from the price_history table."""
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT h.id, h.item_id, s.id, s.name, i.name, i.brand, i.fuel_type, i.item_count, i.weight_g, "
+            "i.volume_ml, h.price_cents, h.purchased_on FROM price_history h "
+            "JOIN items i ON i.id = h.item_id JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
+            "ORDER BY h.purchased_on DESC, h.id DESC",
+            (country,),
+        ).fetchall()
+    return [
+        HistoryEntry(
+            id=id_, item_id=item_id, store_id=store_id, store_name=store_name, item_name=item_name, brand=brand,
+            fuel_type=fuel_type, item_count=item_count, weight_g=weight_g, volume_ml=volume_ml,
+            price_cents=price_cents, purchased_on=purchased_on,
+        )
+        for (id_, item_id, store_id, store_name, item_name, brand, fuel_type, item_count, weight_g, volume_ml,
+             price_cents, purchased_on) in rows
+    ]
 
 
 class SearchOffer(BaseModel):

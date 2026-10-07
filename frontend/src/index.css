@@ -193,16 +193,6 @@ main {
   padding: 0 var(--gutter);
 }
 
-.header h1 {
-  grid-column: 2;
-  justify-self: center;
-  margin: 0;
-  color: var(--heading);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 2.5rem;
-  font-weight: 600;
-}
-
 .nav {
   display: flex;
   flex-wrap: wrap; /* a button that doesn't fit moves to the next row whole, its words never split over two lines */
@@ -236,13 +226,23 @@ main {
 }
 
 .view-nav {
-  justify-content: center;
-  margin-top: 12px;
+  grid-column: 2; /* up in the header, in the middle between the Add Item button and the country buttons */
+  grid-row: 1;
+  flex-direction: column; /* two rows of section buttons, each row centered */
+  align-items: center;
 }
 
-/* On a narrower window the big Add Item button reaches down beside the page's nav, so move the nav below it */
-@media (max-width: 1400px) {
+.view-nav-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* On a window too narrow to fit the nav between the big Add Item button and the country buttons, it drops to its own
+   row below them instead */
+@media (max-width: 1249px) {
   .view-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
     margin-top: 40px;
   }
 }
@@ -254,6 +254,7 @@ main {
 
 .country-nav-wrap {
   grid-column: 3;
+  grid-row: 1;
   justify-self: end;
   display: flex;
   flex-direction: column;
@@ -403,6 +404,66 @@ body:has(.page-split) {
   background: none;
   border: none;
   border-radius: 0;
+}
+
+/* An item's name in the tracking list is the click target that opens its graph, drawn as plain text like the rest */
+.item-button,
+.back-button {
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.item-button:hover,
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.back-button {
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.dot-graph {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 8px 0;
+}
+
+.dot-graph text {
+  fill: var(--text-muted);
+  font-size: 15px;
+}
+
+.dot-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.dot-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 50%;
+}
+
+.dot-hint {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 1rem;
 }
 
 .store-head {

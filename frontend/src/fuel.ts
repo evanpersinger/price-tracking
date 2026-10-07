@@ -21,10 +21,15 @@ export function isFuelItem(item: { fuel_type: string | null }): boolean {
   return item.fuel_type !== null
 }
 
+// A price per litre given in cents, like "$1.749" for 174.9
+export function formatPerLitre(centsPerLitre: number, country: Country): string {
+  return PER_LITRE[country].format(centsPerLitre / 100)
+}
+
 // What fuel cost a litre, like "$1.749", or null when there's no price or no litres to work it out from
 export function pricePerLitre(priceCents: number | null, volumeMl: number | null, country: Country): string | null {
   if (priceCents === null || !volumeMl) return null
-  return PER_LITRE[country].format(priceCents / 100 / (volumeMl / 1000))
+  return formatPerLitre(priceCents / (volumeMl / 1000), country)
 }
 
 // Litres from the saved volume in ml, like "26.204 L", without the float noise a division can leave behind

@@ -147,6 +147,8 @@ export function ReceiptReview({ result, onDone }: Props) {
   // A litre line means a fuel receipt, where a brand makes no sense, so the Brand column becomes Fuel type and the item
   // saves as No Brand
   const isFuelReceipt = (result.items ?? []).some((item) => litresIn(item.quantity_info) !== undefined)
+  // Left blank when the receipt's date couldn't be read, nothing is guessed, and an item with no date isn't recorded in
+  // the price history
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
   const [rows, setRows] = useState<Row[]>(() =>
     (result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
@@ -203,7 +205,13 @@ export function ReceiptReview({ result, onDone }: Props) {
       if (fields === null) continue
       patchRow(row.id, { status: 'saving', error: null })
       try {
-        await addItem({ country, store: trimmedStore, purchased_on: date || undefined, ...fields, item_code: row.code })
+        await addItem({
+          country,
+          store: trimmedStore,
+          purchased_on: date || undefined,
+          ...fields,
+          item_code: row.code,
+        })
         patchRow(row.id, { status: 'added' })
       } catch (caught) {
         patchRow(row.id, { status: 'failed', error: caught instanceof Error ? caught.message : 'Something went wrong' })
@@ -278,12 +286,6 @@ export function ReceiptReview({ result, onDone }: Props) {
             onChange={(event) => setDate(event.target.value)}
           />
         </label>
-        {result.purchase_time && (
-          <div className="review-field">
-            <span className="review-label">Time</span>
-            <span className="review-time">{result.purchase_time}</span>
-          </div>
-        )}
       </div>
 
       {renderStoreBanner()}

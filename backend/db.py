@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS items (
     purchased_on TEXT           -- ISO date, empty for rows imported from the sheet
 );
 
+-- One row each time an item was bought, kept for good so prices can be tracked over time. A purchase whose date
+-- couldn't be read from the receipt isn't recorded here.
+CREATE TABLE IF NOT EXISTS price_history (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    price_cents INTEGER NOT NULL,
+    purchased_on TEXT NOT NULL    -- ISO date from the receipt
+);
+
 CREATE TABLE IF NOT EXISTS student_discounts (
     id INTEGER PRIMARY KEY,
     country TEXT NOT NULL,
