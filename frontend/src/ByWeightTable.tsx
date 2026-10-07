@@ -14,6 +14,12 @@ interface ByWeightTableProps {
 export function ByWeightTable({ store, items, country, startIndex }: ByWeightTableProps) {
   return (
     <section className="store store-compact" aria-label={`${store.name}, sold by weight`}>
+      {startIndex === 0 && (
+        <div className="store-head">
+          <h2 className="store-name">{store.name}</h2>
+          {store.discount_text && <p className="discount">{store.discount_text}</p>}
+        </div>
+      )}
       <table className="items">
         <thead>
           <tr>

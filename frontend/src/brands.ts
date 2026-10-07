@@ -28,6 +28,7 @@ export const BRANDS: string[] = [
   'Lactantia',
   'Leanfit',
   'Lindt',
+  'Loacker',
   'Lysol',
   'Maple Leaf',
   'McCain',
