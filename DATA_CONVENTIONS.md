@@ -57,8 +57,8 @@ Imported items carry a unit price in brackets at the end of the name, which the 
 in the Unit price column and the API ignores (it works the comparison out itself). The
 conventions used when filling these in by hand:
 
-- Weight or volume: `($4.41 per 100g)` or `($0.30 per 100ml)`, rounded to the cent, or
-  three decimals when it's under 10 cents.
+- Weight or volume: always `($4.41 per 100g)` or `($0.30 per 100ml)`, never `per gram`/
+  `per g`/`per ml`, rounded to the cent, or three decimals when it's under 10 cents.
 - A count: `($0.50 per bun)`, with the word after `per` naming the thing, never a bare
   `per`.
 - A single pack, bottle or carton that has no useful per-weight price: `($5.50 per pack)`,
