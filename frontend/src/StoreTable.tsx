@@ -66,7 +66,19 @@ export function StoreTable({ store, country }: StoreTableProps) {
                 <td className="item">
                   <ItemName segments={name} />
                 </td>
-                <td className="amount">{amounts.join(' · ')}</td>
+                <td className={amounts.length > 1 ? 'amount amount-split' : 'amount'}>
+                  {amounts.length > 1 ? (
+                    <span className="amount-chips">
+                      {amounts.map((amount) => (
+                        <span className="amount-chip" key={amount}>
+                          {amount}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    amounts[0]
+                  )}
+                </td>
                 <td className={unitPrice && isZeroMoney(unitPrice) ? 'unit-price zero-money' : 'unit-price'}>
                   {unitPrice}
                 </td>

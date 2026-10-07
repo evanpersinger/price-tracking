@@ -580,7 +580,7 @@ body:has(.page-review) {
   /* Mini rule for our data tables: cell text never wraps to a second line, columns just size to their content. */
   white-space: nowrap;
   padding: 10px 16px;
-  border: 1px solid var(--table-border);
+  border: 3px solid var(--table-border);
 }
 
 /* The store, cheapest, search and gas tables get roomier cells than the receipt review table */
@@ -639,6 +639,38 @@ body:has(.page-review) {
 
 .items td.amount {
   color: var(--amount);
+}
+
+/* An item with two measurements (e.g. a count and a weight) splits the cell in half, like two cells inside one,
+   instead of one run of text joined by a separator. The cell's own padding moves onto each half so the divider
+   runs the full row height and meets the table's grid lines top and bottom, instead of floating as a short line. */
+.items td.amount-split {
+  padding: 0;
+}
+
+.amount-chips {
+  display: flex;
+  height: 100%;
+}
+
+.amount-chip {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  padding: clamp(8px, 0.6vw, 14px) clamp(10px, 1vw, 22px);
+  white-space: nowrap;
+}
+
+.amount-chip:first-child {
+  justify-content: flex-start;
+}
+
+.amount-chip:last-child {
+  justify-content: flex-end;
+}
+
+.amount-chip + .amount-chip {
+  border-left: 3px solid var(--table-border);
 }
 
 .items td.unit-price {
