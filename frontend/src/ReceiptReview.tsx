@@ -6,7 +6,7 @@ import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
 import { findKnownItem } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
-import { litresIn } from './quantityInfo.ts'
+import { litresIn, readQuantity } from './quantityInfo.ts'
 import { useLoad } from './useLoad.ts'
 import { formatPrice } from './format.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
@@ -34,7 +34,6 @@ interface Row {
   id: number
   rawName: string // as printed, without the code
   code: string | undefined // the store's product code on that line, if it prints one
-  quantityInfo: string // a "3 @ 2.79" line printed under the item, empty if none
   name: string
   price: string
   count: string
@@ -55,18 +54,19 @@ type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
   const printed = splitItemCode(item.raw_name ?? '')
-  // A fuel receipt prints its size, so a litre line makes it one item of that many litres without being typed
+  // The line printed under the item already says some of what has to be typed: "3 @ 2.79" is a count of 3, a weight is
+  // one item of that many grams, and a litre line (a fuel receipt) is one item of that many litres
+  const quantity = readQuantity(item.quantity_info)
   const litres = litresIn(item.quantity_info)
   return {
     id,
     rawName: printed.name,
     code: printed.code,
-    quantityInfo: item.quantity_info ?? '',
     name: known?.name ?? (litres ? 'Gas' : item.item_name || item.raw_name || ''),
     price: typeof item.price === 'number' ? String(item.price) : '',
-    count: known ? String(known.count) : litres ? '1' : '',
-    size: known?.size !== undefined ? String(known.size) : (litres ?? ''),
-    unit: known?.unit ?? (litres ? 'L' : ''),
+    count: known ? String(known.count) : (quantity?.count ?? ''),
+    size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
+    unit: known?.unit ?? quantity?.unit ?? '',
     brand: known?.brand ?? '',
     fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',
@@ -363,9 +363,6 @@ export function ReceiptReview({ result, onDone }: Props) {
                           Printed as {row.rawName || 'nothing'}
                           {row.code ? `, code ${row.code}` : ''}
                         </div>
-                      )}
-                      {!isFuelReceipt && row.quantityInfo && (
-                        <div className="raw-name">Quantity line: {row.quantityInfo}</div>
                       )}
                       {row.saved && country !== null && (
                         <div className="raw-name">

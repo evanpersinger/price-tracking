@@ -34,11 +34,19 @@ _RECEIPT_PROMPT = (  # Prompt given to LLM
     "null if it isn't printed), and items. Each item has "
     "raw_name (exactly as printed on the receipt), item_name (a clean, consistent product name, "
     "e.g. 'Organic Bananas'), price (a number), category (what kind of item it is, e.g. produce), "
-    "and quantity_info.\n"
+    "quantity_info and on_sale.\n"
     "Some items are followed by a quantity or weight line such as '3 @ 2.79' or "
     "'1.2 kg @ $4.99/kg'. That line is not an item. Copy it exactly as printed into quantity_info "
     "of the item above it, or use null when an item has no such line.\n"
+    "on_sale is true when a discount was taken off that item: a line under it with an amount that ends in "
+    "a minus sign like '4.50-', an 'INSTANT SAVINGS', coupon or discount line that names it, or the word "
+    "SALE or SAVE printed on its own line. Otherwise on_sale is false. A shelf offer that was not applied, "
+    "such as '2 for $5' or '$4.99 ea or 2/$9.00', does not make an item on sale. A student, senior, "
+    "military, employee or membership discount is not a sale either: its line is not an item, but it "
+    "never makes any item on_sale, so leave on_sale false for the items it was applied to.\n"
     "Only items that were bought are items. Ignore everything else on the receipt, including:\n"
+    "- discount, coupon, instant savings and promo lines, and any line whose amount ends in a minus sign "
+    "like 4.50- (they are never items, they only set on_sale on the item they apply to)\n"
     "- barcodes\n"
     "- the card brand (Mastercard, Visa, etc.) and any card number, including masked ones like "
     "XXXXXXXXX9999\n"
@@ -261,10 +269,51 @@ def _extract_json(text: str) -> dict:
         raise ValueError(f"Model returned invalid JSON ({e}):\n{text}") from e
 
 
+# Words that mark a line as a deal or a discount and not a bought item
+_DEAL_LINE_RE = re.compile(r"\b(instant|savings?|discount|coupon|promo|promotion|markdown|rebate|you saved)\b|\bsale\b", re.IGNORECASE)
+# A Costco discount line, "0000391935 /5051501", starts with its own long number and names the item code it took money
+# off after a slash. A size like "6/2000ML" in a product name has no long number in front, so it never matches.
+_DISCOUNT_FOR_RE = re.compile(r"^\s*\d{6,}\s*/\s*(\d{4,})")
+# A shelf offer printed under an item, "2 for $1.25" or "$4.99 ea or 2/$9.00", is not what was bought
+_DEAL_QUANTITY_RE = re.compile(r"\bfor\s*\$?\d|\bea\b.*\bor\b|\d\s*/\s*\$?\d|\bsave\b|%\s*off", re.IGNORECASE)
+
+
+def _drop_deals(receipt: dict) -> dict:
+    """The receipt without anything bought on sale or with a discount, and without the deal lines themselves.
+
+    An item the model flagged on_sale is dropped, and so is any item a discount line names by its code. A line that
+    is a discount (a price of zero or less, or words like INSTANT SAVINGS) is dropped too. Sale prices aren't the
+    regular price, so they never reach the review page, the items table or the price history. A shelf offer left in
+    an item's quantity_info is cleared, the item itself stays.
+    """
+    items = receipt.get("items") or []
+    discounted_codes = {
+        match.group(1) for item in items if (match := _DISCOUNT_FOR_RE.search(str(item.get("raw_name") or "")))
+    }
+
+    kept = []
+    for item in items:
+        raw_name = str(item.get("raw_name") or "")
+        price = item.get("price")
+        is_deal_line = (
+            (isinstance(price, int | float) and price <= 0)
+            or bool(_DEAL_LINE_RE.search(raw_name))
+            or bool(_DISCOUNT_FOR_RE.search(raw_name))
+        )
+        is_on_sale = item.get("on_sale") is True or any(code in raw_name for code in discounted_codes)
+        if is_deal_line or is_on_sale:
+            continue
+        quantity_info = item.get("quantity_info")
+        if quantity_info and _DEAL_QUANTITY_RE.search(str(quantity_info)):
+            item = {**item, "quantity_info": None}
+        kept.append({key: value for key, value in item.items() if key != "on_sale"})
+    return {**receipt, "items": kept}
+
+
 def extract_receipt(image_bytes: bytes, media_type: str) -> dict:
-    """Read one receipt image with the local model (RECEIPT_MODEL) and return its JSON as a dict."""
+    """Read one receipt image with the local model (RECEIPT_MODEL) and return its JSON as a dict, deals dropped."""
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
-    return _extract_json(_image_ollama(RECEIPT_MODEL, image_b64, media_type))
+    return _drop_deals(_extract_json(_image_ollama(RECEIPT_MODEL, image_b64, media_type)))
 
 
 PROVIDERS = {"local": _image_ollama, "script": _image_script}
@@ -341,7 +390,7 @@ if __name__ == "__main__":
         image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
         reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
         try:
-            result = json.dumps(_extract_json(reply), indent=2)
+            result = json.dumps(_drop_deals(_extract_json(reply)), indent=2)
         except ValueError as e:
             sys.exit(str(e))
         print(f"{image_path.name}:")
