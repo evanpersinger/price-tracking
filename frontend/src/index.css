@@ -165,6 +165,11 @@ body {
   cursor: pointer;
 }
 
+.choose-file-button {
+  padding: 20px 44px;
+  font-size: 1.55rem;
+}
+
 .choose-file-button:hover:not(:disabled),
 .save-button:hover:not(:disabled) {
   filter: brightness(1.1);
@@ -457,8 +462,15 @@ body:has(.page-review) {
 }
 
 .review .save-button {
-  padding: 18px 40px;
-  font-size: 1.6rem;
+  padding: 24px 52px;
+  font-size: 1.9rem;
+}
+
+.review input[type="checkbox"] {
+  width: 1.8rem;
+  height: 1.8rem;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .review .retry {
