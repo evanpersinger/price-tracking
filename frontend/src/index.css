@@ -9,6 +9,7 @@
      bottom half (the data, table included) */
   --top-bg: #2a2f38;
   --bottom-bg: #000000;
+  --review-bg: #14213d; /* the receipt review page, a deep navy so it reads as a different screen from the data pages */
 
   /* Buttons: solid and saturated, not the pastel text colors */
   --btn-bg: #3730a3;
@@ -393,6 +394,39 @@ body:has(.page-split) {
   padding-bottom: 0;
 }
 
+body:has(.page-review) {
+  background: var(--review-bg);
+}
+
+/* The review page's headings, labels, banner and buttons are bigger than the data pages' */
+.review .page-heading {
+  font-size: 2.75rem;
+}
+
+.review .review-label {
+  font-size: 1.125rem;
+}
+
+.review .store-banner {
+  padding: 16px 20px;
+  font-size: 1.5rem;
+}
+
+.review .country-pick {
+  padding: 10px 22px;
+  font-size: 1.5rem;
+}
+
+.review .save-button {
+  padding: 18px 40px;
+  font-size: 1.6rem;
+}
+
+.review .retry {
+  padding: 14px 28px;
+  font-size: 1.5rem;
+}
+
 .page-split .store-viewport {
   padding-top: 16px;
   padding-bottom: 64px;
@@ -652,13 +686,29 @@ body:has(.page-split) {
   gap: 16px;
   width: 100vw;
   margin-left: calc(50% - 50vw);
-  padding: 24px var(--gutter) 0;
+  padding: 24px max(24px, 4vw) 0; /* blank space down both sides, more on a wider window */
   box-sizing: border-box;
   font-size: 1.5rem; /* the page's text, the cells and boxes, read at 24px instead of the 16px default */
 }
 
+/* The table runs the full width of the page. The narrow columns (price, count, size, status) hug their boxes, and the
+   item name and brand/fuel type boxes stretch with the rest, so no cell has empty space beside its boxes and none is
+   left on the right of the table. The headers are small enough that none (like "Size (whole pack)") is what makes its
+   column wider than its boxes. */
+.review .items {
+  width: 100%;
+  max-width: 1400px; /* stretches to fill a narrow window, but not so far on a wide one that the boxes look spread out */
+  margin-inline: auto;
+}
+
+.review .items th.review-fit {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .review .items th {
-  font-size: 1rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
 }
 
 /* Tight cells and boxes around the bigger text, so the table doesn't grow along with it */
@@ -739,16 +789,25 @@ select.review-input {
 }
 
 .review-input-name {
-  width: 18rem;
+  width: 100%;
+  min-width: 14rem;
 }
 
 /* Brand and fuel type are short words, no need for the browser's default wide box */
 .review-input-short {
-  width: 13rem;
+  width: 100%;
+  min-width: 9rem;
 }
 
 .review-input-number {
   width: 6rem;
+  appearance: textfield; /* no up and down arrows inside the box, the number is typed */
+}
+
+.review-input-number::-webkit-outer-spin-button,
+.review-input-number::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .store-banner {
@@ -817,7 +876,17 @@ select.review-input {
 
 .review-size {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+}
+
+/* The size box and its unit are a pair of small boxes, no wider than "2724" and "none" need */
+.review-size .review-input-number {
+  width: 5rem;
+}
+
+.review-size select.review-input {
+  padding: 4px 26px 4px 8px;
+  background-position: right 8px center;
 }
 
 /* A note under a table header, shown on hover or keyboard focus */

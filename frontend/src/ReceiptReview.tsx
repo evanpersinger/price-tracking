@@ -6,7 +6,7 @@ import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
 import { findKnownItem } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
-import { litresIn, readQuantity } from './quantityInfo.ts'
+import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
 import { useLoad } from './useLoad.ts'
 import { formatPrice } from './format.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
@@ -54,16 +54,18 @@ type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
   const printed = splitItemCode(item.raw_name ?? '')
-  // The line printed under the item already says some of what has to be typed: "3 @ 2.79" is a count of 3, a weight is
-  // one item of that many grams, and a litre line (a fuel receipt) is one item of that many litres
+  // The line printed under the item already says some of what has to be typed: a weight is one item of that many
+  // grams, a litre line (a fuel receipt) is one item of that many litres, and "3 @ 2.79" means 3 were bought at 2.79
+  // each, so the price is 2.79, not the 8.37 for all three. The count is not 3, that is how many were bought.
   const quantity = readQuantity(item.quantity_info)
   const litres = litresIn(item.quantity_info)
+  const price = priceOfOne(typeof item.price === 'number' ? item.price : null, quantity)
   return {
     id,
     rawName: printed.name,
     code: printed.code,
     name: known?.name ?? (litres ? 'Gas' : item.item_name || item.raw_name || ''),
-    price: typeof item.price === 'number' ? String(item.price) : '',
+    price: price === null ? '' : String(price),
     count: known ? String(known.count) : (quantity?.count ?? ''),
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
     unit: known?.unit ?? quantity?.unit ?? '',
@@ -297,17 +299,17 @@ export function ReceiptReview({ result, onDone }: Props) {
           <table className="items">
             <thead>
               <tr>
-                <th>Add</th>
+                <th className="review-fit">Add</th>
                 <th>Item name</th>
-                <th>Price</th>
-                {!isFuelReceipt && <th>Count</th>}
+                <th className="review-fit">Price</th>
+                {!isFuelReceipt && <th className="review-fit">Count</th>}
                 {isFuelReceipt ? (
                   <>
-                    <th>Litres</th>
-                    <th>Price per litre</th>
+                    <th className="review-fit">Litres</th>
+                    <th className="review-fit">Price per litre</th>
                   </>
                 ) : (
-                  <th className="has-tip" tabIndex={0} aria-describedby="size-tip">
+                  <th className="has-tip review-fit" tabIndex={0} aria-describedby="size-tip">
                     Size (whole pack)
                     <span id="size-tip" role="tooltip" className="tip">
                       The total size of everything in the pack, not each item. For example, 6 boxes of 454g is 2724g.
@@ -324,7 +326,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                     </span>
                   </th>
                 )}
-                <th>Status</th>
+                <th className="review-fit">Status</th>
               </tr>
             </thead>
             <tbody>

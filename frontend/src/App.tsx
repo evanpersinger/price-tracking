@@ -37,7 +37,7 @@ export default function App() {
   return (
     // A dropped file outside the modal must do nothing, not open the image in the tab
     <div
-      className={review === null && !showAbbreviations ? 'page page-split' : 'page'}
+      className={review !== null ? 'page page-review' : showAbbreviations ? 'page' : 'page page-split'}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => event.preventDefault()}
     >
