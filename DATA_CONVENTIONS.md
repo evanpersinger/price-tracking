@@ -14,10 +14,40 @@ editing, or reviewing data by hand.
 - When there's genuinely no brand, set `brand` to the literal text `No Brand`, not
   `null`. `No Brand` is a real value, not a stand-in for "unknown", it means someone
   checked and confirmed the item has no brand.
-- Only set a brand when it's known for certain, don't guess from the name.
+- Only set a brand when it's known for certain, don't guess from the name. Two narrow, hand-coded exceptions to
+  "don't guess" (both in `frontend/src/`): any Costco line with "KS" as its own word (`isKirklandSignature` in
+  `knownItems.ts`) defaults to `Kirkland`, and any line containing "Old Spice" (`isOldSpice` in `brands.ts`, any
+  store) defaults to `Old Spice`. Both are specific, well-known cases, not a general "infer the brand" rule.
 - Capitals don't matter in a brand: `Arm&Hammer` and `arm&hammer` are the same brand. `POST /api/items`
   saves a brand that matches a saved one ignoring case with the saved spelling (the first one saved wins).
   Rows edited by hand in the database aren't covered, keep their spelling consistent yourself.
+
+## Item name is the receipt's own text
+
+The `name` column is always the literal text printed on the receipt line (`toRow`'s `name` field in
+`ReceiptReview.tsx`), never a model-cleaned rewording and never a `knownItems.ts` entry's own curated name. This is
+deliberate: a later repeat purchase needs to be matched up by name when there's no item code (see Duplicate
+detection below), and the receipt's own text is far more reliable for that than a generalized name would be. The
+Item name box is editable like any other field on the review page, this rule is only about what it starts out as.
+
+A `knownItems.ts` match still shows its own curated name, but only as a display override on the Stores/Cheapest/
+Search pages (`itemParts` in `format.ts`), with the stored receipt text kept as a small line underneath for
+reference. Nothing about the stored `name` changes because of this, it's purely how the name renders.
+
+## Duplicate detection (not adding the same item twice)
+
+`POST /api/items` in `backend/server.py` decides whether an incoming item is a repeat of one already in that store,
+in which case it overwrites that row (keeping one row in `items`, with the old price kept in `price_history`)
+instead of inserting a new one:
+
+1. **With an `item_code`**: an exact match on `item_code` within the store. This is the reliable case.
+2. **With no code** (most stores print one; a few, like Fresco, never do): a fuzzy match on name alone
+   (`difflib.SequenceMatcher`, `DUPLICATE_NAME_SIMILARITY = 0.9` in `server.py`), tolerant of OCR noise (a dropped
+   or swapped letter) but not much more. Brand and size are deliberately **not** checked, only the name. This was a
+   simplification: since the name is now always the receipt's own text (see above), two genuinely different
+   products should differ in their printed name reliably enough on its own. The known accepted risk is a false
+   positive: two different products at the same codeless store with a near-identical printed name would merge.
+3. A gas item (`fuel_type` set) is never matched this way, every fill-up is deliberately its own row.
 
 ## Item name vs. brand text
 
@@ -83,6 +113,16 @@ conventions used when filling these in by hand:
 - The Amount column's wording ("12 Cans", "4 Chops") comes from the name and the word after
   `per`, so it can't be set by writing it in the name. See `overrideCountNoun` in
   `frontend/src/format.ts`.
+
+## Capsule dose (`dose_mg`)
+
+- `items.dose_mg` is the dose on a single capsule/tablet, in mg, for supplements and similar count-sold products.
+  It's optional, set by the review page's "Dose per capsule" calculator (mg or g, converted to mg; g x1000).
+- A dose given in **IU** (International Units: Vitamin D, A, E and others) has no weight equivalent, so it's never
+  stored in `dose_mg`. It stays part of the item name instead, e.g. `Vitamin D3 1000 IU`, same as before this
+  column existed.
+- Leave `dose_mg` empty for anything that isn't sold by capsule/tablet. It has no relationship to `weight_g`
+  (`weight_g` is the whole pack's total, `dose_mg` is per single unit), both can be set on the same item.
 
 ## Spelling
 
