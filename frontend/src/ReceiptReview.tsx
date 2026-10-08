@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { addItem } from './api.ts'
 import { findClosestBrand } from './brands.ts'
 import { COUNTRIES } from './countries.ts'
+import { dedupeExact } from './dedupeExact.ts'
 import { splitItemCode } from './itemCode.ts'
 import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
@@ -160,7 +161,7 @@ export function ReceiptReview({ result, onDone }: Props) {
   // the price history
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
   const [rows, setRows] = useState<Row[]>(() =>
-    (result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
+    dedupeExact(result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
   )
   const [isSaving, setIsSaving] = useState(false)
 
