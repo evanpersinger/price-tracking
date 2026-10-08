@@ -30,12 +30,13 @@ export function ByWeightTable({ store, items, country, startIndex }: ByWeightTab
         </thead>
         <tbody>
           {items.map((item, index) => {
-            const { name, unitPrice } = itemParts(item)
+            const { name, unitPrice, receiptName } = itemParts(item, store.name)
             return (
               <tr key={item.id}>
                 <td className="row-number">{startIndex + index + 1}</td>
                 <td className="item">
                   <ItemName segments={name} />
+                  {receiptName && <div className="item-receipt-name">{receiptName}</div>}
                 </td>
                 <td className="price">
                   {unitPrice ?? (item.price_cents === null ? (

@@ -14,12 +14,12 @@ export function StoreTable({ store, country }: StoreTableProps) {
   // Every word typed has to be in the item's name, ignoring case
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
   const items = store.items.filter((item) => {
-    const itemName = itemParts(item).name.map((segment) => segment.text).join('').toLowerCase()
+    const itemName = itemParts(item, store.name).name.map((segment) => segment.text).join('').toLowerCase()
     return terms.every((term) => itemName.includes(term))
   })
 
   const rows = items.map((item) => {
-    const { name, amounts, unitPrice: typedUnitPrice } = itemParts(item)
+    const { name, amounts, unitPrice: typedUnitPrice, receiptName } = itemParts(item, store.name)
     // No typed unit price: work one out from the price and size, per item, else per gram, else per ml
     const unit = item.item_count ? 'each' : item.weight_g ? 'g' : item.volume_ml ? 'ml' : null
     const size = item.item_count || item.weight_g || item.volume_ml
@@ -28,7 +28,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
       (unit && size && item.price_cents !== null
         ? formatUnitPrice({ unit, unit_price_cents: item.price_cents / size }, country)
         : null)
-    return { item, name, amounts, unitPrice }
+    return { item, name, amounts, unitPrice, receiptName }
   })
   // A store whose items never have a unit price (e.g. furniture, one-off goods) gets no column of blank cells
   const showUnitPrice = rows.some((row) => row.unitPrice !== null)
@@ -63,13 +63,14 @@ export function StoreTable({ store, country }: StoreTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ item, name, amounts, unitPrice }, index) => (
+          {rows.map(({ item, name, amounts, unitPrice, receiptName }, index) => (
             <tr key={item.id}>
               <td className="row-number">{index + 1}</td>
               <td className="item-code">{item.item_code}</td>
               <td className="brand">{item.brand}</td>
               <td className="item">
                 <ItemName segments={name} />
+                {receiptName && <div className="item-receipt-name">{receiptName}</div>}
               </td>
               <td className={amounts.length > 1 ? 'amount amount-split' : 'amount'}>
                 {amounts.length > 1 ? (

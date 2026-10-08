@@ -679,6 +679,14 @@ body:has(.page-review) {
   color: var(--item);
 }
 
+/* The literal receipt text under a curated display name, so a match can be checked at a glance. Much smaller and
+   muted since it's a debugging aid, not something worth reading at the same weight as the name itself. */
+.item-receipt-name {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .items td.brand,
 .items td.fuel-type {
   color: var(--store);

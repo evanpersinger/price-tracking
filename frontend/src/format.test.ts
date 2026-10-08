@@ -96,4 +96,17 @@ describe('itemParts', () => {
   it('keeps a bracket like (SS) in the name', () => {
     expect(nameText({ ...sized, name: 'Hamburger Buns (SS)' })).toBe('Hamburger Buns (SS)')
   })
+
+  it('swaps in a curated display name when the store and printed name match a known item, keeping the receipt text', () => {
+    const parts = itemParts({ ...sized, name: 'KS BATH' }, 'Costco')
+
+    expect(parts.name.map((segment) => segment.text).join('')).toBe('Bath Tissue')
+    expect(parts.receiptName).toBe('KS BATH')
+  })
+
+  it('leaves the name alone with no store, or a store or printed name with no known item', () => {
+    expect(itemParts({ ...sized, name: 'KS BATH' }).receiptName).toBeNull()
+    expect(itemParts({ ...sized, name: 'KS BATH' }, 'Fresco').receiptName).toBeNull()
+    expect(itemParts({ ...sized, name: 'Bananas' }, 'Costco').receiptName).toBeNull()
+  })
 })

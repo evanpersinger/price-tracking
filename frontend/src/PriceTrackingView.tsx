@@ -29,7 +29,7 @@ function partsOf(entry: HistoryEntry) {
     weight_g: entry.weight_g,
     volume_ml: entry.volume_ml,
     brand: entry.brand,
-  })
+  }, entry.store_name)
 }
 
 function amountOf(entry: HistoryEntry): string {
@@ -151,7 +151,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                     <tbody>
                       {shown.map((tracked, index) => {
                         const newest = tracked.entries[0]
-                        const { name } = partsOf(newest)
+                        const { name, receiptName } = partsOf(newest)
                         return (
                           <tr key={tracked.key}>
                             <td className="row-number">{index + 1}</td>
@@ -160,6 +160,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                                 <ItemName segments={name} />
                                 {newest.fuel_type && ` (${newest.fuel_type})`}
                               </button>
+                              {receiptName && <div className="item-receipt-name">{receiptName}</div>}
                             </td>
                             <td className="amount">{amountOf(newest)}</td>
                             <td className="store-column">{newest.store_name}</td>

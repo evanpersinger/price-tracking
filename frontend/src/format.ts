@@ -1,3 +1,4 @@
+import { findKnownItem } from './knownItems.ts'
 import type { CheapestItem, Country } from './types.ts'
 
 const FORMATTERS: Record<Country, Intl.NumberFormat> = {
@@ -84,6 +85,7 @@ export interface ItemParts {
   name: Segment[] // just the words, the typed unit price is its own field below
   amounts: string[] // like "8 buns" or "500g", without the brackets
   unitPrice: string | null // the typed unit price, like "$0.50 per bun", without the brackets
+  receiptName: string | null // the literal printed text, set only when name above is a curated stand-in for it
 }
 
 // Container words worth naming instead of the raw unit, e.g. "1L" on a milk carton reads better as "1 carton".
@@ -217,7 +219,11 @@ function describeAmount(amount: string, forCount: string, forMeasure: string): s
 
 // Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and
 // typed unit price written in the name, items from the add form keep the amount in its own fields.
-export function itemParts(item: Sized): ItemParts {
+//
+// `store` is only needed to look up a curated display name (see knownItems.ts). When one matches, it stands in for
+// the name instead, with the receipt's own text kept as receiptName so the match can be checked at a glance; it's
+// never shown on its own without a curated name to go with it.
+export function itemParts(item: Sized, store?: string): ItemParts {
   const segments: Segment[] = []
   const rawAmounts: string[] = []
   let unitPrice: string | null = null
@@ -240,8 +246,16 @@ export function itemParts(item: Sized): ItemParts {
     .map((amount) => describeAmount(amount, forCount, forMeasure))
     .filter((amount): amount is string => amount !== null)
 
-  const name = segments
+  let name = segments
     .filter((segment) => segment.kind === 'name')
     .map((segment) => ({ ...segment, text: capitalizeWords(segment.text) }))
-  return { name, amounts, unitPrice }
+
+  let receiptName: string | null = null
+  const known = store ? findKnownItem(store, item.name) : undefined
+  if (known && known.name.toLowerCase() !== item.name.toLowerCase()) {
+    name = [{ text: known.name, kind: 'name', start: 0 }]
+    receiptName = item.name
+  }
+
+  return { name, amounts, unitPrice, receiptName }
 }
