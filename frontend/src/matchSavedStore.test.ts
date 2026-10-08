@@ -23,6 +23,12 @@ describe('matchSavedStore', () => {
     expect(matchSavedStore('Metropolitan Market', SAVED)).toBeNull()
   })
 
+  it('matches a saved name split into separate words, or run together, the other way', () => {
+    const saved = stores('FreshCo')
+    expect(matchSavedStore('FRESH CO', saved)?.name).toBe('FreshCo')
+    expect(matchSavedStore('FreshCo', stores('Fresh Co'))?.name).toBe('Fresh Co')
+  })
+
   it('finds nothing for a new store or a blank name', () => {
     expect(matchSavedStore('Some New Store', SAVED)).toBeNull()
     expect(matchSavedStore('', SAVED)).toBeNull()
