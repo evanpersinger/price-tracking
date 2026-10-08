@@ -81,7 +81,7 @@ body {
 }
 
 .receipt-modal {
-  width: min(720px, calc(100vw - 2 * var(--gutter)));
+  width: min(980px, calc(100vw - 2 * var(--gutter)));
   padding: 0;
   background: var(--surface);
   color: var(--text);
@@ -96,8 +96,8 @@ body {
 .receipt-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 32px;
+  gap: 24px;
+  padding: 52px;
 }
 
 .receipt-modal-head {
@@ -108,7 +108,7 @@ body {
 
 .receipt-modal-head h2 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 2.4rem;
   color: var(--heading);
 }
 
@@ -118,7 +118,7 @@ body {
   border: none;
   border-radius: var(--radius);
   color: var(--text-muted);
-  font-size: 2rem;
+  font-size: 2.6rem;
   line-height: 1.2;
   cursor: pointer;
 }
@@ -132,12 +132,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 320px;
+  min-height: 460px;
   padding: 16px;
   border: 2px dashed var(--table-border);
   border-radius: var(--radius);
   color: var(--heading);
-  font-size: 2.25rem;
+  font-size: 2.85rem;
   text-align: center;
 }
 
@@ -166,8 +166,8 @@ body {
 }
 
 .choose-file-button {
-  padding: 20px 44px;
-  font-size: 1.55rem;
+  padding: 28px 60px;
+  font-size: 1.9rem;
 }
 
 .choose-file-button:hover:not(:disabled),
