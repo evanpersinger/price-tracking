@@ -293,6 +293,7 @@ def _drop_deals(receipt: dict) -> dict:
     }
 
     kept = []
+    dropped = []
     for item in items:
         raw_name = str(item.get("raw_name") or "")
         price = item.get("price")
@@ -303,18 +304,25 @@ def _drop_deals(receipt: dict) -> dict:
         )
         is_on_sale = item.get("on_sale") is True or any(code in raw_name for code in discounted_codes)
         if is_deal_line or is_on_sale:
+            dropped.append(item)
             continue
         quantity_info = item.get("quantity_info")
         if quantity_info and _DEAL_QUANTITY_RE.search(str(quantity_info)):
             item = {**item, "quantity_info": None}
         kept.append({key: value for key, value in item.items() if key != "on_sale"})
-    return {**receipt, "items": kept}
+    return {**receipt, "items": kept, "_dropped_items": dropped}
 
 
 def extract_receipt(image_bytes: bytes, media_type: str) -> dict:
-    """Read one receipt image with the local model (RECEIPT_MODEL) and return its JSON as a dict, deals dropped."""
+    """Read one receipt image with the local model (RECEIPT_MODEL) and return its JSON as a dict, deals dropped.
+
+    Also carries _raw_reply, the model's reply exactly as it came back, before any parsing: the only way to see
+    what the model actually said when the parsed result looks wrong. The API logs it and _dropped_items (see
+    _drop_deals) to activity.log, then strips both before the result reaches the client.
+    """
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
-    return _drop_deals(_extract_json(_image_ollama(RECEIPT_MODEL, image_b64, media_type)))
+    raw_reply = _image_ollama(RECEIPT_MODEL, image_b64, media_type)
+    return {**_drop_deals(_extract_json(raw_reply)), "_raw_reply": raw_reply}
 
 
 PROVIDERS = {"local": _image_ollama, "script": _image_script}

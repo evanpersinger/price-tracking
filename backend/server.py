@@ -234,7 +234,11 @@ async def read_receipt(request: Request) -> dict:
         image = await request.body()
         if len(image) > MAX_RECEIPT_BYTES:
             raise HTTPException(status_code=413, detail="That image is over 10 MB.")
-        return await asyncio.to_thread(extract_receipt, image, media_type)
+        result = await asyncio.to_thread(extract_receipt, image, media_type)
+        log_activity("receipt_read", store=result.get("store"), purchase_date=result.get("purchase_date"),
+                      items=result.get("items"), dropped_items=result.pop("_dropped_items", None),
+                      raw_reply=result.pop("_raw_reply", None))
+        return result
     except requests.exceptions.RequestException as e:
         logger.warning("Ollama call failed: %s", e)
         raise HTTPException(status_code=503, detail="Couldn't reach the local model. Is Ollama running?") from e

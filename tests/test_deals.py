@@ -88,7 +88,7 @@ def test_a_real_quantity_line_is_kept() -> None:
 
 
 def test_a_receipt_with_no_items_is_left_alone() -> None:
-    assert extract_receipt._drop_deals({"store": "Costco"}) == {"store": "Costco", "items": []}
+    assert extract_receipt._drop_deals({"store": "Costco"}) == {"store": "Costco", "items": [], "_dropped_items": []}
 
 
 def test_reading_a_receipt_drops_the_deals(monkeypatch: pytest.MonkeyPatch) -> None:
