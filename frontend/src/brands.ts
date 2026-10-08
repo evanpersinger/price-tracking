@@ -44,6 +44,7 @@ export const BRANDS: string[] = [
   'Nestle',
   'No Sugar',
   'Old Spice',
+  'Orange Naturals',
   'PepsiCo',
   'Phyzik',
   'Premier Protein',
