@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findClosestBrand } from './brands.ts'
+import { findClosestBrand, isOldSpice } from './brands.ts'
 
 describe('findClosestBrand', () => {
   it('matches a brand typed exactly', () => {
@@ -23,5 +23,16 @@ describe('findClosestBrand', () => {
   it('returns null for a blank brand', () => {
     expect(findClosestBrand('')).toBeNull()
     expect(findClosestBrand('   ')).toBeNull()
+  })
+})
+
+describe('isOldSpice', () => {
+  it('recognizes Old Spice in a printed name, at any store', () => {
+    expect(isOldSpice('Old Spice Original')).toBe(true)
+    expect(isOldSpice('123456 OLD SPICE DEODORANT')).toBe(true)
+  })
+
+  it('returns false for anything else', () => {
+    expect(isOldSpice('Dove Deodorant')).toBe(false)
   })
 })

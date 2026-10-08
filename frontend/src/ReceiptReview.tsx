@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { addItem } from './api.ts'
-import { findClosestBrand } from './brands.ts'
+import { findClosestBrand, isOldSpice } from './brands.ts'
 import { COUNTRIES } from './countries.ts'
 import { dedupeExact } from './dedupeExact.ts'
 import { splitItemCode } from './itemCode.ts'
@@ -74,7 +74,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     count: known ? String(known.count) : (quantity?.count ?? ''),
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
     unit: known?.unit ?? quantity?.unit ?? 'none',
-    brand: known?.brand ?? (isKirklandSignature(store, printed.name) ? 'Kirkland' : ''),
+    brand: known?.brand ?? (isKirklandSignature(store, printed.name) ? 'Kirkland' : isOldSpice(printed.name) ? 'Old Spice' : ''),
     fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',
     known: known !== undefined,

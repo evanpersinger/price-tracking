@@ -1,3 +1,5 @@
+import { splitItemCode } from './itemCode.ts'
+
 // Brand names we recognize, so an item's brand can be matched against a known spelling. Hand-maintained, add a
 // name whenever a new one comes up. All Canadian brands for now.
 export const BRANDS: string[] = [
@@ -41,6 +43,7 @@ export const BRANDS: string[] = [
   'Nature Clean',
   'Nestle',
   'No Sugar',
+  'Old Spice',
   'PepsiCo',
   'Phyzik',
   'Premier Protein',
@@ -63,6 +66,12 @@ export const BRANDS: string[] = [
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+// A printed name that says "Old Spice" is naming its own brand, so a specific known item isn't needed for the brand
+// to be known (the same reasoning as isKirklandSignature in knownItems.ts, just not tied to one store).
+export function isOldSpice(printedName: string): boolean {
+  return splitItemCode(printedName).name.toLowerCase().includes('old spice')
 }
 
 // Edit distance between two strings (single-character insertions, deletions and substitutions).
