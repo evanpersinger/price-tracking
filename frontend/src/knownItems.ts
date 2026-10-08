@@ -55,3 +55,12 @@ export function findKnownItem(store: string, printedName: string): KnownItem | u
     items.find((item) => item.matches === 'contains' && printed.includes(normalize(item.printedAs)))
   )
 }
+
+// Costco prints "KS" as its own word at the front of its Kirkland Signature items ("KS BATH", "KS FR EGGS"), not
+// just letters inside a longer word ("MASKS"), so a specific known item isn't needed for the brand to be known.
+export function isKirklandSignature(store: string, printedName: string): boolean {
+  if (!store.toLowerCase().includes('costco')) return false
+  return normalize(printedName)
+    .split(/\s+/)
+    .some((word) => word === 'ks')
+}

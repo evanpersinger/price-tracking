@@ -5,7 +5,7 @@ import { COUNTRIES } from './countries.ts'
 import { splitItemCode } from './itemCode.ts'
 import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
-import { findKnownItem } from './knownItems.ts'
+import { findKnownItem, isKirklandSignature } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
 import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
 import { useLoad } from './useLoad.ts'
@@ -73,7 +73,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     count: known ? String(known.count) : (quantity?.count ?? ''),
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
     unit: known?.unit ?? quantity?.unit ?? 'none',
-    brand: known?.brand ?? '',
+    brand: known?.brand ?? (isKirklandSignature(store, printed.name) ? 'Kirkland' : ''),
     fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',
     known: known !== undefined,
