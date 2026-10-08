@@ -9,6 +9,8 @@ interface CheapestTableProps {
 
 export function CheapestTable({ store, country }: CheapestTableProps) {
   const headingId = `cheapest-${store.id}`
+  // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
+  const showDose = store.items.some((item) => item.dose_mg !== null)
 
   return (
     <section className="store" aria-labelledby={headingId}>
@@ -24,6 +26,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
             <th scope="col" className="item">Item name</th>
             <th scope="col" className="amount">Amount</th>
             <th scope="col" className="unit-price">Unit price</th>
+            {showDose && <th scope="col" className="dose">Capsule</th>}
             <th scope="col" className="price">Price</th>
           </tr>
         </thead>
@@ -45,6 +48,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
                   {computedUnitPrice}
                   {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
                 </td>
+                {showDose && <td className="dose">{item.dose_mg !== null && `${item.dose_mg}mg`}</td>}
                 <td className="price">{formatPrice(item.price_cents, country)}</td>
               </tr>
             )

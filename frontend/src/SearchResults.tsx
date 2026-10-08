@@ -33,51 +33,57 @@ export function SearchResults({ country, query }: SearchResultsProps) {
           <p className="status">No item matches "{settledQuery}".</p>
         ) : (
           <div className="search-results">
-            {lists.map((list) => (
-              <section key={list.unit} className="store" aria-labelledby={`search-${list.unit}`}>
-                <div className="store-head">
-                  <h3 id={`search-${list.unit}`} className="store-name">{LIST_HEADINGS[list.unit]}</h3>
-                </div>
-                <table className="items">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="row-number">#</th>
-                      <th scope="col" className="store-column">Store</th>
-                      <th scope="col" className="item-code">Item code</th>
-                      <th scope="col" className="brand">Brand</th>
-                      <th scope="col" className="item">Item name</th>
-                      <th scope="col" className="amount">Amount</th>
-                      <th scope="col" className="unit-price">Unit price</th>
-                      <th scope="col" className="price">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.offers.map((offer, index) => {
-                      const { name, amounts, unitPrice, receiptName } = itemParts(offer, offer.store_name)
-                      const computedUnitPrice = formatUnitPrice({ unit: list.unit, unit_price_cents: offer.unit_price_cents }, country)
-                      return (
-                        <tr key={offer.id}>
-                          <td className="row-number">{index + 1}</td>
-                          <td className="store-column">{offer.store_name}</td>
-                          <td className="item-code">{offer.item_code}</td>
-                          <td className="brand">{offer.brand}</td>
-                          <td className="item">
-                            <ItemName segments={name} />
-                            {receiptName && <div className="item-receipt-name">{receiptName}</div>}
-                          </td>
-                          <td className="amount">{amounts.join(' · ')}</td>
-                          <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
-                            {computedUnitPrice}
-                            {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
-                          </td>
-                          <td className="price">{formatPrice(offer.price_cents, country)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </section>
-            ))}
+            {lists.map((list) => {
+              // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
+              const showDose = list.offers.some((offer) => offer.dose_mg !== null)
+              return (
+                <section key={list.unit} className="store" aria-labelledby={`search-${list.unit}`}>
+                  <div className="store-head">
+                    <h3 id={`search-${list.unit}`} className="store-name">{LIST_HEADINGS[list.unit]}</h3>
+                  </div>
+                  <table className="items">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="row-number">#</th>
+                        <th scope="col" className="store-column">Store</th>
+                        <th scope="col" className="item-code">Item code</th>
+                        <th scope="col" className="brand">Brand</th>
+                        <th scope="col" className="item">Item name</th>
+                        <th scope="col" className="amount">Amount</th>
+                        <th scope="col" className="unit-price">Unit price</th>
+                        {showDose && <th scope="col" className="dose">Capsule</th>}
+                        <th scope="col" className="price">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.offers.map((offer, index) => {
+                        const { name, amounts, unitPrice, receiptName } = itemParts(offer, offer.store_name)
+                        const computedUnitPrice = formatUnitPrice({ unit: list.unit, unit_price_cents: offer.unit_price_cents }, country)
+                        return (
+                          <tr key={offer.id}>
+                            <td className="row-number">{index + 1}</td>
+                            <td className="store-column">{offer.store_name}</td>
+                            <td className="item-code">{offer.item_code}</td>
+                            <td className="brand">{offer.brand}</td>
+                            <td className="item">
+                              <ItemName segments={name} />
+                              {receiptName && <div className="item-receipt-name">{receiptName}</div>}
+                            </td>
+                            <td className="amount">{amounts.join(' · ')}</td>
+                            <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
+                              {computedUnitPrice}
+                              {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
+                            </td>
+                            {showDose && <td className="dose">{offer.dose_mg !== null && `${offer.dose_mg}mg`}</td>}
+                            <td className="price">{formatPrice(offer.price_cents, country)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </section>
+              )
+            })}
           </div>
         )
       }

@@ -32,6 +32,8 @@ export function StoreTable({ store, country }: StoreTableProps) {
   })
   // A store whose items never have a unit price (e.g. furniture, one-off goods) gets no column of blank cells
   const showUnitPrice = rows.some((row) => row.unitPrice !== null)
+  // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
+  const showDose = rows.some((row) => row.item.dose_mg !== null)
 
   return (
     <section className="store" aria-labelledby={headingId}>
@@ -59,6 +61,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
             <th scope="col" className="item">Item name</th>
             <th scope="col" className="amount">Amount</th>
             {showUnitPrice && <th scope="col" className="unit-price">Unit price</th>}
+            {showDose && <th scope="col" className="dose">Capsule</th>}
             <th scope="col" className="price">Price</th>
           </tr>
         </thead>
@@ -90,6 +93,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
                   {unitPrice}
                 </td>
               )}
+              {showDose && <td className="dose">{item.dose_mg !== null && `${item.dose_mg}mg`}</td>}
               <td className="price">
                 {item.price_cents === null ? (
                   <span className="no-price">No price</span>

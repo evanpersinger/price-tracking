@@ -31,6 +31,13 @@ function toUnit(value: string): SizeUnit | '' {
   return SIZE_UNITS.find((unit) => unit === value) ?? ''
 }
 
+// What a per-capsule dose is given in. IU (International Units) has no fixed weight, it's specific to each
+// compound, so unlike mg and g it can't be converted into a total pack weight; picking it just disables the dose
+// box, the dose stays in the item name instead (e.g. "Vitamin D3 1000 IU").
+const DOSE_UNITS = ['mg', 'g', 'IU'] as const
+type DoseUnit = (typeof DOSE_UNITS)[number]
+const DOSE_GRAMS_PER_UNIT: Partial<Record<DoseUnit, number>> = { mg: 1 / 1000, g: 1 }
+
 // One receipt item as it's being edited: every field is the text in its input box
 interface Row {
   id: number
@@ -39,6 +46,8 @@ interface Row {
   name: string
   price: string
   count: string
+  dose: string // optional: the dose on a single capsule/tablet, a shortcut that fills in size+unit below
+  doseUnit: DoseUnit
   size: string
   unit: SizeUnit | '' // defaults to 'none' (sold as whole units, no size needed) unless the receipt or a known item
   // gives a real weight/volume; '' only once the person clears the dropdown themselves
@@ -52,7 +61,9 @@ interface Row {
   error: string | null
 }
 
-type RowFields = Pick<NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type'>
+type RowFields = Pick<
+  NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type' | 'dose_mg'
+>
 
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
@@ -72,6 +83,8 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     name: litres ? 'Gas' : printed.name || item.item_name || item.raw_name || '',
     price: price === null ? '' : String(price),
     count: known ? String(known.count) : (quantity?.count ?? ''),
+    dose: '',
+    doseUnit: 'mg',
     size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
     unit: known?.unit ?? quantity?.unit ?? 'none',
     brand: known?.brand ?? (isKirklandSignature(store, printed.name) ? 'Kirkland' : isOldSpice(printed.name) ? 'Old Spice' : ''),
@@ -109,11 +122,24 @@ function parsePositive(text: string): number | null {
   return text.trim() !== '' && Number.isFinite(value) && value > 0 ? value : null
 }
 
+// Count x the dose on one capsule/tablet is the pack's total weight, which is what actually gets saved (see
+// checkRow); the dose itself is never sent anywhere, it only exists to fill size+unit in for the person. IU has no
+// gram equivalent (see DOSE_GRAMS_PER_UNIT), so it never fills anything in, the dose still goes in the name instead.
+function doseTotal(count: string, dose: string, doseUnit: DoseUnit): Pick<Row, 'unit' | 'size'> | Record<string, never> {
+  const gramsPerUnit = DOSE_GRAMS_PER_UNIT[doseUnit]
+  const countNumber = parsePositive(count)
+  const doseNumber = parsePositive(dose)
+  if (gramsPerUnit === undefined || countNumber === null || doseNumber === null) return {}
+  return { unit: 'g', size: String(countNumber * doseNumber * gramsPerUnit) }
+}
+
 // What a row still needs before it can be added, and the fields to send once it needs nothing
 function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   const price = parsePositive(row.price)
   const count = parsePositive(row.count)
   const size = parsePositive(row.size)
+  const dose = parsePositive(row.dose)
+  const doseGramsPerUnit = DOSE_GRAMS_PER_UNIT[row.doseUnit]
   // A count only makes sense for identical units (12 cans, 1 bath tissue pack), where it's the whole size. A
   // weight or volume item (chicken strips, cheese) is already sized by weight_g/volume_ml, so it's optional there.
   const countRequired = row.unit === 'none'
@@ -137,6 +163,9 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
       volume_ml: row.unit === 'ml' ? (size ?? undefined) : row.unit === 'L' && size !== null ? Math.round(size * 1000) : undefined,
       brand: row.brand.trim() || NO_BRAND,
       fuel_type: row.fuelType.trim() || undefined,
+      // DOSE_GRAMS_PER_UNIT is grams per unit, x1000 turns that into mg per unit; IU isn't in it (no weight
+      // equivalent), so it's never sent.
+      dose_mg: dose === null || doseGramsPerUnit === undefined ? undefined : dose * doseGramsPerUnit * 1000,
     },
   }
 }
@@ -312,6 +341,16 @@ export function ReceiptReview({ result, onDone }: Props) {
                 <th>Item name</th>
                 <th className="review-fit">Price</th>
                 {!isFuelReceipt && <th className="review-fit">Count</th>}
+                {!isFuelReceipt && (
+                  <th className="has-tip review-fit" tabIndex={0} aria-describedby="dose-tip">
+                    Dose per capsule
+                    <span id="dose-tip" role="tooltip" className="tip">
+                      Optional. The dose on a single capsule or tablet. With Count, mg or g fills in Size (whole pack)
+                      for you. IU has no weight equivalent, so it doesn't fill anything in, put the dose in the item
+                      name instead (e.g. "Vitamin D3 1000 IU").
+                    </span>
+                  </th>
+                )}
                 {isFuelReceipt ? (
                   <>
                     <th className="review-fit">Litres</th>
@@ -412,8 +451,46 @@ export function ReceiptReview({ result, onDone }: Props) {
                           aria-label={`Count of item ${rowNumber}`}
                           value={row.count}
                           disabled={locked}
-                          onChange={(event) => patchRow(row.id, { count: event.target.value })}
+                          onChange={(event) => {
+                            const count = event.target.value
+                            patchRow(row.id, { count, ...doseTotal(count, row.dose, row.doseUnit) })
+                          }}
                         />
+                      </td>
+                    )}
+                    {!isFuelReceipt && (
+                      <td>
+                        <div className="review-size">
+                          <input
+                            className="review-input review-input-number"
+                            type="number"
+                            min="0"
+                            step="any"
+                            aria-label={`Dose per capsule of item ${rowNumber}`}
+                            value={row.dose}
+                            disabled={locked || row.hasNoSize || row.doseUnit === 'IU'}
+                            onChange={(event) => {
+                              const dose = event.target.value
+                              patchRow(row.id, { dose, ...doseTotal(row.count, dose, row.doseUnit) })
+                            }}
+                          />
+                          <select
+                            className="review-input"
+                            aria-label={`Dose unit of item ${rowNumber}`}
+                            value={row.doseUnit}
+                            disabled={locked || row.hasNoSize}
+                            onChange={(event) => {
+                              const doseUnit = event.target.value as DoseUnit
+                              patchRow(row.id, { doseUnit, ...doseTotal(row.count, row.dose, doseUnit) })
+                            }}
+                          >
+                            {DOSE_UNITS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                     )}
                     <td>
@@ -465,7 +542,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                     <td>
                       {isFuelReceipt ? (
                         <input
-                          className="review-input review-input-short"
+                          className="review-input review-input-brand"
                           aria-label={`Fuel type of item ${rowNumber}`}
                           value={row.fuelType}
                           disabled={locked}
@@ -473,7 +550,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         />
                       ) : (
                         <input
-                          className="review-input review-input-short"
+                          className="review-input review-input-brand"
                           aria-label={`Brand of item ${rowNumber}`}
                           value={row.brand}
                           disabled={locked}

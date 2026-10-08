@@ -140,6 +140,14 @@ def test_a_fuel_type_is_saved_and_listed(client: TestClient, add_item: Callable[
     assert (fuel["fuel_type"], grocery["fuel_type"]) == ("Unleaded", None)
 
 
+def test_a_dose_is_saved_and_listed(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Vitamin C", dose_mg=500)
+    add_item(name="Salt")
+
+    dosed, undosed = stores_in(client)[0]["items"]
+    assert (dosed["dose_mg"], undosed["dose_mg"]) == (500, None)
+
+
 def test_a_purchase_with_a_date_is_saved_and_recorded_in_the_history(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:

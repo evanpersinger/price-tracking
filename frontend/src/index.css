@@ -670,7 +670,8 @@ body:has(.page-review) {
 }
 
 .items td.item-code,
-.items td.date {
+.items td.date,
+.items td.dose {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -884,10 +885,16 @@ select.review-input {
   min-width: 14rem;
 }
 
-/* Brand and fuel type are short words, no need for the browser's default wide box */
+/* The item code, a short word or number, no need for the browser's default wide box */
 .review-input-short {
   width: 100%;
   min-width: 9rem;
+}
+
+/* Brand and fuel type get more room, a brand name tends to run longer than the item code next to it */
+.review-input-brand {
+  width: 100%;
+  min-width: 13rem;
 }
 
 .review-input-number {

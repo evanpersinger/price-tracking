@@ -12,6 +12,7 @@ export interface Item {
   brand: string | null
   item_code: string | null // the product code the store prints on the receipt, empty for imported items
   fuel_type: string | null // what the fuel is on a gas receipt, as printed (Unleaded, 87, Diesel), empty for the rest
+  dose_mg: number | null // the dose on a single capsule/tablet, empty for anything not sold that way or dosed in IU
 }
 
 export interface Store {
@@ -33,6 +34,7 @@ export interface CheapestItem {
   volume_ml: number | null
   brand: string | null
   item_code: string | null
+  dose_mg: number | null
 }
 
 export interface CheapestStore {
@@ -70,6 +72,7 @@ export interface SearchOffer {
   volume_ml: number | null
   brand: string | null
   item_code: string | null
+  dose_mg: number | null
 }
 
 // Offers that can be ranked against each other, cheapest first
@@ -91,6 +94,7 @@ export interface NewItem {
   brand?: string
   item_code?: string
   fuel_type?: string
+  dose_mg?: number
 }
 
 // What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.
