@@ -381,7 +381,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         onChange={(event) => patchRow(row.id, { name: event.target.value })}
                       />
                       {!isFuelReceipt && (
-                        <div className="raw-name">Printed as {row.rawName || 'nothing'}</div>
+                        <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
                       )}
                       {row.saved && country !== null && (
                         <div className="raw-name">

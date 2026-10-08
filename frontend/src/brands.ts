@@ -1,6 +1,7 @@
 // Brand names we recognize, so an item's brand can be matched against a known spelling. Hand-maintained, add a
 // name whenever a new one comes up. All Canadian brands for now.
 export const BRANDS: string[] = [
+  "Allen's",
   'Arm & Hammer',
   'Armstrong',
   'Biscoff',
