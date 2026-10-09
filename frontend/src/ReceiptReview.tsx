@@ -54,6 +54,9 @@ interface Row {
   brand: string
   fuelType: string // what the fuel is on a gas receipt, empty for every other row
   hasNoSize: boolean // a known item sold by count alone (like toilet paper), so the size box and unit are left out
+  isByWeight: boolean // priced by weight (produce, a bulk bin): no fixed size, shown in its own table below instead
+  rate: string // the price per rateUnit, prefilled from the receipt's weight line, editable like any other field
+  rateUnit: string // "kg", "lb", "100g", ... exactly as the receipt's quantity line denominates it
   known: boolean // matched an entry in knownItems.ts, which wins over a saved item
   saved: Item | null // the item already in this store with the same code, saving overwrites it
   include: boolean
@@ -74,6 +77,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
   const quantity = readQuantity(item.quantity_info)
   const litres = litresIn(item.quantity_info)
   const price = priceOfOne(typeof item.price === 'number' ? item.price : null, quantity)
+  const ratePerUnit = quantity?.ratePerUnit
   return {
     id,
     rawName: printed.name,
@@ -90,6 +94,9 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     brand: known?.brand ?? (isKirklandSignature(store, printed.name) ? 'Kirkland' : isOldSpice(printed.name) ? 'Old Spice' : ''),
     fuelType: litres ? (item.fuel_type || item.raw_name || '') : '',
     hasNoSize: known?.unit === 'none',
+    isByWeight: ratePerUnit !== undefined,
+    rate: ratePerUnit ? String(ratePerUnit.amount) : '',
+    rateUnit: ratePerUnit?.unit ?? '',
     known: known !== undefined,
     saved: null,
     include: true,
@@ -133,8 +140,41 @@ function doseTotal(count: string, dose: string, doseUnit: DoseUnit): Pick<Row, '
   return { unit: 'g', size: String(countNumber * doseNumber * gramsPerUnit) }
 }
 
+// How many grams a rate's own denominator is, to turn "$7.72 per kg" bought as 1150g into a total price. "100g" is
+// a shelf-tag convention (quantityInfo.ts's rateUnit keeps it as printed), not a unit on its own.
+const RATE_UNIT_GRAMS: Record<string, number> = { kg: 1000, g: 1, '100g': 100, lb: 453.592, lbs: 453.592, oz: 28.3495 }
+
+// A by-weight row (produce, a bulk bin) has no count or size to check, just a name and the rate it's sold at. The
+// price paid is never typed separately, it's the rate times the weight the receipt's quantity line already gave
+// (row.size, in grams), so there's nothing left for a person to confirm that the rate doesn't already say. The rate
+// gets typed into the saved name instead of a size field, the only way the backend accepts an item with no
+// item_count/weight_g/volume_ml (see server.py's _needs_a_size).
+function checkWeighedRow(row: Row): { problems: string[]; fields: RowFields | null } {
+  const rate = parsePositive(row.rate)
+  const grams = parsePositive(row.size)
+  const unitGrams = RATE_UNIT_GRAMS[row.rateUnit]
+  const price = rate !== null && grams !== null && unitGrams !== undefined ? rate * (grams / unitGrams) : null
+
+  const problems: string[] = []
+  if (!row.name.trim()) problems.push('name')
+  if (rate === null) problems.push(`price per ${row.rateUnit || 'unit'}`)
+  if (price === null || Math.round(price * 100) < 1) problems.push('price')
+  if (problems.length > 0 || price === null) return { problems, fields: null }
+
+  return {
+    problems,
+    fields: {
+      name: `${row.name.trim()} ($${rate} per ${row.rateUnit})`,
+      price_cents: Math.round(price * 100),
+      brand: row.brand.trim() || NO_BRAND,
+    },
+  }
+}
+
 // What a row still needs before it can be added, and the fields to send once it needs nothing
 function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
+  if (row.isByWeight) return checkWeighedRow(row)
+
   const price = parsePositive(row.price)
   const count = parsePositive(row.count)
   const size = parsePositive(row.size)
@@ -221,6 +261,11 @@ export function ReceiptReview({ result, onDone }: Props) {
     setFilledFor(existingStoreId)
     if (existingStore) setRows((current) => current.map((row) => fillFromSaved(row, existingStore.items)))
   }
+
+  // Priced-by-weight rows (produce, a bulk bin) get their own simpler table below the regular one, same order as
+  // the data pages' StoreTable/ByWeightTable split, so they don't show Count/Size/Dose columns that don't apply.
+  const regularRows = rows.filter((row) => !row.isByWeight)
+  const weighedRows = rows.filter((row) => row.isByWeight)
 
   const readyRows = rows.filter((row) => row.include && row.status !== 'added' && checkRow(row).fields !== null)
   const countLabel = `${readyRows.length} ${readyRows.length === 1 ? 'item' : 'items'}`
@@ -332,6 +377,8 @@ export function ReceiptReview({ result, onDone }: Props) {
       {rows.length === 0 ? (
         <p className="status">No items were found on this receipt.</p>
       ) : (
+        <>
+        {regularRows.length > 0 && (
         <div className="review-table-wrap">
           <table className="items">
             <thead>
@@ -378,7 +425,7 @@ export function ReceiptReview({ result, onDone }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => {
+              {regularRows.map((row, index) => {
                 const { problems } = checkRow(row)
                 const status = rowStatus(row, problems)
                 const locked = isSaving || row.status === 'added'
@@ -569,6 +616,82 @@ export function ReceiptReview({ result, onDone }: Props) {
             </tbody>
           </table>
         </div>
+        )}
+        {weighedRows.length > 0 && (
+          <>
+            <h3 className="review-subheading">Priced by weight</h3>
+            <div className="review-table-wrap">
+              <table className="items">
+                <thead>
+                  <tr>
+                    <th className="review-fit">Add</th>
+                    <th className="review-fit">Item code</th>
+                    <th>Item name</th>
+                    <th className="review-fit">Price per unit</th>
+                    <th className="review-fit">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weighedRows.map((row, index) => {
+                    const { problems } = checkRow(row)
+                    const status = rowStatus(row, problems)
+                    const locked = isSaving || row.status === 'added'
+                    const rowNumber = regularRows.length + index + 1
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Add item ${rowNumber}`}
+                            checked={row.include}
+                            disabled={locked}
+                            onChange={(event) => patchRow(row.id, { include: event.target.checked })}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="review-input review-input-short"
+                            aria-label={`Item code of item ${rowNumber}`}
+                            value={row.code ?? ''}
+                            disabled={locked}
+                            onChange={(event) => patchRow(row.id, { code: event.target.value || undefined })}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="review-input review-input-name"
+                            aria-label={`Name of item ${rowNumber}`}
+                            value={row.name}
+                            disabled={locked}
+                            onChange={(event) => patchRow(row.id, { name: event.target.value })}
+                          />
+                          <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
+                        </td>
+                        <td>
+                          <div className="review-size">
+                            <input
+                              className="review-input review-input-number"
+                              type="number"
+                              min="0"
+                              step="any"
+                              aria-label={`Price per ${row.rateUnit || 'unit'} of item ${rowNumber}`}
+                              value={row.rate}
+                              disabled={locked}
+                              onChange={(event) => patchRow(row.id, { rate: event.target.value })}
+                            />
+                            <span className="review-label">per {row.rateUnit || 'unit'}</span>
+                          </div>
+                        </td>
+                        <td className={status.className}>{status.text}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        </>
       )}
 
       <div className="review-actions">

@@ -100,8 +100,14 @@ class NewItem(BaseModel):
 
     @model_validator(mode="after")
     def _needs_a_size(self) -> "NewItem":
-        if self.item_count is None and self.weight_g is None and self.volume_ml is None:
-            raise ValueError("an item needs a size, give item_count, weight_g or volume_ml")
+        has_size = self.item_count is not None or self.weight_g is not None or self.volume_ml is not None
+        # A by-weight item (produce, a bulk bin) has no fixed size at all, the rate is typed into the name
+        # instead, same convention ByWeightTable already reads for display (see UNIT_PRICE below).
+        if not has_size and not UNIT_PRICE.search(self.name):
+            raise ValueError(
+                'an item needs a size (item_count, weight_g or volume_ml), or a typed unit price like '
+                '"($7.72 per kg)" in the name for a by-weight item with no fixed size'
+            )
         return self
 
 
@@ -153,9 +159,13 @@ def add_item(new_item: NewItem) -> AddedItem:
             candidates = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ?", (store_id,)
             ).fetchall()
+            # Strip the typed unit price (e.g. "($2.00 per kg)") before comparing: for a by-weight item it's the
+            # only thing that changes between purchases, and a big swing in it shouldn't make the same product
+            # look like a different one.
+            new_name = UNIT_PRICE.sub(" ", new_item.name).lower()
             existing = next(
                 (row for row in candidates
-                 if difflib.SequenceMatcher(None, new_item.name.lower(), row[1].lower()).ratio()
+                 if difflib.SequenceMatcher(None, new_name, UNIT_PRICE.sub(" ", row[1]).lower()).ratio()
                  >= DUPLICATE_NAME_SIMILARITY),
                 None,
             )

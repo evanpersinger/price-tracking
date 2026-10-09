@@ -27,9 +27,37 @@ describe('readQuantity', () => {
   })
 
   it('reads a weight as one item of that many grams', () => {
-    expect(readQuantity('1.2 kg @ $4.99/kg')).toEqual({ count: '1', size: '1200', unit: 'g' })
-    expect(readQuantity('350 g @ $1.20/100g')).toEqual({ count: '1', size: '350', unit: 'g' })
-    expect(readQuantity('2 lb @ $3.00/lb')).toEqual({ count: '1', size: '907', unit: 'g' })
+    expect(readQuantity('1.2 kg @ $4.99/kg')).toEqual({
+      count: '1',
+      size: '1200',
+      unit: 'g',
+      ratePerUnit: { amount: 4.99, unit: 'kg' },
+    })
+    expect(readQuantity('2 lb @ $3.00/lb')).toEqual({
+      count: '1',
+      size: '907',
+      unit: 'g',
+      ratePerUnit: { amount: 3, unit: 'lb' },
+    })
+  })
+
+  it('keeps the rate\'s own denominator, not the purchase\'s unit, when they differ', () => {
+    // Priced per 100g, not per single gram, even though 350g was bought in grams.
+    expect(readQuantity('350 g @ $1.20/100g')).toEqual({
+      count: '1',
+      size: '350',
+      unit: 'g',
+      ratePerUnit: { amount: 1.2, unit: '100g' },
+    })
+  })
+
+  it('falls back to the purchase unit when the line gives no rate denominator', () => {
+    expect(readQuantity('1.2 kg @ $4.99')).toEqual({
+      count: '1',
+      size: '1200',
+      unit: 'g',
+      ratePerUnit: { amount: 4.99, unit: 'kg' },
+    })
   })
 
   it('reads litres as one item of that many litres', () => {

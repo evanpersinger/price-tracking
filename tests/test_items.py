@@ -63,6 +63,13 @@ def test_item_without_a_size_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_a_by_weight_item_with_no_size_but_a_typed_unit_price_is_accepted(add_item: Callable[..., dict]) -> None:
+    """Produce and bulk-bin items have no fixed size, the per-kg rate is typed into the name instead."""
+    item = add_item(name="Granny Smith Apple ($7.72 per kg)", price_cents=888, item_count=None)
+
+    assert (item["item_count"], item["weight_g"], item["volume_ml"]) == (None, None, None)
+
+
 @pytest.mark.parametrize("price_cents", [0, -1])
 def test_price_under_a_cent_is_rejected(client: TestClient, price_cents: int) -> None:
     response = client.post(
@@ -203,6 +210,18 @@ def test_different_name_without_a_code_is_a_new_item(client: TestClient, add_ite
     add_item(name="Medium Eggs")
 
     assert len(stores_in(client)[0]["items"]) == 2
+
+
+def test_a_by_weight_item_still_overwrites_despite_a_big_rate_swing(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    """The typed per-kg rate is the only thing that changes between purchases of the same produce, a big swing in
+    it shouldn't make the duplicate check think it's a different item."""
+    first = add_item(name="Mango ($2.00 per kg)", price_cents=200, item_count=None)
+    second = add_item(name="Mango ($12.49 per kg)", price_cents=1249, item_count=None)
+
+    assert second["id"] == first["id"]
+    assert len(stores_in(client)[0]["items"]) == 1
 
 
 def test_a_different_brand_or_size_with_the_same_name_without_a_code_still_overwrites(
