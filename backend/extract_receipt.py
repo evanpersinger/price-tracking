@@ -41,21 +41,19 @@ _RECEIPT_PROMPT = (  # Prompt given to LLM
     "not just the product name by itself), item_name (a clean, consistent product name, "
     "e.g. 'Organic Bananas'), price (a number), category (what kind of item it is, e.g. produce), "
     "quantity_info and on_sale.\n"
-    "price is the full amount actually charged for that item, matching what it adds to the subtotal, never a "
-    "per-item or per-kg rate (a '$/kg' figure, or the unit price in an 'N @ price' line, is a rate, not a "
-    "charge). When a line has more than one dollar amount on it, such as a rate printed next to the full "
-    "charge, use the full charge, normally the one farthest to the right (ignore a trailing letter like 'H' "
-    "that just marks it as taxable).\n"
-    "Some items are followed by a quantity or weight line such as '3 @ 2.79' or "
-    "'1.2 kg @ $4.99/kg'. That line is not an item. Copy it exactly as printed into quantity_info "
-    "of the item above it, or use null when an item has no such line.\n"
-    "Staples prints an item's product code on the line below its name instead of on the name's own line, "
-    "together with the unit price and the extended price, with no '@', like "
-    "'10343970564    40.49    80.98H' under '2  EPSON T232 BLACK INK'. When you see this, put the code into "
-    "raw_name instead (e.g. 'EPSON T232 BLACK INK 10343970564'), set quantity_info to the quantity printed "
-    "before the name and the unit price from that line, written as '<quantity> @ <unit price>' (here "
-    "'2 @ 40.49'), and price is still the extended amount at the end of that same line (here 80.98, the full "
-    "charge), not the unit price in the middle.\n"
+    "price is the full amount actually charged for that item, matching what it adds to the subtotal. It is "
+    "never a rate: a '$/kg' figure, or the unit price in an 'N @ price' line, is a rate, not a charge.\n"
+    "A line below an item is never an item itself, and takes one of these forms:\n"
+    "- A quantity or weight line such as '3 @ 2.79' or '1.2 kg @ $4.99/kg'. Copy it exactly as printed into "
+    "quantity_info of the item above it.\n"
+    "- Three numbers with no '@' in between, for example '10343970564    40.49    80.98H' under "
+    "'2  EPSON T232 BLACK INK'. Read these left to right, in this exact order: a product code, a unit price, "
+    "then the line's own total (ignore a trailing letter on it, like the 'H' here, it only marks the item as "
+    "taxable). When you see this, put the code into raw_name instead (e.g. 'EPSON T232 BLACK INK "
+    "10343970564'), write quantity_info as '<quantity> @ <unit price>' using the quantity printed before the "
+    "item's own name and the middle number on this line (here '2 @ 40.49'), and price is the last number on "
+    "this line (here 80.98), the unit price in the middle is never the price.\n"
+    "Use null for quantity_info when an item has no line below it.\n"
     "on_sale is true when a discount was taken off that item: a line under it with an amount that ends in "
     "a minus sign like '4.50-', an 'INSTANT SAVINGS', coupon or discount line that names it, or the word "
     "SALE or SAVE printed on its own line. Otherwise on_sale is false. A shelf offer that was not applied, "
@@ -296,6 +294,32 @@ _DISCOUNT_FOR_RE = re.compile(r"^\s*\d{6,}\s*/\s*(\d{4,})")
 _DEAL_QUANTITY_RE = re.compile(r"\bfor\s*\$?\d|\bea\b.*\bor\b|\d\s*/\s*\$?\d|\bsave\b|%\s*off", re.IGNORECASE)
 
 
+_QUANTITY_AT_RE = re.compile(r"^\s*(\d+)\s*@\s*\$?(\d+(?:\.\d+)?)\s*$")
+
+
+def _fix_misread_unit_price(receipt: dict) -> dict:
+    """Catch the model reporting an item's unit price as its price, instead of the line's total.
+
+    A plain quantity line like '2 @ 40.49' (no weight unit) means N units at that unit price, so the
+    item's real price is N times it. The model sometimes reports the unit price itself instead,
+    especially on a store-printed 'code  unit price  total' line with no '@' in it (Staples prints
+    these), where it has to tell three bare numbers apart. Only overrides when price exactly matches
+    the unit price, since a real per-line discount can legitimately make the total something other
+    than quantity times unit price.
+    """
+    items = receipt.get("items") or []
+    fixed = []
+    for item in items:
+        match = _QUANTITY_AT_RE.match(str(item.get("quantity_info") or ""))
+        price = item.get("price")
+        if match and isinstance(price, int | float):
+            quantity, unit_price = int(match.group(1)), float(match.group(2))
+            if quantity > 1 and abs(price - unit_price) < 0.005:
+                item = {**item, "price": round(quantity * unit_price, 2)}
+        fixed.append(item)
+    return {**receipt, "items": fixed}
+
+
 def _drop_deals(receipt: dict) -> dict:
     """The receipt without anything bought on sale or with a discount, and without the deal lines themselves.
 
@@ -339,7 +363,7 @@ def extract_receipt(image_bytes: bytes, media_type: str) -> dict:
     """
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     raw_reply = _image_ollama(RECEIPT_MODEL, image_b64, media_type)
-    return {**_drop_deals(_extract_json(raw_reply)), "_raw_reply": raw_reply}
+    return {**_drop_deals(_fix_misread_unit_price(_extract_json(raw_reply))), "_raw_reply": raw_reply}
 
 
 PROVIDERS = {"local": _image_ollama, "script": _image_script}
@@ -416,7 +440,7 @@ if __name__ == "__main__":
         image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
         reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
         try:
-            result = json.dumps(_drop_deals(_extract_json(reply)), indent=2)
+            result = json.dumps(_drop_deals(_fix_misread_unit_price(_extract_json(reply))), indent=2)
         except ValueError as e:
             sys.exit(str(e))
         print(f"{image_path.name}:")
