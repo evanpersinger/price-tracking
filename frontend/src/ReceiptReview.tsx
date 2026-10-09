@@ -281,6 +281,10 @@ export function ReceiptReview({ result, onDone }: Props) {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)))
   }
 
+  function removeRow(id: number) {
+    setRows((current) => current.filter((row) => row.id !== id))
+  }
+
   async function save() {
     if (country === null) return
     setIsSaving(true)
@@ -610,6 +614,17 @@ export function ReceiptReview({ result, onDone }: Props) {
                       )}
                     </td>
                     <td className={status.className}>{status.text}</td>
+                    <td className="row-remove-cell">
+                      <button
+                        type="button"
+                        className="row-remove"
+                        aria-label={`Remove item ${rowNumber}`}
+                        disabled={locked}
+                        onClick={() => removeRow(row.id)}
+                      >
+                        ×
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
@@ -683,6 +698,17 @@ export function ReceiptReview({ result, onDone }: Props) {
                           </div>
                         </td>
                         <td className={status.className}>{status.text}</td>
+                        <td className="row-remove-cell">
+                          <button
+                            type="button"
+                            className="row-remove"
+                            aria-label={`Remove item ${rowNumber}`}
+                            disabled={locked}
+                            onClick={() => removeRow(row.id)}
+                          >
+                            ×
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}

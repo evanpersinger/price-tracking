@@ -977,6 +977,38 @@ select.review-input {
   font-size: 1rem;
 }
 
+.items td.row-remove-cell {
+  border: none;
+  background: transparent;
+  padding: 10px 0 10px 10px;
+}
+
+.row-remove {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--heading);
+  border-radius: 4px;
+  color: var(--heading);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.row-remove:hover:not(:disabled) {
+  background: var(--hover-fill);
+  color: var(--warning);
+}
+
+.row-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .row-status {
   color: var(--text-muted);
 }
