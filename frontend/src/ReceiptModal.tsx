@@ -93,7 +93,14 @@ export function ReceiptModal({ onClose, onResult }: Props) {
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
         >
-          {isReading ? 'Reading receipt...' : 'Drag a receipt image here'}
+          {isReading ? (
+            <div className="reading-status">
+              Reading receipt
+              <span className="spinner" aria-hidden="true" />
+            </div>
+          ) : (
+            'Drag a receipt image here'
+          )}
         </div>
         {error && (
           <p className="receipt-modal-error" role="alert">
