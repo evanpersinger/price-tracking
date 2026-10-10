@@ -187,8 +187,8 @@ def add_item(new_item: NewItem) -> AddedItem:
         # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
         if purchased_on and (new_item.item_code or new_item.fuel_type):
             conn.execute(
-                "INSERT INTO price_history (item_id, price_cents, purchased_on) VALUES (?, ?, ?)",
-                (item_id, new_item.price_cents, purchased_on),
+                "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) VALUES (?, ?, ?, ?)",
+                (item_id, new_item.item_code, new_item.price_cents, purchased_on),
             )
 
     if existing:
@@ -495,6 +495,7 @@ class HistoryEntry(BaseModel):
     store_id: int
     store_name: str
     item_name: str  # the item's name now, an item that was overwritten keeps its history under the newest name
+    item_code: str | None  # the code saved with this purchase, empty for gas
     brand: str | None
     fuel_type: str | None
     item_count: int | None
@@ -509,20 +510,20 @@ def list_history(country: Literal["CA", "US"]) -> list[HistoryEntry]:
     """Every recorded purchase in a country's stores, newest first, from the price_history table."""
     with closing(connect()) as conn:
         rows = conn.execute(
-            "SELECT h.id, h.item_id, s.id, s.name, i.name, i.brand, i.fuel_type, i.item_count, i.weight_g, "
-            "i.volume_ml, h.price_cents, h.purchased_on FROM price_history h "
+            "SELECT h.id, h.item_id, s.id, s.name, i.name, h.item_code, i.brand, i.fuel_type, i.item_count, "
+            "i.weight_g, i.volume_ml, h.price_cents, h.purchased_on FROM price_history h "
             "JOIN items i ON i.id = h.item_id JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
             "ORDER BY h.purchased_on DESC, h.id DESC",
             (country,),
         ).fetchall()
     return [
         HistoryEntry(
-            id=id_, item_id=item_id, store_id=store_id, store_name=store_name, item_name=item_name, brand=brand,
-            fuel_type=fuel_type, item_count=item_count, weight_g=weight_g, volume_ml=volume_ml,
-            price_cents=price_cents, purchased_on=purchased_on,
+            id=id_, item_id=item_id, store_id=store_id, store_name=store_name, item_name=item_name,
+            item_code=item_code, brand=brand, fuel_type=fuel_type, item_count=item_count, weight_g=weight_g,
+            volume_ml=volume_ml, price_cents=price_cents, purchased_on=purchased_on,
         )
-        for (id_, item_id, store_id, store_name, item_name, brand, fuel_type, item_count, weight_g, volume_ml,
-             price_cents, purchased_on) in rows
+        for (id_, item_id, store_id, store_name, item_name, item_code, brand, fuel_type, item_count, weight_g,
+             volume_ml, price_cents, purchased_on) in rows
     ]
 
 

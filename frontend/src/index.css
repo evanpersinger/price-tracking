@@ -551,31 +551,12 @@ body:has(.page-review) {
   display: block;
   width: 100%;
   height: auto;
-  margin: 8px 0;
+  margin: 8px 0 24px;
 }
 
 .dot-graph text {
   fill: var(--text-muted);
   font-size: 15px;
-}
-
-.dot-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  margin: 0 0 24px;
-  padding: 0;
-  list-style: none;
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.dot-swatch {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 8px;
-  border-radius: 50%;
 }
 
 .dot-hint {

@@ -16,10 +16,13 @@ def test_purchases_are_listed_newest_first_and_a_repeat_keeps_the_old_price(
     add_item(name="Butter", item_code="654321", price_cents=700, purchased_on="2026-09-20")
     add_item(item_code="123456", price_cents=1200, purchased_on="2026-09-25")
 
-    assert [(entry["item_name"], entry["price_cents"], entry["purchased_on"]) for entry in history(client)] == [
-        ("Large Eggs", 1200, "2026-09-25"),
-        ("Butter", 700, "2026-09-20"),
-        ("Large Eggs", 1000, "2026-09-01"),
+    assert [
+        (entry["item_name"], entry["item_code"], entry["price_cents"], entry["purchased_on"])
+        for entry in history(client)
+    ] == [
+        ("Large Eggs", "123456", 1200, "2026-09-25"),
+        ("Butter", "654321", 700, "2026-09-20"),
+        ("Large Eggs", "123456", 1000, "2026-09-01"),
     ]
 
 

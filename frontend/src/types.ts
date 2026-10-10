@@ -50,6 +50,7 @@ export interface HistoryEntry {
   store_id: number
   store_name: string
   item_name: string
+  item_code: string | null // the code saved with this purchase, empty for gas
   brand: string | null
   fuel_type: string | null
   item_count: number | null

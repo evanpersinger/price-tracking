@@ -30,10 +30,11 @@ CREATE TABLE IF NOT EXISTS items (
 );
 
 -- One row each time an item was bought, kept for good so prices can be tracked over time. A purchase whose date
--- couldn't be read from the receipt isn't recorded here.
+-- couldn't be read from the receipt, or whose item has no item code (gas aside), isn't recorded here.
 CREATE TABLE IF NOT EXISTS price_history (
     id INTEGER PRIMARY KEY,
     item_id INTEGER NOT NULL REFERENCES items(id),
+    item_code TEXT,               -- the item's code on the day, copied from items, empty for gas
     price_cents INTEGER NOT NULL,
     purchased_on TEXT NOT NULL    -- ISO date from the receipt
 );
@@ -64,6 +65,14 @@ def _add_missing_columns(conn: sqlite3.Connection) -> None:
     for column, column_type in _ADDED_ITEM_COLUMNS.items():
         if column not in existing:
             conn.execute(f"ALTER TABLE items ADD COLUMN {column} {column_type}")
+
+    if "item_code" not in {row[1] for row in conn.execute("PRAGMA table_info(price_history)")}:
+        conn.execute("ALTER TABLE price_history ADD COLUMN item_code TEXT")
+        # History written before the column existed takes the code its item has now
+        conn.execute(
+            "UPDATE price_history SET item_code = (SELECT item_code FROM items WHERE items.id = price_history.item_id)"
+        )
+        conn.commit()  # the caller may close without committing, which would throw the backfill away
 
 
 def connect() -> sqlite3.Connection:
