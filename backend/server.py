@@ -91,6 +91,7 @@ class NewItem(BaseModel):
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
     purchased_on: date | None = None  # from the receipt, left out when it couldn't be read, then no history is recorded
+    # (no history either without an item_code, except for gas)
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
@@ -120,7 +121,8 @@ def add_item(new_item: NewItem) -> AddedItem:
     """Add an item with its price to a store, creating the store if it isn't in that country yet.
 
     A purchase date is only saved when the receipt gave one, a guess like today's date would corrupt the price
-    history. With a date, the price is also recorded in price_history, even when an existing item is overwritten.
+    history. With a date and an item code (or a fuel type, gas has no code), the price is also recorded in
+    price_history, even when an existing item is overwritten. Any other item is saved but not tracked.
     """
     purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
@@ -182,7 +184,8 @@ def add_item(new_item: NewItem) -> AddedItem:
                 "item_code, fuel_type, dose_mg, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
-        if purchased_on:
+        # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
+        if purchased_on and (new_item.item_code or new_item.fuel_type):
             conn.execute(
                 "INSERT INTO price_history (item_id, price_cents, purchased_on) VALUES (?, ?, ?)",
                 (item_id, new_item.price_cents, purchased_on),

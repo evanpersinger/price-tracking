@@ -158,11 +158,24 @@ def test_a_dose_is_saved_and_listed(client: TestClient, add_item: Callable[..., 
 def test_a_purchase_with_a_date_is_saved_and_recorded_in_the_history(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
-    item = add_item(price_cents=1299, purchased_on="2026-09-28")
+    item = add_item(item_code="123456", price_cents=1299, purchased_on="2026-09-28")
 
     [saved] = stores_in(client)[0]["items"]
     assert saved["purchased_on"] == "2026-09-28"
     assert history() == [(item["id"], 1299, "2026-09-28")]
+
+
+def test_an_item_with_no_code_is_saved_but_not_tracked(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(price_cents=1299, purchased_on="2026-09-28")
+
+    assert len(stores_in(client)[0]["items"]) == 1
+    assert history() == []
+
+
+def test_gas_is_tracked_even_with_no_code(client: TestClient, add_item: Callable[..., dict]) -> None:
+    item = add_item(name="Gas", price_cents=4583, volume_ml=26204, fuel_type="Unleaded", purchased_on="2026-09-28")
+
+    assert history() == [(item["id"], 4583, "2026-09-28")]
 
 
 def test_a_repeat_purchase_overwrites_the_item_but_keeps_the_old_price_in_the_history(
