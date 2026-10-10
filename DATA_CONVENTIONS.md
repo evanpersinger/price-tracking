@@ -91,7 +91,11 @@ item was given.
 
 Imported items carry a unit price in brackets at the end of the name, which the UI shows
 in the Unit price column and the API ignores (it works the comparison out itself). The
-conventions used when filling these in by hand:
+review page also generates one automatically for a by-weight item with no fixed size
+(produce, a bulk bin): its own "Priced by weight" table saves the typed rate as
+`($7.72 per kg)`, letting `POST /api/items` accept the item with no `item_count`,
+`weight_g` or `volume_ml` at all (see `repo.md`'s Review page rules). The conventions
+used when filling these in by hand:
 
 - Weight or volume: always `($4.41 per 100g)` or `($0.30 per 100ml)`, never `per gram`/
   `per g`/`per ml`/`per kg`, rounded to the cent, or three decimals when it's under 10

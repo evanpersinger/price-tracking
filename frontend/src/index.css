@@ -415,6 +415,11 @@ td.store-column {
   width: auto;
 }
 
+/* Same 8px under the title as .store-head, the review page's subheading has no margin of its own */
+.store-compact .review-subheading {
+  margin-bottom: 8px;
+}
+
 .store-nav {
   display: flex;
   flex-direction: column;

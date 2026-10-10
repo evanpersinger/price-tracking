@@ -13,17 +13,19 @@ interface ByWeightTableProps {
 // price, so this is a plainer table than StoreTable's.
 export function ByWeightTable({ store, items, country, startIndex }: ByWeightTableProps) {
   return (
-    <section className="store store-compact" aria-label={`${store.name}, sold by weight`}>
+    <section className="store store-compact" aria-label={`${store.name}, priced by weight`}>
       {startIndex === 0 && (
         <div className="store-head">
           <h2 className="store-name">{store.name}</h2>
           {store.discount_text && <p className="discount">{store.discount_text}</p>}
         </div>
       )}
+      <h3 className="review-subheading">Priced by weight</h3>
       <table className="items">
         <thead>
           <tr>
             <th scope="col" className="row-number">#</th>
+            <th scope="col" className="item-code">Item code</th>
             <th scope="col" className="item">Item name</th>
             <th scope="col" className="price">Price</th>
           </tr>
@@ -34,6 +36,7 @@ export function ByWeightTable({ store, items, country, startIndex }: ByWeightTab
             return (
               <tr key={item.id}>
                 <td className="row-number">{startIndex + index + 1}</td>
+                <td className="item-code">{item.item_code}</td>
                 <td className="item">
                   <ItemName segments={name} />
                   {receiptName && <div className="item-receipt-name">{receiptName}</div>}
