@@ -17,6 +17,8 @@
   --btn-text: #ffffff;
   --btn-active: linear-gradient(135deg, #0284c7, #7c3aed); /* the selected one, and the next/previous store arrows */
   --btn-add: #16a34a;
+  --btn-back: #c2410c; /* the Back button, a burnt orange so it stands apart from the purple ones */
+  --btn-back-hover: #ea580c;
 
   /* One color per kind of text */
   --heading: #f2f2f2; /* page title */
@@ -64,13 +66,13 @@ body {
   position: absolute; /* not fixed, so it scrolls away with the page instead of following down a long table */
   top: 16px;
   left: 16px;
-  padding: 36px 72px;
+  padding: 14px 36px;
   background: var(--btn-add);
   border: none;
   border-radius: 999px;
   color: var(--btn-text);
   font: inherit;
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   cursor: pointer;
   z-index: 10;
@@ -416,7 +418,7 @@ td.store-column {
 }
 
 /* Same 8px under the title as .store-head, the review page's subheading has no margin of its own */
-.store-compact .review-subheading {
+.store .review-subheading {
   margin-bottom: 8px;
 }
 
@@ -524,27 +526,35 @@ body:has(.page-review) {
   border-radius: 0;
 }
 
-/* An item's name in the tracking list is the click target that opens its graph, drawn as plain text like the rest */
-.item-button,
-.back-button {
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.item-button:hover,
-.back-button:hover {
-  text-decoration: underline;
-}
-
+/* Orange instead of the purple of the other buttons, so going back reads as a different kind of action */
 .back-button {
   margin-bottom: 8px;
-  color: var(--accent);
-  font-size: 1rem;
+  background: var(--btn-back);
+}
+
+.back-button:hover {
+  background: var(--btn-back-hover);
+}
+
+/* The 1 month / 3 months / 6 months / 1 year buttons above an item's graph, and the button that opens it from the list */
+.range-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+/* The item's name over its graph, centered over it */
+.item-title {
+  text-align: center;
+}
+
+.range-buttons .nav-link,
+.history-button,
+.back-button {
+  border: none;
+  font: inherit;
+  font-size: 1.125rem;
 }
 
 .dot-graph {

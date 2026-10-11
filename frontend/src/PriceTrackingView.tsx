@@ -23,6 +23,23 @@ interface TrackedStore {
   items: TrackedItem[] // the one bought most recently first
 }
 
+interface Range {
+  label: string
+  days: number // how far back from today the graph goes
+}
+
+const RANGES: Range[] = [
+  { label: '2 weeks', days: 14 },
+  { label: '1 month', days: 30 },
+  { label: '3 months', days: 90 },
+  { label: '6 months', days: 180 },
+  { label: '1 year', days: 365 },
+]
+const DEFAULT_RANGE = RANGES[RANGES.length - 1]
+// Every graph's price axis starts at 0 and goes up to this, for now: $500 (in cents), and $10 a litre (in cents) for gas
+const PRICE_AXIS_MAX = 50000
+const GAS_AXIS_MAX = 1000
+
 function keyOf(entry: HistoryEntry): string {
   const name = entry.item_name.toLowerCase()
   return entry.fuel_type ? `${name} (${entry.fuel_type.toLowerCase()})` : name
@@ -71,6 +88,8 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [query, setQuery] = useState('')
   const [pickedKey, setPickedKey] = useState<string | null>(null)
+  const [range, setRange] = useState<Range>(DEFAULT_RANGE)
+  const [today] = useState(() => new Date()) // when the page opened, what the graphs count back from
 
   return (
     <Loaded state={state}>
@@ -93,45 +112,55 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
           const newest = picked.entries[0]
           const { name } = partsOf(newest)
           const isFuel = newest.fuel_type !== null
+          // The graph covers the range up to today, as the same YYYY-MM-DD days the purchases are saved with
+          const rangeStart = new Date(today)
+          rangeStart.setDate(today.getDate() - range.days)
+          const end = today.toLocaleDateString('en-CA')
+          const start = rangeStart.toLocaleDateString('en-CA')
+          const inRange = picked.entries.filter((entry) => entry.purchased_on >= start && entry.purchased_on <= end)
+          // The first purchase is where the item's tracking starts, so the date axis starts there (the entries are
+          // newest first), unless it's older than the range, then the axis starts where the range does
+          const firstPurchase = picked.entries[picked.entries.length - 1].purchased_on
+          const axisStart = firstPurchase > start ? firstPurchase : start
           return (
             <div className="store-viewport">
               <section className="store" aria-labelledby="price-tracking-heading">
                 <div className="store-head">
-                  <button type="button" className="back-button" onClick={() => setPickedKey(null)}>
-                    Back to all items
+                  <button type="button" className="nav-link back-button" onClick={() => setPickedKey(null)}>
+                    Back
                   </button>
-                  <h2 id="price-tracking-heading" className="store-name">
-                    <ItemName segments={name} />
-                    {isFuel && ` (${newest.fuel_type})`}
-                    {` at ${store.name}`}
-                  </h2>
+                  <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
                 </div>
-                <PriceDots
-                  entries={picked.entries}
-                  value={isFuel ? litrePrice : (entry) => entry.price_cents}
-                  format={isFuel ? (value) => formatPerLitre(value, country) : (value) => formatPrice(Math.round(value), country)}
-                  priceLabel={isFuel ? 'Price per litre' : 'Price'}
-                />
-                <table className="items">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="date">Date</th>
-                      <th scope="col" className="item-code">Item code</th>
-                      <th scope="col" className="amount">Amount</th>
-                      <th scope="col" className="price">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {picked.entries.map((entry) => (
-                      <tr key={entry.id}>
-                        <td className="date">{entry.purchased_on}</td>
-                        <td className="item-code">{entry.item_code}</td>
-                        <td className="amount">{amountOf(entry)}</td>
-                        <td className="price">{formatPrice(entry.price_cents, country)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="range-buttons" role="group" aria-label="Time range">
+                  {RANGES.map((option) => (
+                    <button
+                      key={option.days}
+                      type="button"
+                      className="nav-link"
+                      aria-current={option.days === range.days ? 'true' : undefined}
+                      onClick={() => setRange(option)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <h3 className="review-subheading item-title">
+                  <ItemName segments={name} />
+                  {isFuel && ` (${newest.fuel_type})`}
+                </h3>
+                {inRange.length === 0 ? (
+                  <p className="status">No purchases in this time range.</p>
+                ) : (
+                  <PriceDots
+                    entries={inRange}
+                    value={isFuel ? litrePrice : (entry) => entry.price_cents}
+                    format={isFuel ? (value) => formatPerLitre(value, country) : (value) => formatPrice(Math.round(value), country)}
+                    priceLabel={isFuel ? 'Price per litre' : 'Price'}
+                    axisMax={isFuel ? GAS_AXIS_MAX : PRICE_AXIS_MAX}
+                    start={axisStart}
+                    end={end}
+                  />
+                )}
               </section>
             </div>
           )
@@ -170,7 +199,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                 <div className="store-head">
                   <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
                 </div>
-                <p className="dot-hint">Click an item to see its prices over time.</p>
+                <p className="dot-hint">Click Show price history to see an item's prices over time.</p>
                 {shown.length === 0 ? (
                   <p className="status">No item in {store.name} matches "{query.trim()}".</p>
                 ) : (
@@ -184,6 +213,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                         <th scope="col" className="date">Last bought</th>
                         <th scope="col" className="amount">Times bought</th>
                         <th scope="col" className="price">Last price</th>
+                        <th scope="col" className="history">History</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -195,16 +225,19 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                             <td className="row-number">{index + 1}</td>
                             <td className="item-code">{newest.item_code}</td>
                             <td className="item">
-                              <button type="button" className="item-button" onClick={() => setPickedKey(tracked.key)}>
-                                <ItemName segments={name} />
-                                {newest.fuel_type && ` (${newest.fuel_type})`}
-                              </button>
+                              <ItemName segments={name} />
+                              {newest.fuel_type && ` (${newest.fuel_type})`}
                               {receiptName && <div className="item-receipt-name">{receiptName}</div>}
                             </td>
                             <td className="amount">{amountOf(newest)}</td>
                             <td className="date">{newest.purchased_on}</td>
                             <td className="amount">{tracked.entries.length}</td>
                             <td className="price">{formatPrice(newest.price_cents, country)}</td>
+                            <td className="history">
+                              <button type="button" className="nav-link history-button" onClick={() => setPickedKey(tracked.key)}>
+                                Show price history
+                              </button>
+                            </td>
                           </tr>
                         )
                       })}
