@@ -211,7 +211,6 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                         <th scope="col" className="item">Item name</th>
                         <th scope="col" className="amount">Amount</th>
                         <th scope="col" className="date">Last bought</th>
-                        <th scope="col" className="amount">Times bought</th>
                         <th scope="col" className="price">Last price</th>
                         <th scope="col" className="history">History</th>
                       </tr>
@@ -231,7 +230,6 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                             </td>
                             <td className="amount">{amountOf(newest)}</td>
                             <td className="date">{newest.purchased_on}</td>
-                            <td className="amount">{tracked.entries.length}</td>
                             <td className="price">{formatPrice(newest.price_cents, country)}</td>
                             <td className="history">
                               <button type="button" className="nav-link history-button" onClick={() => setPickedKey(tracked.key)}>
