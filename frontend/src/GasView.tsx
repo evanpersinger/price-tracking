@@ -42,7 +42,7 @@ export function GasView({ country }: GasViewProps) {
               ))}
             </div>
             <div className="store-viewport">
-              <GasTable store={activeStation} country={country} />
+              <GasTable key={activeStation.id} store={activeStation} country={country} />
               <div className="store-nav">
                 {activeIndexInRange < stations.length - 1 && (
                   <button

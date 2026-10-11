@@ -328,30 +328,6 @@ main {
   border-radius: 0;
 }
 
-.search-box {
-  display: block;
-  width: 100%;
-  max-width: 720px;
-  margin: 24px auto 16px;
-  padding: 16px 22px;
-  background: var(--bg);
-  border: 2px solid var(--btn-bg);
-  border-radius: 0;
-  color: var(--text);
-  font: inherit;
-  font-size: 1.5rem;
-}
-
-.search-box:focus {
-  outline: none;
-  border-color: var(--btn-hover);
-}
-
-/* The store buttons right under the search box don't need the space that separates them from the nav */
-.search-box + .store-jump {
-  margin-top: 0;
-}
-
 .search-results {
   display: flex;
   flex-direction: column;

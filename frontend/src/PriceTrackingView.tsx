@@ -178,14 +178,6 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
         const shown = store.items.filter((tracked) => terms.every((term) => searchText(tracked).includes(term)))
         return (
           <>
-            <input
-              type="search"
-              className="search-box"
-              aria-label={`Search ${store.name} for an item name`}
-              placeholder="Search for an item name"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
             <div className="store-jump">
               {stores.map((tracked, index) => (
                 <button
@@ -204,8 +196,18 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
             </div>
             <div className="store-viewport">
               <section className="store" aria-labelledby="price-tracking-heading">
-                <div className="store-head">
-                  <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
+                <div className="store-head store-head-search">
+                  <div>
+                    <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
+                  </div>
+                  <input
+                    type="search"
+                    className="store-search"
+                    aria-label={`Search ${store.name} for an item name`}
+                    placeholder="Search for an item name"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
                 </div>
                 {shown.length === 0 ? (
                   <p className="status">No item in {store.name} matches "{query.trim()}".</p>

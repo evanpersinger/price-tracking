@@ -37,7 +37,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
               // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
               const showDose = list.offers.some((offer) => offer.dose_mg !== null)
               return (
-                <section key={list.unit} className="store" aria-labelledby={`search-${list.unit}`}>
+                <section key={list.unit} aria-labelledby={`search-${list.unit}`}>
                   <div className="store-head">
                     <h3 id={`search-${list.unit}`} className="store-name">{LIST_HEADINGS[list.unit]}</h3>
                   </div>
