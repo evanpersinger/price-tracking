@@ -37,7 +37,7 @@ export function GasTable({ store, country }: GasTableProps) {
         />
       </div>
       {fills.length === 0 && <p className="status">No fill-up at {store.name} matches "{query.trim()}".</p>}
-      <table className="items" hidden={fills.length === 0}>
+      <table className="items items-compact items-large" hidden={fills.length === 0}>
         <thead>
           <tr>
             <th scope="col" className="date">Date</th>

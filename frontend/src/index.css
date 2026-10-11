@@ -943,6 +943,31 @@ select.review-input {
   font-size: 1rem;
 }
 
+/* A table only as wide as what's in it, left aligned, instead of stretched across the card with spare width inside its
+   columns. The Price Tracking list has few, short rows. */
+.items.items-compact {
+  width: auto;
+  /* Bigger than the other tables' text, growing with the window, so a table this size fills more of the screen */
+  font-size: clamp(1.1rem, 1.9vw, 2.25rem);
+}
+
+/* For a compact table with only a few short columns (the gas fill-ups), where the text can go bigger still before the
+   table gets wide */
+.items.items-compact.items-large {
+  font-size: clamp(1.5rem, 3.2vw, 4rem);
+}
+
+/* The title is two lines ("Show price" over "history") and the button fills the cell, so the column is only as wide as
+   its title and there is no empty space around the button */
+.items th.history {
+  white-space: nowrap;
+}
+
+.items td.history .history-button {
+  display: block;
+  width: 100%;
+}
+
 .items td.row-remove-cell {
   border: none;
   background: transparent;

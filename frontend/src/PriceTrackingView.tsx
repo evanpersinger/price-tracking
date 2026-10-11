@@ -212,7 +212,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                 {shown.length === 0 ? (
                   <p className="status">No item in {store.name} matches "{query.trim()}".</p>
                 ) : (
-                  <table className="items">
+                  <table className="items items-compact">
                     <thead>
                       <tr>
                         <th scope="col" className="row-number">#</th>
@@ -221,7 +221,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                         <th scope="col" className="amount">Amount</th>
                         <th scope="col" className="date">Last bought</th>
                         <th scope="col" className="price">Last price</th>
-                        <th scope="col" className="history">History</th>
+                        <th scope="col" className="history">Show price <br />history</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -240,8 +240,13 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                             <td className="date">{newest.purchased_on}</td>
                             <td className="price">{formatPrice(newest.price_cents, country)}</td>
                             <td className="history">
-                              <button type="button" className="nav-link history-button" onClick={() => setPickedKey(tracked.key)}>
-                                Show price history
+                              <button
+                                type="button"
+                                className="nav-link history-button"
+                                aria-label={`Show price history for ${name.map((segment) => segment.text).join('').trim()}`}
+                                onClick={() => setPickedKey(tracked.key)}
+                              >
+                                Show
                               </button>
                             </td>
                           </tr>
