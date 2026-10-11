@@ -27,7 +27,8 @@ def add_item(client: TestClient) -> Callable[..., dict]:
 
     def _add(**fields: object) -> dict:
         body = {
-            "country": "CA", "store": "Costco", "name": "Large Eggs", "price_cents": 1000, "item_count": 12, **fields,
+            "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
+            "item_count": 12, **fields,
         }
         response = client.post("/api/items", json=body)
         assert response.status_code == 201, response.text

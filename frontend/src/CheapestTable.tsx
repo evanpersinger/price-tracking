@@ -32,7 +32,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
         </thead>
         <tbody>
           {store.items.map((item, index) => {
-            const { name, amounts, unitPrice, receiptName } = itemParts(item, store.name)
+            const { name, amounts, unitPrice } = itemParts(item, store.name)
             const computedUnitPrice = formatUnitPrice(item, country)
             return (
               <tr key={item.id}>
@@ -41,7 +41,6 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
                 <td className="brand">{item.brand}</td>
                 <td className="item">
                   <ItemName segments={name} />
-                  {receiptName && <div className="item-receipt-name">{receiptName}</div>}
                 </td>
                 <td className="amount">{amounts.join(' · ')}</td>
                 <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>

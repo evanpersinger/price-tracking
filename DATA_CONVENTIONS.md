@@ -24,15 +24,39 @@ editing, or reviewing data by hand.
 
 ## Item name is the receipt's own text
 
-The `name` column is always the literal text printed on the receipt line (`toRow`'s `name` field in
-`ReceiptReview.tsx`), never a model-cleaned rewording and never a `knownItems.ts` entry's own curated name. This is
-deliberate: a later repeat purchase needs to be matched up by name when there's no item code (see Duplicate
-detection below), and the receipt's own text is far more reliable for that than a generalized name would be. The
-Item name box is editable like any other field on the review page, this rule is only about what it starts out as.
+The `name` column is always the literal text printed on the receipt line (`receiptName` in `toRow` in
+`ReceiptReview.tsx`), never a model-cleaned rewording and never a display name. This is deliberate: a later repeat
+purchase needs to be matched up by name when there's no item code (see Duplicate detection below), and the receipt's
+own text is far more reliable for that than a generalized name would be. Nothing the person types on the review page
+changes it, the Item name box there is the display name (below).
 
-A `knownItems.ts` match still shows its own curated name, but only as a display override on the Stores/Cheapest/
-Search pages (`itemParts` in `format.ts`), with the stored receipt text kept as a small line underneath for
-reference. Nothing about the stored `name` changes because of this, it's purely how the name renders.
+An item with no `display_name` (an imported one, or one saved before the column existed) still gets a
+`knownItems.ts` match's curated name as a stand-in at display time (`itemParts` in `format.ts`). That fallback goes
+once the existing receipt items have display names.
+
+## Display name is always given, and always paired with a receipt name
+
+Every item added from a receipt has two names saved together on the same row:
+
+- `name`: the **receipt name**, the literal printed text (see above).
+- `display_name`: the **display name**, what a person calls the item. It is the review page's Item name box: it
+  starts as a known item's curated name (`knownItems.ts`, the items we already know exist), else the saved item's
+  display name for the same code, else the receipt name itself, and the person can change it. The model never makes
+  one up. `POST /api/items` rejects an item without one (422), so a display name is always attached to the receipt
+  name it came from, and no receipt item is saved without a display name.
+
+The display name is what every screen shows. Only the Store Prices tables also show the receipt name, as a small line
+under it (and only when it differs from the display name), every other screen shows the display name alone. The same
+product at two stores has two different receipt names but should get one display name. Nothing carries a display
+name over from another store yet, only known items and the same store's saved items prefill it.
+
+Imported items have no receipt name (the name was typed in by hand), so their `display_name` stays empty and they keep
+showing their `name`. They're exempt from this rule for now.
+
+Status: the column, the API, the review page (the Item name box saves `display_name`, the printed text saves `name`)
+and showing it on every screen are done. Items saved before the column existed have no display name yet, they show
+their `name` until they're given one. Search and Cheapest matching on the server still look at `name`, not
+`display_name`.
 
 ## Duplicate detection (not adding the same item twice)
 

@@ -57,10 +57,35 @@ def test_stores_are_listed_per_country(client: TestClient, add_item: Callable[..
 
 def test_item_without_a_size_is_rejected(client: TestClient) -> None:
     response = client.post(
-        "/api/items", json={"country": "CA", "store": "Costco", "name": "Large Eggs", "price_cents": 500}
+        "/api/items",
+        json={"country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 500},
     )
 
     assert response.status_code == 422
+
+
+def test_item_without_a_display_name_is_rejected(client: TestClient) -> None:
+    response = client.post(
+        "/api/items",
+        json={"country": "CA", "store": "Costco", "name": "Large Eggs", "price_cents": 500, "item_count": 12},
+    )
+
+    assert response.status_code == 422
+
+
+def test_the_display_name_is_saved_next_to_the_receipt_name_and_comes_back_from_every_endpoint(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="KS FR EGGS", display_name="Free Run Eggs", item_code="123456", purchased_on="2026-09-28")
+
+    [store] = stores_in(client)
+    [cheapest_store] = client.get("/api/cheapest", params={"country": "CA"}).json()
+    [search_list] = client.get("/api/search", params={"country": "CA", "q": "eggs"}).json()
+    [entry] = client.get("/api/history", params={"country": "CA"}).json()
+    assert (store["items"][0]["name"], store["items"][0]["display_name"]) == ("KS FR EGGS", "Free Run Eggs")
+    assert cheapest_store["items"][0]["display_name"] == "Free Run Eggs"
+    assert search_list["offers"][0]["display_name"] == "Free Run Eggs"
+    assert entry["display_name"] == "Free Run Eggs"
 
 
 def test_a_by_weight_item_with_no_size_but_a_typed_unit_price_is_accepted(add_item: Callable[..., dict]) -> None:
@@ -74,7 +99,10 @@ def test_a_by_weight_item_with_no_size_but_a_typed_unit_price_is_accepted(add_it
 def test_price_under_a_cent_is_rejected(client: TestClient, price_cents: int) -> None:
     response = client.post(
         "/api/items",
-        json={"country": "CA", "store": "Costco", "name": "Large Eggs", "price_cents": price_cents, "item_count": 12},
+        json={
+            "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs",
+            "price_cents": price_cents, "item_count": 12,
+        },
     )
 
     assert response.status_code == 422

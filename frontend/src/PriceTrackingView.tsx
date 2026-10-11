@@ -48,11 +48,19 @@ function keyOf(entry: HistoryEntry): string {
 function partsOf(entry: HistoryEntry) {
   return itemParts({
     name: entry.item_name,
+    display_name: entry.display_name,
     item_count: entry.item_count,
     weight_g: entry.weight_g,
     volume_ml: entry.volume_ml,
     brand: entry.brand,
   }, entry.store_name)
+}
+
+// What the search box looks through: the name as it's shown, and the fuel type for gas
+function searchText(tracked: TrackedItem): string {
+  const newest = tracked.entries[0]
+  const shownName = partsOf(newest).name.map((segment) => segment.text).join('')
+  return `${shownName} ${newest.fuel_type ?? ''}`.toLowerCase()
 }
 
 function amountOf(entry: HistoryEntry): string {
@@ -167,7 +175,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
         }
 
         const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
-        const shown = store.items.filter((tracked) => terms.every((term) => tracked.key.includes(term)))
+        const shown = store.items.filter((tracked) => terms.every((term) => searchText(tracked).includes(term)))
         return (
           <>
             <input
@@ -199,7 +207,6 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                 <div className="store-head">
                   <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
                 </div>
-                <p className="dot-hint">Click Show price history to see an item's prices over time.</p>
                 {shown.length === 0 ? (
                   <p className="status">No item in {store.name} matches "{query.trim()}".</p>
                 ) : (
@@ -218,7 +225,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                     <tbody>
                       {shown.map((tracked, index) => {
                         const newest = tracked.entries[0]
-                        const { name, receiptName } = partsOf(newest)
+                        const { name } = partsOf(newest)
                         return (
                           <tr key={tracked.key}>
                             <td className="row-number">{index + 1}</td>
@@ -226,7 +233,6 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                             <td className="item">
                               <ItemName segments={name} />
                               {newest.fuel_type && ` (${newest.fuel_type})`}
-                              {receiptName && <div className="item-receipt-name">{receiptName}</div>}
                             </td>
                             <td className="amount">{amountOf(newest)}</td>
                             <td className="date">{newest.purchased_on}</td>

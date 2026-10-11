@@ -43,7 +43,8 @@ interface Row {
   id: number
   rawName: string // as printed, without the code
   code: string | undefined // the store's product code on that line, if it prints one
-  name: string
+  receiptName: string // what the receipt printed, saved as the item's name and never edited
+  displayName: string // the Item name box, saved as the display name, starts as a known item's name or the receipt name
   price: string
   count: string
   dose: string // optional: the dose on a single capsule/tablet, a shortcut that fills in size+unit below
@@ -65,8 +66,14 @@ interface Row {
 }
 
 type RowFields = Pick<
-  NewItem, 'name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type' | 'dose_mg'
+  NewItem, 'name' | 'display_name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type' | 'dose_mg'
 >
+
+// The receipt name is always saved next to the display name. It's only empty when the reader found no text at all, then
+// the display name stands in for it so the save isn't turned away for lacking a name.
+function savedReceiptName(row: Row): string {
+  return row.receiptName || row.displayName.trim()
+}
 
 function toRow(item: ReceiptItem, id: number, store: string): Row {
   const known = findKnownItem(store, item.raw_name ?? '')
@@ -78,13 +85,16 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
   const litres = litresIn(item.quantity_info)
   const price = priceOfOne(typeof item.price === 'number' ? item.price : null, quantity)
   const ratePerUnit = quantity?.ratePerUnit
+  // The receipt name is always what's actually printed, not a model-invented rewording or a known item's own name, so
+  // a later repeat purchase can still be matched up by it (see add_item's dedup check)
+  const receiptName = litres ? 'Gas' : printed.name || item.item_name || item.raw_name || ''
   return {
     id,
     rawName: printed.name,
     code: printed.code,
-    // The name is always what's actually printed, not a model-invented rewording or a known item's own name, so a
-    // later repeat purchase can still be matched up by its name (see add_item's dedup check)
-    name: litres ? 'Gas' : printed.name || item.item_name || item.raw_name || '',
+    receiptName,
+    // The display name is the known item's own name when there is one, otherwise it starts as the receipt name
+    displayName: known?.name ?? receiptName,
     price: price === null ? '' : String(price),
     count: known ? String(known.count) : (quantity?.count ?? ''),
     dose: '',
@@ -116,7 +126,7 @@ function fillFromSaved(row: Row, storeItems: Item[]): Row {
   return {
     ...row,
     saved,
-    name: saved.name,
+    displayName: saved.display_name ?? saved.name,
     brand: saved.brand ?? '',
     count: saved.item_count === null ? '' : String(saved.item_count),
     size: size === null ? '' : String(size),
@@ -156,7 +166,7 @@ function checkWeighedRow(row: Row): { problems: string[]; fields: RowFields | nu
   const price = rate !== null && grams !== null && unitGrams !== undefined ? rate * (grams / unitGrams) : null
 
   const problems: string[] = []
-  if (!row.name.trim()) problems.push('name')
+  if (!row.displayName.trim()) problems.push('name')
   if (rate === null) problems.push(`price per ${row.rateUnit || 'unit'}`)
   if (price === null || Math.round(price * 100) < 1) problems.push('price')
   if (problems.length > 0 || price === null) return { problems, fields: null }
@@ -164,7 +174,8 @@ function checkWeighedRow(row: Row): { problems: string[]; fields: RowFields | nu
   return {
     problems,
     fields: {
-      name: `${row.name.trim()} ($${rate} per ${row.rateUnit})`,
+      name: `${savedReceiptName(row)} ($${rate} per ${row.rateUnit})`,
+      display_name: row.displayName.trim(),
       price_cents: Math.round(price * 100),
       brand: row.brand.trim() || NO_BRAND,
     },
@@ -185,7 +196,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   const countRequired = row.unit === 'none'
 
   const problems: string[] = []
-  if (!row.name.trim()) problems.push('name')
+  if (!row.displayName.trim()) problems.push('name')
   if (price === null || Math.round(price * 100) < 1) problems.push('price')
   if (countRequired && count === null) problems.push('count')
   else if (count !== null && !Number.isInteger(count)) problems.push('whole-number count')
@@ -196,7 +207,8 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   return {
     problems,
     fields: {
-      name: row.name.trim(),
+      name: savedReceiptName(row),
+      display_name: row.displayName.trim(),
       price_cents: Math.round(price * 100),
       item_count: count ?? undefined,
       weight_g: row.unit === 'g' ? (size ?? undefined) : undefined,
@@ -466,9 +478,9 @@ export function ReceiptReview({ result, onDone }: Props) {
                       <input
                         className="review-input review-input-name"
                         aria-label={`Name of item ${rowNumber}`}
-                        value={row.name}
+                        value={row.displayName}
                         disabled={locked}
-                        onChange={(event) => patchRow(row.id, { name: event.target.value })}
+                        onChange={(event) => patchRow(row.id, { displayName: event.target.value })}
                       />
                       {!isFuelReceipt && (
                         <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
@@ -676,9 +688,9 @@ export function ReceiptReview({ result, onDone }: Props) {
                           <input
                             className="review-input review-input-name"
                             aria-label={`Name of item ${rowNumber}`}
-                            value={row.name}
+                            value={row.displayName}
                             disabled={locked}
-                            onChange={(event) => patchRow(row.id, { name: event.target.value })}
+                            onChange={(event) => patchRow(row.id, { displayName: event.target.value })}
                           />
                           <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
                         </td>

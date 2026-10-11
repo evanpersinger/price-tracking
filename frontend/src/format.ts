@@ -64,7 +64,8 @@ export function labelSegments(label: string): Segment[] {
 }
 
 interface Sized {
-  name: string
+  name: string // the receipt's printed text for an item from a receipt, which also holds a typed unit price
+  display_name?: string | null // what the item is called on screen, empty for the imported items
   item_count: number | null
   weight_g: number | null
   volume_ml: number | null
@@ -85,7 +86,7 @@ export interface ItemParts {
   name: Segment[] // just the words, the typed unit price is its own field below
   amounts: string[] // like "8 buns" or "500g", without the brackets
   unitPrice: string | null // the typed unit price, like "$0.50 per bun", without the brackets
-  receiptName: string | null // the literal printed text, set only when name above is a curated stand-in for it
+  receiptName: string | null // the literal printed text, set only when name above is a stand-in for it
 }
 
 // Container words worth naming instead of the raw unit, e.g. "1L" on a milk carton reads better as "1 carton".
@@ -220,9 +221,14 @@ function describeAmount(amount: string, forCount: string, forMeasure: string): s
 // Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and
 // typed unit price written in the name, items from the add form keep the amount in its own fields.
 //
-// `store` is only needed to look up a curated display name (see knownItems.ts). When one matches, it stands in for
-// the name instead, with the receipt's own text kept as receiptName so the match can be checked at a glance; it's
-// never shown on its own without a curated name to go with it.
+// The words shown are the item's display name when it has one, with the receipt's own text kept as receiptName, only
+// when it differs, so a screen that wants it (the Store Prices tables) can show it small under the name. The size and
+// the typed unit price still come from the receipt name, where they're written, and the word an Amount is counted in
+// comes from the words shown.
+//
+// An item with no display name (an imported one, or one saved before display names existed) shows its name as
+// before, except that `store` lets a `knownItems.ts` match supply a curated name for it (see knownItems.ts), again
+// with the receipt text as receiptName.
 export function itemParts(item: Sized, store?: string): ItemParts {
   const segments: Segment[] = []
   const rawAmounts: string[] = []
@@ -240,21 +246,33 @@ export function itemParts(item: Sized, store?: string): ItemParts {
   if (item.weight_g !== null) rawAmounts.push(`${item.weight_g}g`)
   if (item.volume_ml !== null) rawAmounts.push(`${item.volume_ml}ml`)
 
-  const forCount = countNoun(segments)
-  const forMeasure = headNoun(segments)
+  const receiptText = segments
+    .filter((segment) => segment.kind === 'name')
+    .map((segment) => segment.text)
+    .join('')
+    .trim()
+  const shownWords = item.display_name
+    ? labelSegments(stripBrandPrefix(item.display_name, item.brand)).filter((segment) => segment.kind === 'name')
+    : segments.filter((segment) => segment.kind === 'name')
+  const countSegments = [...shownWords, ...segments.filter((segment) => segment.kind === 'unit-price')]
+
+  const forCount = countNoun(countSegments)
+  const forMeasure = headNoun(shownWords)
   const amounts = rawAmounts
     .map((amount) => describeAmount(amount, forCount, forMeasure))
     .filter((amount): amount is string => amount !== null)
 
-  let name = segments
-    .filter((segment) => segment.kind === 'name')
-    .map((segment) => ({ ...segment, text: capitalizeWords(segment.text) }))
+  let name = shownWords.map((segment) => ({ ...segment, text: capitalizeWords(segment.text) }))
 
   let receiptName: string | null = null
-  const known = store ? findKnownItem(store, item.name) : undefined
-  if (known && known.name.toLowerCase() !== item.name.toLowerCase()) {
-    name = [{ text: known.name, kind: 'name', start: 0 }]
-    receiptName = item.name
+  if (item.display_name) {
+    if (item.display_name.trim().toLowerCase() !== receiptText.toLowerCase()) receiptName = receiptText
+  } else {
+    const known = store ? findKnownItem(store, item.name) : undefined
+    if (known && known.name.toLowerCase() !== item.name.toLowerCase()) {
+      name = [{ text: known.name, kind: 'name', start: 0 }]
+      receiptName = item.name
+    }
   }
 
   return { name, amounts, unitPrice, receiptName }

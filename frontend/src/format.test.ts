@@ -104,6 +104,33 @@ describe('itemParts', () => {
     expect(parts.receiptName).toBe('KS BATH')
   })
 
+  it('shows the display name, counts the amount by its words and keeps the receipt text when it differs', () => {
+    const parts = itemParts({ ...sized, name: 'KS BATH', display_name: 'Bath Tissue', item_count: 30 })
+
+    expect(parts.name.map((segment) => segment.text).join('')).toBe('Bath Tissue')
+    expect(parts.amounts).toEqual(['30 Tissue'])
+    expect(parts.receiptName).toBe('KS BATH')
+  })
+
+  it('has no receipt name to show when the display name is the same text, ignoring case', () => {
+    expect(itemParts({ ...sized, name: 'MYSTERY SNACK', display_name: 'Mystery Snack' }).receiptName).toBeNull()
+  })
+
+  it('reads a typed unit price from the receipt name and not the display name', () => {
+    const parts = itemParts({ ...sized, name: 'ORG BANANA ($4.99 per kg)', display_name: 'Bananas' })
+
+    expect(parts.name.map((segment) => segment.text).join('')).toBe('Bananas')
+    expect(parts.unitPrice).toBe('$4.99 per kg')
+    expect(parts.receiptName).toBe('ORG BANANA')
+  })
+
+  it('shows the saved display name over a known item curated name', () => {
+    const parts = itemParts({ ...sized, name: 'KS BATH', display_name: 'Toilet Paper' }, 'Costco')
+
+    expect(parts.name.map((segment) => segment.text).join('')).toBe('Toilet Paper')
+    expect(parts.receiptName).toBe('KS BATH')
+  })
+
   it('leaves the name alone with no store, or a store or printed name with no known item', () => {
     expect(itemParts({ ...sized, name: 'KS BATH' }).receiptName).toBeNull()
     expect(itemParts({ ...sized, name: 'KS BATH' }, 'Fresco').receiptName).toBeNull()

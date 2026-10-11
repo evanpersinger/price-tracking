@@ -33,7 +33,8 @@ app = FastAPI()
 
 class Item(BaseModel):
     id: int
-    name: str
+    name: str  # the receipt's printed text for an item added from a receipt
+    display_name: str | None  # what it is called on screen, empty for the imported items, which show their name
     price_cents: int | None
     rating: int | None
     item_count: int | None
@@ -61,19 +62,19 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
             "SELECT id, name, discount_text FROM stores WHERE country = ? ORDER BY id", (country,)
         ).fetchall()
         item_rows = conn.execute(
-            "SELECT i.id, i.store_id, i.name, i.price_cents, i.rating, i.item_count, i.weight_g, i.volume_ml, "
-            "i.purchased_on, i.brand, i.item_code, i.fuel_type, i.dose_mg FROM items i "
+            "SELECT i.id, i.store_id, i.name, i.display_name, i.price_cents, i.rating, i.item_count, i.weight_g, "
+            "i.volume_ml, i.purchased_on, i.brand, i.item_code, i.fuel_type, i.dose_mg FROM items i "
             "JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
-    for (id_, store_id, name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand, item_code,
-         fuel_type, dose_mg) in item_rows:
+    for (id_, store_id, name, display_name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
+         item_code, fuel_type, dose_mg) in item_rows:
         items_by_store.setdefault(store_id, []).append(Item(
-            id=id_, name=name, price_cents=price_cents, rating=rating, item_count=item_count,
-            weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand, item_code=item_code,
-            fuel_type=fuel_type, dose_mg=dose_mg,
+            id=id_, name=name, display_name=display_name, price_cents=price_cents, rating=rating,
+            item_count=item_count, weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
+            item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg,
         ))
 
     return [
@@ -85,7 +86,9 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
 class NewItem(BaseModel):
     country: Literal["CA", "US"]
     store: str = Field(min_length=1, max_length=100)  # an existing store's name, or a new one to create
-    name: str = Field(min_length=1, max_length=200)
+    name: str = Field(min_length=1, max_length=200)  # the receipt's printed text
+    # What the person calls it, always given: every display name is saved paired with the receipt name it came from
+    display_name: str = Field(min_length=1, max_length=200)
     price_cents: int = Field(gt=0)
     item_count: int | None = Field(default=None, gt=0)  # how many items are in the pack, e.g. 24 buns
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
@@ -141,9 +144,11 @@ def add_item(new_item: NewItem) -> AddedItem:
                  if saved.casefold() == brand.casefold()),
                 brand,
             )
-        values = (new_item.name, new_item.price_cents, new_item.item_count, new_item.weight_g, new_item.volume_ml,
-                  purchased_on, brand, new_item.item_code, new_item.fuel_type, new_item.dose_mg)
-        existing_columns = "id, name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg"
+        values = (new_item.name, new_item.display_name, new_item.price_cents, new_item.item_count, new_item.weight_g,
+                  new_item.volume_ml, purchased_on, brand, new_item.item_code, new_item.fuel_type, new_item.dose_mg)
+        existing_columns = (
+            "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg"
+        )
         if new_item.item_code:
             # A code the store already has means the same product at a new price, so overwrite that row
             existing = conn.execute(
@@ -174,14 +179,14 @@ def add_item(new_item: NewItem) -> AddedItem:
         if existing:
             item_id = existing[0]
             conn.execute(
-                "UPDATE items SET name = ?, price_cents = ?, item_count = ?, weight_g = ?, volume_ml = ?, "
-                "purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ? WHERE id = ?",
+                "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
+                "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ? WHERE id = ?",
                 (*values, item_id),
             )
         else:
             item_id = conn.execute(
-                "INSERT INTO items (name, price_cents, item_count, weight_g, volume_ml, purchased_on, brand, "
-                "item_code, fuel_type, dose_mg, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO items (name, display_name, price_cents, item_count, weight_g, volume_ml, purchased_on, "
+                "brand, item_code, fuel_type, dose_mg, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
         # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
@@ -193,13 +198,14 @@ def add_item(new_item: NewItem) -> AddedItem:
 
     if existing:
         old_fields = dict(zip(
-            ("name", "price_cents", "item_count", "weight_g", "volume_ml", "brand", "fuel_type", "dose_mg"),
+            ("name", "display_name", "price_cents", "item_count", "weight_g", "volume_ml", "brand", "fuel_type",
+             "dose_mg"),
             existing[1:],
         ))
         new_fields = {
-            "name": new_item.name, "price_cents": new_item.price_cents, "item_count": new_item.item_count,
-            "weight_g": new_item.weight_g, "volume_ml": new_item.volume_ml, "brand": brand,
-            "fuel_type": new_item.fuel_type, "dose_mg": new_item.dose_mg,
+            "name": new_item.name, "display_name": new_item.display_name, "price_cents": new_item.price_cents,
+            "item_count": new_item.item_count, "weight_g": new_item.weight_g, "volume_ml": new_item.volume_ml,
+            "brand": brand, "fuel_type": new_item.fuel_type, "dose_mg": new_item.dose_mg,
         }
         changes = {field: {"old": old, "new": new_fields[field]}
                    for field, old in old_fields.items() if old != new_fields[field]}
@@ -207,14 +213,14 @@ def add_item(new_item: NewItem) -> AddedItem:
                       item_code=new_item.item_code, changes=changes)
     else:
         log_activity("insert", store=new_item.store, country=new_item.country, item_id=item_id,
-                      name=new_item.name, price_cents=new_item.price_cents, item_count=new_item.item_count,
-                      weight_g=new_item.weight_g, volume_ml=new_item.volume_ml, brand=brand,
+                      name=new_item.name, display_name=new_item.display_name, price_cents=new_item.price_cents,
+                      item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml, brand=brand,
                       item_code=new_item.item_code, fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg)
 
     return AddedItem(
-        id=item_id, store_id=store_id, name=new_item.name, price_cents=new_item.price_cents, rating=None,
-        item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
-        purchased_on=purchased_on, brand=brand, item_code=new_item.item_code, fuel_type=new_item.fuel_type,
+        id=item_id, store_id=store_id, name=new_item.name, display_name=new_item.display_name,
+        price_cents=new_item.price_cents, rating=None, item_count=new_item.item_count, weight_g=new_item.weight_g,
+        volume_ml=new_item.volume_ml, purchased_on=purchased_on, brand=brand, item_code=new_item.item_code, fuel_type=new_item.fuel_type,
         dose_mg=new_item.dose_mg,
     )
 
@@ -295,6 +301,7 @@ class Offer(NamedTuple):
     brand: str | None
     item_code: str | None
     dose_mg: float | None
+    display_name: str | None
 
 
 class Winner(NamedTuple):
@@ -349,15 +356,15 @@ def _effective_amounts(
 
 def _make_offers(rows: list[tuple]) -> list[Offer]:
     """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code,
-    dose_mg) rows."""
+    dose_mg, display_name) rows."""
     offers = []
     for (item_id, store_id, store_name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code,
-         dose_mg) in rows:
+         dose_mg, display_name) in rows:
         words, text_amounts = _split_name(name)
         amounts = _effective_amounts(item_count, weight_g, volume_ml, text_amounts)
         offers.append(Offer(
             item_id, store_id, store_name, name, price_cents, words, amounts, item_count, weight_g,
-            volume_ml, brand, item_code, dose_mg,
+            volume_ml, brand, item_code, dose_mg, display_name,
         ))
     return offers
 
@@ -434,7 +441,7 @@ def _sized_offers(country: str) -> list[Offer]:
     with closing(connect()) as conn:
         rows = conn.execute(
             "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
-            "i.item_code, i.dose_mg FROM items i JOIN stores s ON s.id = i.store_id "
+            "i.item_code, i.dose_mg, i.display_name FROM items i JOIN stores s ON s.id = i.store_id "
             "WHERE s.country = ? AND i.price_cents IS NOT NULL AND i.fuel_type IS NULL ORDER BY i.id",
             (country,),
         ).fetchall()
@@ -444,6 +451,7 @@ def _sized_offers(country: str) -> list[Offer]:
 class CheapestItem(BaseModel):
     id: int
     name: str
+    display_name: str | None
     price_cents: int
     other_stores: int  # how many other stores sell this item, 0 means it was only found here
     unit: Literal["each", "g", "ml"]  # what unit_price_cents is per
@@ -478,8 +486,8 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
             offer = winner.offer
             store = cheapest.setdefault(offer.store_id, CheapestStore(id=offer.store_id, name=offer.store_name, items=[]))
             store.items.append(CheapestItem(
-                id=offer.id, name=offer.name, price_cents=offer.price_cents, other_stores=winner.other_stores,
-                unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
+                id=offer.id, name=offer.name, display_name=offer.display_name, price_cents=offer.price_cents,
+                other_stores=winner.other_stores, unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
                 item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand,
                 item_code=offer.item_code, dose_mg=offer.dose_mg,
             ))
@@ -495,6 +503,7 @@ class HistoryEntry(BaseModel):
     store_id: int
     store_name: str
     item_name: str  # the item's name now, an item that was overwritten keeps its history under the newest name
+    display_name: str | None  # the item's display name now, empty for an imported item
     item_code: str | None  # the code saved with this purchase, empty for gas
     brand: str | None
     fuel_type: str | None
@@ -510,8 +519,8 @@ def list_history(country: Literal["CA", "US"]) -> list[HistoryEntry]:
     """Every recorded purchase in a country's stores, newest first, from the price_history table."""
     with closing(connect()) as conn:
         rows = conn.execute(
-            "SELECT h.id, h.item_id, s.id, s.name, i.name, h.item_code, i.brand, i.fuel_type, i.item_count, "
-            "i.weight_g, i.volume_ml, h.price_cents, h.purchased_on FROM price_history h "
+            "SELECT h.id, h.item_id, s.id, s.name, i.name, i.display_name, h.item_code, i.brand, i.fuel_type, "
+            "i.item_count, i.weight_g, i.volume_ml, h.price_cents, h.purchased_on FROM price_history h "
             "JOIN items i ON i.id = h.item_id JOIN stores s ON s.id = i.store_id WHERE s.country = ? "
             "ORDER BY h.purchased_on DESC, h.id DESC",
             (country,),
@@ -519,11 +528,11 @@ def list_history(country: Literal["CA", "US"]) -> list[HistoryEntry]:
     return [
         HistoryEntry(
             id=id_, item_id=item_id, store_id=store_id, store_name=store_name, item_name=item_name,
-            item_code=item_code, brand=brand, fuel_type=fuel_type, item_count=item_count, weight_g=weight_g,
-            volume_ml=volume_ml, price_cents=price_cents, purchased_on=purchased_on,
+            display_name=display_name, item_code=item_code, brand=brand, fuel_type=fuel_type, item_count=item_count,
+            weight_g=weight_g, volume_ml=volume_ml, price_cents=price_cents, purchased_on=purchased_on,
         )
-        for (id_, item_id, store_id, store_name, item_name, item_code, brand, fuel_type, item_count, weight_g,
-             volume_ml, price_cents, purchased_on) in rows
+        for (id_, item_id, store_id, store_name, item_name, display_name, item_code, brand, fuel_type, item_count,
+             weight_g, volume_ml, price_cents, purchased_on) in rows
     ]
 
 
@@ -532,6 +541,7 @@ class SearchOffer(BaseModel):
     store_id: int
     store_name: str
     name: str
+    display_name: str | None
     price_cents: int  # what this store sells it for
     unit_price_cents: float  # per the unit of the list it is in
     item_count: int | None
@@ -550,7 +560,7 @@ class SearchList(BaseModel):
 def _search_offer(offer: Offer, unit_price_cents: float) -> SearchOffer:
     return SearchOffer(
         id=offer.id, store_id=offer.store_id, store_name=offer.store_name, name=offer.name,
-        price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4), item_count=offer.item_count,
+        display_name=offer.display_name, price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4), item_count=offer.item_count,
         weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
         dose_mg=offer.dose_mg,
     )

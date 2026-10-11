@@ -2,7 +2,8 @@ export type Country = 'CA' | 'US'
 
 export interface Item {
   id: number
-  name: string
+  name: string // the receipt's printed text for an item added from a receipt
+  display_name: string | null // what it is called on screen, empty for imported items, which show their name
   price_cents: number | null
   rating: number | null
   item_count: number | null
@@ -25,6 +26,7 @@ export interface Store {
 export interface CheapestItem {
   id: number
   name: string
+  display_name: string | null
   price_cents: number
   other_stores: number // how many other stores sell it, 0 means it was only found here
   unit: 'each' | 'g' | 'ml' // what unit_price_cents is per
@@ -50,6 +52,7 @@ export interface HistoryEntry {
   store_id: number
   store_name: string
   item_name: string
+  display_name: string | null // the item's display name now, empty for an imported item
   item_code: string | null // the code saved with this purchase, empty for gas
   brand: string | null
   fuel_type: string | null
@@ -66,6 +69,7 @@ export interface SearchOffer {
   store_id: number
   store_name: string
   name: string
+  display_name: string | null
   price_cents: number
   unit_price_cents: number // per the unit of the list it is in
   item_count: number | null
@@ -86,7 +90,8 @@ export interface SearchList {
 export interface NewItem {
   country: Country
   store: string
-  name: string
+  name: string // the receipt's printed text
+  display_name: string // what the person calls it, always given
   price_cents: number
   item_count?: number
   weight_g?: number

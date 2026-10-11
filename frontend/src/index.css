@@ -569,12 +569,6 @@ body:has(.page-review) {
   font-size: 15px;
 }
 
-.dot-hint {
-  margin: 0 0 16px;
-  color: var(--text-muted);
-  font-size: 1rem;
-}
-
 .store-head {
   margin-bottom: 8px;
 }
