@@ -1,8 +1,6 @@
 # price-tracking
 
-Tracks grocery prices per store in Canada and the USA, so the same item can be compared across stores. Items get in through a receipt photo (read by a local open-source vision model, or by a plain OCR script) or by hand, and the app works out which store sells each item cheapest per item, per gram or per ml.
-
-So far there are four parts: a script that reads a receipt photo, an importer that loaded the existing store-prices sheets into a local SQLite database, an API that serves, adds and reads receipts for that data, and a UI with a stores page per country, a Cheapest Items page, and an Add Item flow: drop a receipt photo, review what the local model read, and save the items into the tables. Not built yet: manual item entry with no receipt.
+Tracks grocery prices per store in Canada and the USA, so the same item can be compared across stores. Items get in through a receipt photo (read by a local open-source vision model, or by plain OCR), and the app works out which store sells each item cheapest per item, per gram or per ml. Not built yet: adding an item by hand with no receipt.
 
 ## Setup
 
@@ -11,18 +9,46 @@ uv sync
 cd frontend && pnpm install
 ```
 
-Receipt reading is open-source only right now, no paid API keys needed. The `local` route needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`). The `script` route needs Tesseract installed separately (`brew install tesseract` on macOS), no model at all. The `local` route also uses Tesseract for one quick check, spotting gas receipts, and reads every receipt as a grocery one if it isn't installed.
+Receipt reading is open-source only, no paid API keys. The `local` route needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`). The `script` route needs Tesseract (`brew install tesseract` on macOS) and no model. The `local` route also uses Tesseract to spot gas receipts, and reads every receipt as a grocery one without it.
 
-## Read a receipt
+## Run it
+
+```bash
+uv run python backend/server.py   # API on http://127.0.0.1:8021, restart it after code changes
+cd frontend && pnpm dev           # UI on http://localhost:3009, needs the API running
+```
+
+Optional environment variables: `PRICES_DB` (path to a different database, handy for testing on a copy), `OLLAMA_HOST`, and `RECEIPT_MODEL` (the model the API reads receipts with, default `gemma4:12b`).
+
+## Pages
+
+- `/ca` and `/us`: Store Prices, one store at a time, with a search box.
+- `/gas/ca` and `/gas/us`: Gas Prices, each station's fill-ups with the price per litre.
+- `/cheapest/ca` and `/cheapest/us`: the cheapest items per store, and a search for what every store sells an item for.
+- `/tracking/ca` and `/tracking/us`: Price Tracking, a graph of an item's price at one store over time.
+- `/abbreviations`: shorthand used in item names, like `SS` for sesame seed.
+- The Add Item button: drop a receipt photo, review and edit what the model read, then save the items. The Item name box is the item's display name, and the receipt's printed text is saved next to it.
+
+## API
+
+Prices come back as `price_cents`, and `country` is `CA` or `US`.
+
+- `GET /api/stores?country=CA` each store with its items.
+- `GET /api/cheapest?country=CA` each store with the items it sells cheapest, compared per item, per gram or per ml.
+- `GET /api/search?country=CA&q=milk` what every store sells an item for, cheapest first.
+- `GET /api/history?country=CA` every recorded purchase, newest first.
+- `POST /api/items` adds an item. It needs `country`, `store`, `name` (the receipt's printed text), `display_name`, `price_cents` and at least one of `item_count`, `weight_g` or `volume_ml`. An item with an `item_code` and a date is also recorded in the price history.
+- `DELETE /api/items/{id}` deletes an item and its price history.
+- `POST /api/receipt` reads a JPEG or PNG (the raw request body) and returns what the model found, saving nothing. One receipt at a time, a second gets a 409.
+
+## Read a receipt from the command line
 
 ```bash
 uv run python backend/extract_receipt.py local <model>  # or omit <model> to be prompted
 uv run python backend/extract_receipt.py script          # plain OCR, no model
 ```
 
-No image argument, either one converts every image currently sitting in `backend/input/` (gitignored).
-
-For each image found, prints the purchase date, store, the store's address, and every item (raw name, clean name, price, category, and a quantity line like `3 @ 2.79` if the receipt has one under the item) as JSON, and also saves it to `backend/output/<image-name>.json`. The prompt tells the model to skip everything that isn't a bought item: barcodes, card and payment lines, subtotal and total, HST, copy and thank-you footers, PC Optimum, separator rows and personal names. Anything bought on sale is dropped before it reaches you: the model sets `on_sale` on an item that had a discount taken off it (a line under it ending in a minus like `4.50-`, an instant savings or coupon line that names it, or SALE on its line), and that item is deleted, so a sale price never reaches the items table, search or the price history. Deal and discount lines are never items, and a shelf offer like `2 for $1.25` is cleared from the item above it. A student or senior discount is not a sale: it takes money off the total, so its line is ignored and no item on that receipt is dropped for it. The prompt also has a note on ambiguous all-numeric dates: Real Canadian Superstore and other Loblaws-banner stores (No Frills, Your Independent Grocer, Zehrs) print `YY/MM/DD`, not `DD/MM/YY`, so `26/10/01` reads as 2026-10-01, not day 26 of some other order. A gas station receipt has no item lines, so it's spotted first from the words on it (two or more of Pump, Grade, Litres, Price/Litre, Fuel Sale, Unleaded or Diesel, found with a quick Tesseract read) and the model gets a separate fuel prompt: one item, the grade plus "gasoline", priced at the Fuel Sale amount, with the litres in its quantity line. The CLI always chooses the model explicitly, by flag or by prompt. The API can't prompt, so it uses the `RECEIPT_MODEL` env var (default `gemma4:12b`). Images can be JPG or PNG. `script` can't clean up names or infer a category the way a model can, so its `item_name` just repeats `raw_name` and `category` is always null.
+Converts every image in `backend/input/` (gitignored) and prints the date, store, address and items as JSON, also saved to `backend/output/<image-name>.json`. The command line always picks the model itself, the API uses `RECEIPT_MODEL`.
 
 ## Import a store-prices CSV
 
@@ -31,42 +57,7 @@ uv run python backend/import_sheet.py backend/data/imports/store_prices_ca.csv C
 uv run python backend/import_sheet.py backend/data/imports/store_prices_us.csv US
 ```
 
-A one-time load, already done for both countries. It creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices, plus any items that exist only in the sheet's hand-made Cheapest Items list. The last argument is the country, `CA` or `US`. It refuses to import a country twice, so the database stays the source of truth once you start adding to it.
-
-## Run the API
-
-```bash
-uv run python backend/server.py
-```
-
-Serves on http://127.0.0.1:8021 and has to be restarted after code changes. Prices come back as `price_cents`, and `country` is `CA` or `US`.
-
-- `GET /api/stores?country=CA` returns each store in that country with its discount text and items, including each item's brand where known.
-- `GET /api/cheapest?country=CA` returns each store with the items it sells cheapest, matching the same item across stores. Case, small spelling differences and the typed unit price (like `($0.57 per pill)`) don't matter. Items are compared on unit price, per item if the name has a count (`(8x)`), otherwise per gram or per ml, so a 24-pack can be compared with an 8-pack and `(1lb)` counts the same as `(454g)`. Items with no size are left out.
-- `GET /api/search?country=CA&q=milk` returns what every store sells an item for, cheapest first, for every item whose name has all the words in `q` (case doesn't matter). Offers are ranked on their own unit price, per item if the name has a count, else per gram, else per ml, and each of those gets its own list since they can't be ranked against each other. Each offer has the store, its price, its unit price, its size and its brand. A store that has the same item and size more than once only counts at its cheapest, and items with no price or size are left out. It searches the item name only for now, more arguments can be added next to `q` later.
-- `POST /api/items` adds an item to a store, creating the store if it isn't in that country yet. The body has `country`, `store`, `name` (the receipt's printed text), `display_name` (what the person calls the item, required, a request without one is rejected so every receipt name has its display name), `price_cents`, and at least one of `item_count` (how many in the pack), `weight_g` or `volume_ml`, because an item with no size is rejected. `weight_g` and `volume_ml` are the total for the whole pack, not per item (6 boxes of 454g is `item_count` 6 and `weight_g` 2724). `purchased_on` (the receipt's date), `brand`, `item_code`, `fuel_type` (what the fuel is on a gas receipt, as printed) and `dose_mg` (the dose on a single capsule/tablet, for supplements, empty when the dose is in IU since that has no weight equivalent) are optional. A date is only saved when the receipt gave one, nothing is guessed, and an item with no date isn't recorded in the price history (neither is one with no `item_code`, see below). Only the date is kept, not the time of day. Capitals don't matter in a brand: one that matches a saved brand ignoring case is saved with the saved spelling, so `Arm&Hammer` and `arm&hammer` are one brand. When those size boxes are filled in, `/api/cheapest` uses them instead of reading the size from the name. `item_code` is the product code the store prints on the receipt line. If the store already has an item with the same code, that row is overwritten with the new price, date and details instead of adding a second one; with no code (some stores never print one), a fuzzy match on name alone does the same job, tolerant of OCR noise but not a genuinely different product. The old price isn't lost: whenever an item with an `item_code` is saved with a date, a row (item, item code, price, date) is also added to the `price_history` table (the code is copied into the history row, so it stays with that purchase), which is kept for good so the Price Tracking page can show how an item's price changed over time. An item with no code is still saved, it just isn't tracked. Gas fill-ups are the one exception: they have no code but are recorded the same way. `price_history` is a table in the same `prices.db`, not a separate database file.
-- `DELETE /api/items/{id}` deletes an item and its price history, 204 on success or 404 if it doesn't exist. Used to remove a row added by mistake.
-- `GET /api/history?country=CA` returns every recorded purchase in that country's stores, newest first, each with its store, item, item code, brand, size, price and date.
-- `POST /api/receipt` takes a JPEG or PNG as the raw request body and returns what the local model read from it. Nothing is saved to the database, but the store, the items kept, the items dropped as deals, and the model's raw unparsed reply are all logged to `backend/data/activity.log` for debugging. Only one receipt is read at a time, a second one gets a 409 until the first is done.
-
-Set `PRICES_DB` to a file path to point the API and importer at a different database, handy for testing on a copy.
-
-## Run the UI
-
-```bash
-cd frontend && pnpm dev
-```
-
-Opens on http://localhost:3009 and needs the API running. Each page has its own address, so you can open them in separate browser windows:
-
-- `/ca` and `/us` (Store Prices) show one store at a time for that country, with gas left out: its discount line and a table of Item code, Brand, Item name, Amount, Unit price and Price. An item with no typed unit price in its name but a saved count, weight or volume gets one worked out from its price, per item, else per 100g, else per 100ml, and the whole Unit price column is hidden, not just left blank, when no item in the table has one. A Capsule column shows the item's per-capsule dose the same way, hidden unless at least one item in the table has one (most never do). The Item name cell shows the item's display name, with the receipt's own printed text as a small line underneath when it's different, so you can check what the receipt said (this is the only place the receipt name shows, every other page shows the display name alone). An item with no display name yet (the imported ones, and anything saved before display names existed) shows its name, or, if its printed name matches an entry in `frontend/src/knownItems.ts`, that entry's curated name. The Item code column may be removed later. A wide search box sits in the middle of the table, level with the store's name, on every store (under the name on a window narrower than 1000px): type an item name (every word has to be in the name, capitals don't matter) and only that store's matching items stay, and it clears when you switch stores. A row of buttons lists every store, click one to jump straight to it, or use the arrow button beside the table to step to the next or previous store. An item with no amount at all is hidden until its data has one (it isn't deleted, just not shown yet), and when an item's brand is known, that text is trimmed off the front of its Item name since it's already in the Brand column.
-- `/cheapest` shows the cheapest items for both countries, Canada and the USA as two separate sections since the prices are in different currencies. Each section browses one store at a time, just like `/ca` and `/us` do: click a store name or use the arrow button to switch. Each item shows its unit price and how many stores it was compared across, and a checkbox (on by default) hides items sold at only one store. There is one "Search for an item" box, in the table header level with the store's name, the same spot as on Store Prices: type a name and the store's table is replaced by what every store sells that item for, cheapest first, as one list per unit (per item, per 100g or per 100ml). Clear the box, or click a store button, to go back to that store's table. The box stays in the same place while you type. Clear the box to go back to the stores.
-- `/gas/ca` and `/gas/us` (Gas Prices, the button next to Store Prices) list the gas stations that have a fill-up saved from a gas receipt, like Costco, Shell or 76, one at a time like Store Prices. Each table shows the Date, Fuel type (as the receipt prints it, like Unleaded, 87 or Diesel), Litres, Unit price (the price of a litre to three decimals, like `$1.749 per L`) and Price, newest first. A station with only gas shows here and not in Store Prices, and gas is left out of Cheapest items and search. A search box in each station's table header, in the same spot as Store Prices', filters its fill-ups by fuel type or date and clears when you switch stations. The table is only as wide as its content and sits at the left, like the Price Tracking list, with even bigger text that grows with the window (it has only four short columns), so it covers about 70% of the window at any size.
-- `/tracking/ca` and `/tracking/us` (Price Tracking) show the items that have a price history one store at a time: a row of store buttons (only stores with tracked items, alphabetical), and that store's items below, newest purchase first, with a "Search for an item name" box in the table header level with the store's name (the same spot as Store Prices) that filters the store's items and clears when you switch stores. The same product at two stores is a separate row under each. Each item has a "Show" button in the last column, which is titled "Show price history" and is only as wide as that title (the item name itself isn't clickable). The list table is only as wide as its content and sits at the left, with larger text that grows with the window, so it fills more of the screen without stretching its columns. It opens the item's page: the store's name on top, then 2 weeks, 1 month, 3 months, 6 months and 1 year buttons (it opens on 1 year), then the item's name centered over a dotted graph of its price at that store, and a Back button to return to that store's list. The graph has a clear price axis up the left and a date axis along the bottom, dashed price lines across it, one dot per purchase with a line through the dots, and each dot's date written under it (a date that would crowd the one before it is left off, hovering a dot shows its date and price). The price axis is fixed from $0 to $500 for now (it stretches to the next multiple of $500 for a pricier item), and gas is graphed by price per litre, per fuel type, from $0 to $10 a litre. The date axis starts at the item's first purchase, which sits at the far left, and runs to today, unless that first purchase is older than the chosen range, then it starts where the range does, and only purchases inside the range are drawn. There is no purchases table under the graph for now. The list table has an Item code column (blank for gas). It's empty until items with an item code (or gas) are added from receipts that have a date.
-- The Add Item button opens a dialog where you drop a receipt photo or choose a file. The local model reads it (this is slow), then a review page lists the items, one row per line - except a line that repeats an earlier one in every field (same name, price, category, quantity line and fuel type) is dropped before it becomes a row at all, since a store sometimes rings up one product on two separate identical lines instead of one quantity line. The country is filled in when the receipt makes it clear, from the address's city first (a hand-edited list in `frontend/src/cities.ts`), then its postal code or ZIP, then the store name, otherwise pick it yourself. The store box is filled with the saved store the receipt's name points to (a receipt that says "Costco 530" fills in the saved "Costco", and "FRESH CO" matches a saved "FreshCo" even split into different words). The line a receipt prints under an item fills in what it can: `3 @ 2.79` means 3 of the item were bought at 2.79 each, so the price becomes the price of one (2.79, not the 8.37 for all three) and the count stays yours to give, since the count is how many items are in one pack and never how many packs were bought, and a weight like `1.2 kg @ $4.99/kg` fills one item of 1200g (lb and oz become grams), all still editable, and a deal line like `2 for $1.25` fills nothing. A gas receipt gets a smaller row: the item name is just "Gas", then the price, the litres, the price per litre (worked out, not typed) and the fuel type, with no count, unit or brand. Check the store and date (the date is editable, and left blank if the receipt's couldn't be read), and fill in what the receipt can't show: a whole-number count (required only when the unit is left as identical-units, like soda cans; a weight/volume item can skip it), a "Dose per capsule" (optional, a number plus mg/g/IU - mg and g compute the pack's total weight for you, IU has no weight equivalent so it just goes in the name, e.g. "Vitamin D3 1000 IU"), size (the whole pack's total, not per item) and unit, and brand. Hovering the Size and Brand column headers explains each. A banner warns in amber if the store would be created new, and says nothing when it's an existing store, since the Add button names it. Items whose code the store already has are filled in from the saved item and say their price will be overwritten (a row with no code that the backend will still match by name at save time gets no such preview). Items listed in `frontend/src/knownItems.ts` (like Costco's `KS BATH`) have their brand, count and size filled in by name or code, and the Item name box starts as the known item's own name (Costco's `KS BATH` starts as "Bath Tissue"). The Item name box is the item's display name: for any other item it starts as the receipt's own printed text (or, for a code the store already has, that saved item's display name), and you can change it. The receipt's printed text is saved separately as the item's name, whatever is in the box, so a repeat purchase can still be matched up by it later when there's no code, and the "Receipt name:" line under the box shows it. A Costco line with "KS" as its own word, or any line with "Old Spice" in it, defaults the brand without needing a specific entry. Rows that still need something are skipped on save.
-- `/abbreviations` is a plain reference table explaining shorthand used in item names, like `SS` for sesame seed.
-
-It has a dark theme with a different color for store names, item names, amounts, unit prices, prices and discounts. The store prices, gas and cheapest pages are split into two colors, a lighter top half (title, nav and store buttons, all centered with every button's words on one line) and a black bottom half for the data. The bottom half never scrolls sideways: tables fill the width up to the arrow button and narrow to fit, with text that scales with the window, and on a window under 1700px wide their text wraps. `pnpm build` type-checks and builds, and `pnpm lint` runs oxlint.
+A one-time load, already done for both countries. It creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices. It refuses to import a country twice, so the database stays the source of truth once items are added to it.
 
 ## Run the tests
 
@@ -75,4 +66,8 @@ uv run pytest                 # backend, from the repo root
 cd frontend && pnpm test      # frontend helpers, vitest
 ```
 
-The backend tests (`tests/`) cover adding items, cheapest matching, search, the receipt endpoint's status codes, spotting a gas receipt and the database setup. Every test uses its own temporary database, so `prices.db` is never touched. The frontend tests (`frontend/src/*.test.ts`) cover the pure helpers in `format.ts`, `itemCode.ts`, `knownItems.ts`, `brands.ts`, `matchSavedStore.ts` and `dedupeExact.ts`, there are no component tests.
+Every backend test uses its own temporary database, so `prices.db` is never touched. `pnpm build` type-checks and builds, and `pnpm lint` runs oxlint.
+
+## Data rules
+
+How item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).

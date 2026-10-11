@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatLitres, pricePerLitre } from './fuel.ts'
+import { pricePerLitre } from './fuel.ts'
 import type { Country, Store } from './types.ts'
 
 interface GasTableProps {
@@ -42,7 +42,6 @@ export function GasTable({ store, country }: GasTableProps) {
           <tr>
             <th scope="col" className="date">Date</th>
             <th scope="col" className="fuel-type">Fuel type</th>
-            <th scope="col" className="amount">Litres</th>
             <th scope="col" className="unit-price">Unit price</th>
           </tr>
         </thead>
@@ -53,7 +52,6 @@ export function GasTable({ store, country }: GasTableProps) {
               <tr key={item.id}>
                 <td className="date">{item.purchased_on}</td>
                 <td className="fuel-type">{item.fuel_type}</td>
-                <td className="amount">{item.volume_ml ? formatLitres(item.volume_ml) : ''}</td>
                 <td className="unit-price">{perLitre && `${perLitre} per L`}</td>
               </tr>
             )
