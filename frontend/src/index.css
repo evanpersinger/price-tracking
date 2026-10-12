@@ -969,6 +969,14 @@ select.review-input {
   font-size: clamp(1.1rem, 1.9vw, 2.25rem);
 }
 
+/* The abbreviations, two tables side by side, wrapping under each other on a window too narrow for both */
+.abbreviation-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
 /* A few short columns at the page's normal text size (Cheapest's by-weight table), as wide as its content instead of
    stretching to the card like the full table above it */
 .items.items-fit {
