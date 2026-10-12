@@ -14,6 +14,8 @@ export interface Item {
   item_code: string | null // the product code the store prints on the receipt, empty for imported items
   fuel_type: string | null // what the fuel is on a gas receipt, as printed (Unleaded, 87, Diesel), empty for the rest
   dose_mg: number | null // the dose on a single capsule/tablet, empty for anything not sold that way or dosed in IU
+  unit: 'each' | 'g' | 'ml' | null // what unit_price_cents is per, empty with no price or no size, and for gas
+  unit_price_cents: number | null // worked out by the API from the price and the size, in the size fields or the name
 }
 
 export interface Store {

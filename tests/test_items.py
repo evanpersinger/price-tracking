@@ -175,6 +175,28 @@ def test_a_fuel_type_is_saved_and_listed(client: TestClient, add_item: Callable[
     assert (fuel["fuel_type"], grocery["fuel_type"]) == ("Unleaded", None)
 
 
+def test_an_items_unit_price_is_worked_out_from_its_size_fields_or_the_size_in_its_name(
+    client: TestClient, add_item: Callable[..., dict], add_imported: Callable[..., None]
+) -> None:
+    add_item(name="Eggs", price_cents=600, item_count=12)
+    add_imported("Costco", "Quest Bar (1x)", 370)
+    add_imported("Costco", "Butter (454g)", 450)
+    add_imported("Costco", "Mystery Item", 500)
+
+    eggs, quest, butter, mystery = [item for store in stores_in(client) for item in store["items"]]
+    assert (eggs["unit"], eggs["unit_price_cents"]) == ("each", 50)
+    assert (quest["unit"], quest["unit_price_cents"]) == ("each", 370)
+    assert (butter["unit"], butter["unit_price_cents"]) == ("g", pytest.approx(0.9912, abs=1e-4))
+    assert (mystery["unit"], mystery["unit_price_cents"]) == (None, None)
+
+
+def test_gas_has_no_unit_price_in_the_stores_list(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=26204, price_cents=4583)
+
+    [fuel] = stores_in(client)[0]["items"]
+    assert (fuel["unit"], fuel["unit_price_cents"]) == (None, None)
+
+
 def test_a_dose_is_saved_and_listed(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(name="Vitamin C", dose_mg=500)
     add_item(name="Salt")

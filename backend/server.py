@@ -45,6 +45,10 @@ class Item(BaseModel):
     item_code: str | None
     fuel_type: str | None  # what the fuel is on a gas receipt, as printed, empty for everything else
     dose_mg: float | None  # the dose on a single capsule/tablet, empty for anything not sold that way or dosed in IU
+    # What it costs per item, per gram or per ml, from its size fields or the size written in its name. Only filled in
+    # by /api/stores, empty for gas and for an item with no price or no size.
+    unit: Literal["each", "g", "ml"] | None = None
+    unit_price_cents: float | None = None
 
 
 class Store(BaseModel):
@@ -71,10 +75,14 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
     items_by_store: dict[int, list[Item]] = {}
     for (id_, store_id, name, display_name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
          item_code, fuel_type, dose_mg) in item_rows:
+        unit, unit_price_cents = (None, None) if fuel_type else _item_unit_price(
+            name, price_cents, item_count, weight_g, volume_ml
+        )
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, display_name=display_name, price_cents=price_cents, rating=rating,
             item_count=item_count, weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
-            item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg,
+            item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg, unit=unit,
+            unit_price_cents=None if unit_price_cents is None else round(unit_price_cents, 4),
         ))
 
     return [
@@ -398,10 +406,29 @@ def _group_items(offers: list[Offer]) -> list[list[Offer]]:
     return groups
 
 
+def _unit_price(price_cents: int, amounts: dict[str, float]) -> tuple[str, float]:
+    """The unit and the price per that unit, from whichever of count, weight or volume the amounts have."""
+    kind = next(kind for kind in PER_UNIT if kind in amounts)
+    return PER_UNIT[kind], price_cents / amounts[kind]
+
+
 def _own_unit(offer: Offer) -> tuple[str, float]:
-    """An offer's unit and its price per that unit, from whichever of count, weight or volume it has."""
-    kind = next(kind for kind in PER_UNIT if kind in offer.amounts)
-    return PER_UNIT[kind], offer.price_cents / offer.amounts[kind]
+    """An offer's unit and its price per that unit."""
+    return _unit_price(offer.price_cents, offer.amounts)
+
+
+def _item_unit_price(
+    name: str, price_cents: int | None, item_count: int | None, weight_g: float | None, volume_ml: float | None
+) -> tuple[str, float] | tuple[None, None]:
+    """An item's unit and price per that unit, from its size fields or the size written in its name.
+
+    (None, None) when it has no price or no size at all.
+    """
+    _, text_amounts = _split_name(name)
+    amounts = _effective_amounts(item_count, weight_g, volume_ml, text_amounts)
+    if price_cents is None or not amounts:
+        return None, None
+    return _unit_price(price_cents, amounts)
 
 
 def _pick_winners(group: list[Offer]) -> list[Winner]:

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
-import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
+import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
 
@@ -21,13 +21,17 @@ export function StoreTable({ store, country }: StoreTableProps) {
 
   const rows = items.map((item) => {
     const { name, amounts, unitPrice: typedUnitPrice, receiptName } = itemParts(item, store.name)
-    // No typed unit price: work one out from the price and size, per item, else per gram, else per ml
-    const unit = item.item_count ? 'each' : item.weight_g ? 'g' : item.volume_ml ? 'ml' : null
-    const size = item.item_count || item.weight_g || item.volume_ml
+    // No typed unit price: the one the API worked out from the price and the size (written in the name, or in the size
+    // fields), per item, else per gram, else per ml
+    const itemName = name.map((segment) => segment.text).join('').trim()
     const unitPrice =
       typedUnitPrice ??
-      (unit && size && item.price_cents !== null
-        ? formatUnitPrice({ unit, unit_price_cents: item.price_cents / size }, country)
+      (item.unit && item.unit_price_cents !== null && item.price_cents !== null
+        ? formatCheapestUnitPrice(
+            { unit: item.unit, unit_price_cents: item.unit_price_cents, price_cents: item.price_cents },
+            itemName,
+            country,
+          )
         : null)
     return { item, name, amounts, unitPrice, receiptName }
   })
