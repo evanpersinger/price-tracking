@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AmountCell } from './AmountCell.tsx'
 import { formatPrice, isPricedByWeight, itemParts } from './format.ts'
 import { formatLitres, formatPerLitre } from './fuel.ts'
 import { ItemName } from './ItemName.tsx'
@@ -63,8 +64,8 @@ function searchText(tracked: TrackedItem): string {
   return `${shownName} ${newest.fuel_type ?? ''}`.toLowerCase()
 }
 
-function amountOf(entry: HistoryEntry): string {
-  return entry.fuel_type && entry.volume_ml ? formatLitres(entry.volume_ml) : partsOf(entry).amounts.join(' · ')
+function amountsOf(entry: HistoryEntry): string[] {
+  return entry.fuel_type && entry.volume_ml ? [formatLitres(entry.volume_ml)] : partsOf(entry).amounts
 }
 
 // Gas is tracked by what a litre cost, since the total depends on how much was bought
@@ -238,7 +239,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                               <ItemName segments={name} />
                               {newest.fuel_type && ` (${newest.fuel_type})`}
                             </td>
-                            <td className="amount">{amountOf(newest)}</td>
+                            <AmountCell amounts={amountsOf(newest)} />
                             <td className="date">{newest.purchased_on}</td>
                             <td className="price">{formatPrice(newest.price_cents, country)}</td>
                             <td className="history">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AmountCell } from './AmountCell.tsx'
 import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
@@ -75,19 +76,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
                 <ItemName segments={name} />
                 {receiptName && <div className="item-receipt-name">{receiptName}</div>}
               </td>
-              <td className={amounts.length > 1 ? 'amount amount-split' : 'amount'}>
-                {amounts.length > 1 ? (
-                  <span className="amount-chips">
-                    {amounts.map((amount) => (
-                      <span className="amount-chip" key={amount}>
-                        {amount}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  amounts[0]
-                )}
-              </td>
+              <AmountCell amounts={amounts} />
               {showUnitPrice && (
                 <td className={unitPrice && isZeroMoney(unitPrice) ? 'unit-price zero-money' : 'unit-price'}>
                   {unitPrice}

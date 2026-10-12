@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AmountCell } from './AmountCell.tsx'
 import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import { Loaded } from './Loaded.tsx'
@@ -68,7 +69,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                             <td className="item">
                               <ItemName segments={name} />
                             </td>
-                            <td className="amount">{amounts.join(' · ')}</td>
+                            <AmountCell amounts={amounts} />
                             <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
                               {computedUnitPrice}
                               {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
