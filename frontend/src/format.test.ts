@@ -82,7 +82,7 @@ describe('labelSegments', () => {
 
 describe('itemParts', () => {
   it('splits an imported name into item, amount and typed unit price, naming what is counted', () => {
-    const item = { ...sized, name: 'Villagio Hamburger Buns (8x) ($0.50 per bun)', brand: 'Villagio' }
+    const item = { ...sized, name: 'Hamburger Buns (8x) ($0.50 per bun)' }
     const parts = itemParts(item)
 
     expect(nameText(item)).toBe('Hamburger Buns')
@@ -118,9 +118,8 @@ describe('itemParts', () => {
     expect(nameText({ ...sized, name: 'large eggs' })).toBe('Large Eggs')
   })
 
-  it('takes the brand off the front of the name, only on an exact word match', () => {
-    expect(nameText({ ...sized, name: 'kirkland Eggs', brand: 'Kirkland' })).toBe('Eggs')
-    expect(nameText({ ...sized, name: 'Kirklands Eggs', brand: 'Kirkland' })).toBe('Kirklands Eggs')
+  it('keeps a brand that is also what the product is called, like Sprite', () => {
+    expect(nameText({ ...sized, name: 'Sprite zero sugar (12x) ($0.21 per 100ml)' })).toBe('Sprite Zero Sugar')
   })
 
   it('keeps a bracket like (SS) in the name', () => {

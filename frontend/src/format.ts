@@ -81,17 +81,6 @@ interface Sized {
   item_count: number | null
   weight_g: number | null
   volume_ml: number | null
-  brand?: string | null
-}
-
-// The brand is its own column when known, so its word(s) at the front of the name are just clutter there.
-// Only strips an exact, case-insensitive match, since a name can spell the brand differently (a misspelling, or a
-// different case) than the curated brand field does.
-function stripBrandPrefix(name: string, brand: string | null | undefined): string {
-  if (!brand) return name
-  if (name.slice(0, brand.length).toLowerCase() !== brand.toLowerCase()) return name
-  if (name[brand.length] !== ' ') return name
-  return name.slice(brand.length + 1)
 }
 
 export interface ItemParts {
@@ -255,8 +244,7 @@ export function itemParts(item: Sized, store?: string): ItemParts {
   const segments: Segment[] = []
   const rawAmounts: string[] = []
   let unitPrice: string | null = null
-  const label = stripBrandPrefix(item.name, item.brand)
-  for (const segment of labelSegments(label)) {
+  for (const segment of labelSegments(item.name)) {
     if (segment.kind === 'amount') {
       rawAmounts.push(segment.text.slice(1, -1).trim())
     } else {
@@ -274,7 +262,7 @@ export function itemParts(item: Sized, store?: string): ItemParts {
     .join('')
     .trim()
   const shownWords = item.display_name
-    ? labelSegments(stripBrandPrefix(item.display_name, item.brand)).filter((segment) => segment.kind === 'name')
+    ? labelSegments(item.display_name).filter((segment) => segment.kind === 'name')
     : segments.filter((segment) => segment.kind === 'name')
   const countSegments = [...shownWords, ...segments.filter((segment) => segment.kind === 'unit-price')]
 

@@ -53,7 +53,6 @@ function partsOf(entry: HistoryEntry) {
     item_count: entry.item_count,
     weight_g: entry.weight_g,
     volume_ml: entry.volume_ml,
-    brand: entry.brand,
   }, entry.store_name)
 }
 

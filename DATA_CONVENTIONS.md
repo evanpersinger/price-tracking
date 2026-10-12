@@ -6,9 +6,10 @@ editing, or reviewing data by hand.
 
 ## Brand column
 
-- A brand name always belongs in the `brand` column, and not in the item name column.
-  If an item's name contains a brand, that brand gets set on `brand` and removed from
-  the name (see Item name vs. brand text below for how to clean the name up).
+- A brand name always belongs in the `brand` column. If an item's name contains a brand, that
+  brand also gets set on `brand`. The name keeps it when that's what the product is called
+  (`Sprite zero sugar`, `Quest Bar`), nothing hides it from the name (see Item name vs. brand
+  text below).
 - Set `brand` to a real, identifiable brand name when one exists (e.g. `Kirkland`,
   `Compliments`, `Windsor`).
 - When there's genuinely no brand, set `brand` to the literal text `No Brand`, not
@@ -75,26 +76,14 @@ instead of inserting a new one:
 
 ## Item name vs. brand text
 
-The frontend (`stripBrandPrefix` in `frontend/src/format.ts`) automatically hides the
-brand from the Item column, but only when it's an exact, case-insensitive match at the
-very start of the name, immediately followed by a space (e.g. `Villagio Hamburger Buns`
-with brand `Villagio` shows as just `Hamburger Buns`). A suffix right after the brand
-with no space, like the possessive in `illy's Coffee` with brand `illy`, is **not**
-stripped either, same as the brand appearing anywhere else in the name below.
+The Item column shows a name exactly as saved, nothing is hidden or cut from it. The
+frontend used to cut the brand off the front of the name (`stripBrandPrefix`), which turned
+`Sprite zero sugar` into `Zero Sugar` and `Quest Bar` into `Bar`, so that was removed.
 
-When the brand word appears anywhere else in the name, not the front, it does **not**
-get stripped automatically. In that case, edit the name by hand to remove it once the
-`brand` column is set, e.g. `Red Compliments Cheese Slices` with brand `Compliments`
-becomes `Red Cheese Slices`. The brand should only ever appear once: in the Brand
-column.
-
-If the name is *only* the brand (e.g. `Pringles` with brand `Pringles`, or `Old Spice`
-with brand `Old Spice`), stripping it would leave the Item column blank. Give the name a
-real word beyond the brand instead, e.g. `Pringles Chips`, `Old Spice Deodorant`.
-
-A name that spells the brand differently than the curated `brand` field (a typo or
-different casing) is left alone rather than fuzzy-matched or auto-stripped, see
-Spelling below.
+So a brand that's in the name shows twice, in the Item column and in the Brand column
+(`Villagio Hamburger Buns` with brand `Villagio`). That's fine, and it's the right call when
+the brand is what the product is called (`Sprite`, `Quest Bar`, `Prime Hydration`,
+`Pringles Chips`). A name that is only the brand (`Pringles`) shows as `Pringles`.
 
 ## Unit price / cheapest comparison basis
 
