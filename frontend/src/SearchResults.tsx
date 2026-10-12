@@ -58,7 +58,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                     </thead>
                     <tbody>
                       {list.offers.map((offer, index) => {
-                        const { name, amounts, unitPrice } = itemParts(offer, offer.store_name)
+                        const { name, amounts } = itemParts(offer, offer.store_name)
                         const computedUnitPrice = formatUnitPrice({ unit: list.unit, unit_price_cents: offer.unit_price_cents }, country)
                         return (
                           <tr key={offer.id}>
@@ -72,7 +72,6 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                             <AmountCell amounts={amounts} />
                             <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
                               {computedUnitPrice}
-                              {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
                             </td>
                             {showDose && <td className="dose">{offer.dose_mg !== null && `${offer.dose_mg}mg`}</td>}
                             <td className="price">{formatPrice(offer.price_cents, country)}</td>

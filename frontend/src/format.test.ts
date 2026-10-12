@@ -80,6 +80,12 @@ describe('itemParts', () => {
     ])
   })
 
+  it('shows at most two amounts, dropping the one that is only a detail inside a pack', () => {
+    const item = { ...sized, name: 'Kirkland Bacon Low Sodium (2000g) (4 packs) (14 slices per pack) ($6.00 per pack)' }
+
+    expect(itemParts(item).amounts).toEqual(['2000g', '4 Packs'])
+  })
+
   it('names the container for a size typed in the name', () => {
     expect(itemParts({ ...sized, name: 'Milk Carton (1L)' }).amounts).toEqual(['1 Carton'])
   })

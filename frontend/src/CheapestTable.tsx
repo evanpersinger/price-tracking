@@ -30,7 +30,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
       </thead>
       <tbody>
         {store.items.map((item, index) => {
-          const { name, amounts, unitPrice } = itemParts(item, store.name)
+          const { name, amounts } = itemParts(item, store.name)
           const computedUnitPrice = formatUnitPrice(item, country)
           return (
             <tr key={item.id}>
@@ -43,7 +43,6 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
               <AmountCell amounts={amounts} />
               <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
                 {computedUnitPrice}
-                {unitPrice && <span className={isZeroMoney(unitPrice) ? 'zero-money' : undefined}> ({unitPrice})</span>}
               </td>
               {showDose && <td className="dose">{item.dose_mg !== null && `${item.dose_mg}mg`}</td>}
               <td className="price">{formatPrice(item.price_cents, country)}</td>

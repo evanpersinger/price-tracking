@@ -218,6 +218,16 @@ function describeAmount(amount: string, forCount: string, forMeasure: string): s
   return capitalizeWords(useContainerWord ? `${numberText} ${forMeasure}` : amount)
 }
 
+const MAX_AMOUNTS = 2
+
+// An item shows at most two amounts. With more, the ones that are only a detail inside a pack ("14 Slices Per Pack")
+// go first, then whichever were written last, so (2000g) (4 packs) (14 slices per pack) keeps 2000g and 4 Packs.
+function topAmounts(amounts: string[]): string[] {
+  if (amounts.length <= MAX_AMOUNTS) return amounts
+  const isDetail = (amount: string) => /\bper\b/i.test(amount)
+  return [...amounts].sort((a, b) => Number(isDetail(a)) - Number(isDetail(b))).slice(0, MAX_AMOUNTS)
+}
+
 // Splits an item into what goes in the Item, Amount and Unit price columns. Imported items have their amounts and
 // typed unit price written in the name, items from the add form keep the amount in its own fields.
 //
@@ -258,9 +268,11 @@ export function itemParts(item: Sized, store?: string): ItemParts {
 
   const forCount = countNoun(countSegments)
   const forMeasure = headNoun(shownWords)
-  const amounts = rawAmounts
-    .map((amount) => describeAmount(amount, forCount, forMeasure))
-    .filter((amount): amount is string => amount !== null)
+  const amounts = topAmounts(
+    rawAmounts
+      .map((amount) => describeAmount(amount, forCount, forMeasure))
+      .filter((amount): amount is string => amount !== null),
+  )
 
   let name = shownWords.map((segment) => ({ ...segment, text: capitalizeWords(segment.text) }))
 
