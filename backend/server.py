@@ -274,7 +274,8 @@ async def read_receipt(request: Request) -> dict:
 
 # Item matching
 UNIT_PRICE = re.compile(r"\([^()]*\$[^()]*\)")  # e.g. "($0.57 per pill)", worked out from the price
-AMOUNT = re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
+WEIGHT_RATE = re.compile(r"\(\s*\$(\d+(?:\.\d+)?)\s*per\s*(\d+(?:\.\d+)?)?\s*([a-z]+)\s*\)")  # "($7.72 per kg)"
+AMOUNT =re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
 SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
 # A stricter bar than SIMILARITY above: this one decides whether a new item overwrites an existing row (so a
 # false match loses data) rather than just grouping two offers for display, and it's paired with an exact size
@@ -448,6 +449,82 @@ def _sized_offers(country: str) -> list[Offer]:
     return [offer for offer in _make_offers(rows) if offer.amounts]
 
 
+class WeightOffer(NamedTuple):
+    id: int
+    store_id: int
+    store_name: str
+    name: str
+    display_name: str | None
+    brand: str | None
+    item_code: str | None
+    words: str  # the name without its typed rate, lowercase
+    cents_per_kg: float
+
+
+def _cents_per_kg(name: str) -> float | None:
+    """What a kg costs, in cents, from a typed rate like "($7.72 per kg)" or "($0.90 per 100g)", else None."""
+    match = WEIGHT_RATE.search(name.lower())
+    if not match:
+        return None
+    dollars, quantity, unit = match.groups()
+    if unit not in WEIGHT_G:
+        return None
+    grams = float(quantity or 1) * WEIGHT_G[unit]
+    return float(dollars) * 100 / grams * 1000
+
+
+def _weight_offers(country: str) -> list[WeightOffer]:
+    """Every grocery item in a country's stores that has no size but a typed rate per weight, in the order added.
+
+    That's produce and bulk bins ("Oranges ($5.50 per kg)"). The rate is what gets compared, so the price can be empty.
+    """
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT i.id, i.store_id, s.name, i.name, i.display_name, i.brand, i.item_code, i.item_count, i.weight_g, "
+            "i.volume_ml FROM items i JOIN stores s ON s.id = i.store_id "
+            "WHERE s.country = ? AND i.fuel_type IS NULL ORDER BY i.id",
+            (country,),
+        ).fetchall()
+
+    offers = []
+    for item_id, store_id, store_name, name, display_name, brand, item_code, item_count, weight_g, volume_ml in rows:
+        words, text_amounts = _split_name(name)
+        cents_per_kg = _cents_per_kg(name)
+        if cents_per_kg is None or _effective_amounts(item_count, weight_g, volume_ml, text_amounts):
+            continue
+        offers.append(WeightOffer(
+            item_id, store_id, store_name, name, display_name, brand, item_code, words, cents_per_kg,
+        ))
+    return offers
+
+
+def _cheapest_by_weight(offers: list[WeightOffer]) -> list[tuple[WeightOffer, int]]:
+    """The cheapest store's offer for each item, with how many other stores sell it. A tie keeps every tied store."""
+    groups: list[list[WeightOffer]] = []  # one offer per store, its cheapest
+    for offer in offers:
+        group = next(
+            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            None,
+        )
+        if group is None:
+            groups.append([offer])
+            continue
+
+        same = next((i for i, other in enumerate(group) if other.store_id == offer.store_id), None)
+        if same is None:
+            group.append(offer)
+        elif offer.cents_per_kg < group[same].cents_per_kg:
+            group[same] = offer
+
+    winners = []
+    for group in groups:
+        lowest = min(offer.cents_per_kg for offer in group)
+        winners += [
+            (offer, len(group) - 1) for offer in group if math.isclose(offer.cents_per_kg, lowest, rel_tol=1e-9)
+        ]
+    return winners
+
+
 class CheapestItem(BaseModel):
     id: int
     name: str
@@ -464,10 +541,21 @@ class CheapestItem(BaseModel):
     dose_mg: float | None
 
 
+class CheapestByWeightItem(BaseModel):
+    id: int
+    name: str
+    display_name: str | None
+    brand: str | None
+    item_code: str | None
+    other_stores: int  # how many other stores sell this item, 0 means it was only found here
+    price_per_kg_cents: float  # what a kg costs, whatever the rate was typed in (per 100g, per lb)
+
+
 class CheapestStore(BaseModel):
     id: int
     name: str
     items: list[CheapestItem]
+    by_weight: list[CheapestByWeightItem]  # the items with no size, priced by weight, that it sells cheapest
 
 
 @app.get("/api/cheapest")
@@ -479,21 +567,34 @@ def list_cheapest(country: Literal["CA", "US"]) -> list[CheapestStore]:
     and an 8-pack can be compared, and 1lb counts the same as 454g. The size comes from item_count, weight_g and
     volume_ml, or from the name when those are empty. An item sold at one store only counts as cheapest there,
     ties list it under every tied store, and items with no price or no size are left out.
+
+    An item with no size but a typed rate per weight (produce, a bulk bin: "($7.72 per kg)") is compared on price
+    per kg instead, whatever weight the rate was typed per, and goes in by_weight.
     """
     cheapest: dict[int, CheapestStore] = {}
+
+    def store_for(store_id: int, store_name: str) -> CheapestStore:
+        return cheapest.setdefault(store_id, CheapestStore(id=store_id, name=store_name, items=[], by_weight=[]))
+
     for group in _group_items(_sized_offers(country)):
         for winner in _pick_winners(group):
             offer = winner.offer
-            store = cheapest.setdefault(offer.store_id, CheapestStore(id=offer.store_id, name=offer.store_name, items=[]))
-            store.items.append(CheapestItem(
+            store_for(offer.store_id, offer.store_name).items.append(CheapestItem(
                 id=offer.id, name=offer.name, display_name=offer.display_name, price_cents=offer.price_cents,
                 other_stores=winner.other_stores, unit=winner.unit, unit_price_cents=round(winner.unit_price_cents, 4),
                 item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand,
                 item_code=offer.item_code, dose_mg=offer.dose_mg,
             ))
 
+    for offer, other_stores in _cheapest_by_weight(_weight_offers(country)):
+        store_for(offer.store_id, offer.store_name).by_weight.append(CheapestByWeightItem(
+            id=offer.id, name=offer.name, display_name=offer.display_name, brand=offer.brand,
+            item_code=offer.item_code, other_stores=other_stores, price_per_kg_cents=round(offer.cents_per_kg, 4),
+        ))
+
     for store in cheapest.values():
         store.items.sort(key=lambda item: item.id)  # back into the order they were added
+        store.by_weight.sort(key=lambda item: item.id)
     return [cheapest[store_id] for store_id in sorted(cheapest)]
 
 

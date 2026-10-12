@@ -59,6 +59,40 @@ def test_an_item_with_no_size_is_left_out(client: TestClient, add_imported: Call
     assert cheapest(client) == []
 
 
+def test_produce_with_no_size_is_compared_per_kg(client: TestClient, add_imported: Callable[..., None]) -> None:
+    add_imported("Costco", "Oranges ($5.50 per kg)", None)  # sheet rows with only a rate have no price
+    add_imported("Fresco", "oranges ($3.28 per kg)", None)
+
+    [store] = cheapest(client)
+    [item] = store["by_weight"]
+    assert store["name"] == "Fresco"
+    assert store["items"] == []
+    assert (item["other_stores"], item["price_per_kg_cents"]) == (1, 328)
+
+
+def test_rates_typed_per_100g_and_per_lb_compare_per_kg(client: TestClient, add_imported: Callable[..., None]) -> None:
+    add_imported("Costco", "Broccoli ($0.40 per 100g)", None)  # 400 cents a kg
+    add_imported("Fresco", "Broccoli ($2.00 per lb)", None)  # about 441 cents a kg
+
+    [store] = cheapest(client)
+    [item] = store["by_weight"]
+    assert store["name"] == "Costco"
+    assert item["price_per_kg_cents"] == pytest.approx(400)
+
+
+def test_a_rate_that_is_not_a_weight_is_left_out(client: TestClient, add_imported: Callable[..., None]) -> None:
+    add_imported("Costco", "Strawberries ($7.00 per pack)", 700)
+
+    assert cheapest(client) == []
+
+
+def test_an_item_with_a_size_is_not_listed_by_weight(client: TestClient, add_imported: Callable[..., None]) -> None:
+    add_imported("Costco", "Broccoli (450g) ($0.90 per 100g)", 400)
+
+    [store] = cheapest(client)
+    assert (len(store["items"]), store["by_weight"]) == (1, [])
+
+
 def test_gas_is_left_out_of_the_cheapest_items_and_search(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(store="Shell", name="Gas", fuel_type="Regular", item_count=1, volume_ml=26204, price_cents=4583)
 

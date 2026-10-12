@@ -41,7 +41,7 @@ def add_item(client: TestClient) -> Callable[..., dict]:
 def add_imported() -> Callable[..., None]:
     """Insert an item the way the sheet import did: the size is only in the name, the size columns stay empty."""
 
-    def _add(store: str, name: str, price_cents: int, country: str = "CA") -> None:
+    def _add(store: str, name: str, price_cents: int | None, country: str = "CA") -> None:
         with closing(db.connect()) as conn, conn:
             conn.execute("INSERT OR IGNORE INTO stores (name, country) VALUES (?, ?)", (store, country))
             store_id = conn.execute(

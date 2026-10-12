@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Arrow } from './Arrow.tsx'
+import { CheapestByWeightTable } from './CheapestByWeightTable.tsx'
 import { CheapestTable } from './CheapestTable.tsx'
 import { itemParts } from './format.ts'
 import { Loaded } from './Loaded.tsx'
@@ -26,7 +27,7 @@ export function CheapestView({ country }: CheapestViewProps) {
             ...store,
             items: store.items.filter((item) => itemParts(item).amounts.length > 0),
           }))
-          .filter((store) => store.items.length > 0)
+          .filter((store) => store.items.length > 0 || store.by_weight.length > 0)
 
         if (withItems.length === 0) {
           return <p className="status">No items to compare yet.</p>
@@ -71,7 +72,17 @@ export function CheapestView({ country }: CheapestViewProps) {
                 {isSearching ? (
                   <SearchResults country={country} query={searchText} />
                 ) : (
-                  <CheapestTable store={activeStore} country={country} />
+                  <>
+                    {activeStore.items.length > 0 && <CheapestTable store={activeStore} country={country} />}
+                    {activeStore.by_weight.length > 0 && (
+                      <CheapestByWeightTable
+                        storeName={activeStore.name}
+                        items={activeStore.by_weight}
+                        country={country}
+                        startIndex={activeStore.items.length}
+                      />
+                    )}
+                  </>
                 )}
               </section>
               {/* The column stays, empty, while searching, so the card and its search box don't shift sideways */}

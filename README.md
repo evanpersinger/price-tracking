@@ -34,7 +34,7 @@ Optional environment variables: `PRICES_DB` (path to a different database, handy
 Prices come back as `price_cents`, and `country` is `CA` or `US`.
 
 - `GET /api/stores?country=CA` each store with its items.
-- `GET /api/cheapest?country=CA` each store with the items it sells cheapest, compared per item, per gram or per ml.
+- `GET /api/cheapest?country=CA` each store with the items it sells cheapest, compared per item, per gram or per ml, and produce or bulk items with no size per kg.
 - `GET /api/search?country=CA&q=milk` what every store sells an item for, cheapest first.
 - `GET /api/history?country=CA` every recorded purchase, newest first.
 - `POST /api/items` adds an item. It needs `country`, `store`, `name` (the receipt's printed text), `display_name`, `price_cents` and at least one of `item_count`, `weight_g` or `volume_ml`. An item with an `item_code` and a date is also recorded in the price history.

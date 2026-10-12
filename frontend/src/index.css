@@ -951,6 +951,12 @@ select.review-input {
   font-size: clamp(1.1rem, 1.9vw, 2.25rem);
 }
 
+/* A few short columns at the page's normal text size (Cheapest's by-weight table), as wide as its content instead of
+   stretching to the card like the full table above it */
+.items.items-fit {
+  width: auto;
+}
+
 /* For a compact table with only a few short columns (the gas fill-ups), where the text can go bigger still before the
    table gets wide */
 .items.items-compact.items-large {

@@ -39,10 +39,22 @@ export interface CheapestItem {
   dose_mg: number | null
 }
 
+// An item with no size, priced by weight (produce, a bulk bin), compared across stores on what a kg costs
+export interface CheapestByWeightItem {
+  id: number
+  name: string
+  display_name: string | null
+  brand: string | null
+  item_code: string | null
+  other_stores: number // how many other stores sell it, 0 means it was only found here
+  price_per_kg_cents: number
+}
+
 export interface CheapestStore {
   id: number
   name: string
   items: CheapestItem[]
+  by_weight: CheapestByWeightItem[]
 }
 
 // One recorded purchase from the price history, newest first from GET /api/history
