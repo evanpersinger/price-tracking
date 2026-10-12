@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatPrice, formatUnitPrice, isZeroMoney, itemParts, labelSegments } from './format.ts'
+import {
+  formatCheapestUnitPrice,
+  formatPrice,
+  formatUnitPrice,
+  isZeroMoney,
+  itemParts,
+  labelSegments,
+} from './format.ts'
 
 const sized = { item_count: null, weight_g: null, volume_ml: null }
 
@@ -25,6 +32,23 @@ describe('formatUnitPrice', () => {
   it('shows grams and ml per 100, which is the same number as cents per single g or ml', () => {
     expect(formatUnitPrice({ unit: 'g', unit_price_cents: 0.9912 }, 'CA')).toBe('$0.99 per 100g')
     expect(formatUnitPrice({ unit: 'ml', unit_price_cents: 0.2995 }, 'US')).toBe('$0.30 per 100ml')
+  })
+})
+
+describe('formatCheapestUnitPrice', () => {
+  it('names the item for a count of 1, like a single Quest bar', () => {
+    const item = { unit: 'each' as const, unit_price_cents: 370, price_cents: 370 }
+
+    expect(formatCheapestUnitPrice(item, 'Quest Bar', 'CA')).toBe('$3.70 per quest bar')
+  })
+
+  it('keeps each for a multi-pack and per 100g or 100ml for weights and volumes', () => {
+    expect(
+      formatCheapestUnitPrice({ unit: 'each', unit_price_cents: 50, price_cents: 400 }, 'Hamburger Buns', 'CA'),
+    ).toBe('$0.50 each')
+    expect(formatCheapestUnitPrice({ unit: 'g', unit_price_cents: 0.99, price_cents: 450 }, 'Butter', 'CA')).toBe(
+      '$0.99 per 100g',
+    )
   })
 })
 

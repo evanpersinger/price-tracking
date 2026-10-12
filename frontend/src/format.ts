@@ -24,6 +24,18 @@ export function formatUnitPrice(item: Pick<CheapestItem, 'unit' | 'unit_price_ce
   }
 }
 
+// The Cheapest pages' unit price. A count of 1 (a hydration drink, a lime squeezer) has no pack to split up, so it
+// reads "per <item name>" instead of "each". A bigger count, and anything priced per gram or ml, stays as it is.
+export function formatCheapestUnitPrice(
+  item: Pick<CheapestItem, 'unit' | 'unit_price_cents' | 'price_cents'>,
+  itemName: string,
+  country: Country,
+): string {
+  const isCountOfOne = item.unit === 'each' && item.unit_price_cents === item.price_cents
+  if (!isCountOfOne) return formatUnitPrice(item, country)
+  return `${formatPrice(item.price_cents, country)} per ${itemName.toLowerCase()}`
+}
+
 // A unit price that reads as $0 is never actually free, it means something lost precision along the way (typed with
 // too few decimals, or rounded during a computed fill-in). Flagged in the UI rather than shown as if it were normal.
 export function isZeroMoney(text: string): boolean {

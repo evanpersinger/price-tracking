@@ -1,5 +1,5 @@
 import { AmountCell } from './AmountCell.tsx'
-import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
+import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { CheapestStore, Country } from './types.ts'
 
@@ -31,7 +31,8 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
       <tbody>
         {store.items.map((item, index) => {
           const { name, amounts } = itemParts(item, store.name)
-          const computedUnitPrice = formatUnitPrice(item, country)
+          const itemName = name.map((segment) => segment.text).join('').trim()
+          const computedUnitPrice = formatCheapestUnitPrice(item, itemName, country)
           return (
             <tr key={item.id}>
               <td className="row-number">{index + 1}</td>

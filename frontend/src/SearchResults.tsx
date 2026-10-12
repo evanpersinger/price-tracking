@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
-import { formatPrice, formatUnitPrice, isZeroMoney, itemParts } from './format.ts'
+import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import { Loaded } from './Loaded.tsx'
 import type { Country, SearchList } from './types.ts'
@@ -59,7 +59,12 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                     <tbody>
                       {list.offers.map((offer, index) => {
                         const { name, amounts } = itemParts(offer, offer.store_name)
-                        const computedUnitPrice = formatUnitPrice({ unit: list.unit, unit_price_cents: offer.unit_price_cents }, country)
+                        const itemName = name.map((segment) => segment.text).join('').trim()
+                        const computedUnitPrice = formatCheapestUnitPrice(
+                          { unit: list.unit, unit_price_cents: offer.unit_price_cents, price_cents: offer.price_cents },
+                          itemName,
+                          country,
+                        )
                         return (
                           <tr key={offer.id}>
                             <td className="row-number">{index + 1}</td>
