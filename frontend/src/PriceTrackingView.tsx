@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatPrice, itemParts } from './format.ts'
+import { formatPrice, isPricedByWeight, itemParts } from './format.ts'
 import { formatLitres, formatPerLitre } from './fuel.ts'
 import { ItemName } from './ItemName.tsx'
 import { Loaded } from './Loaded.tsx'
@@ -176,6 +176,9 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
 
         const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
         const shown = store.items.filter((tracked) => terms.every((term) => searchText(tracked).includes(term)))
+        // Produce and bulk-bin items get their own plainer table under the main one, like on Store Prices
+        const byWeight = shown.filter((tracked) => isPricedByWeight(partsOf(tracked.entries[0])))
+        const packaged = shown.filter((tracked) => !byWeight.includes(tracked))
         return (
           <>
             <div className="store-jump">
@@ -209,9 +212,8 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                     onChange={(event) => setQuery(event.target.value)}
                   />
                 </div>
-                {shown.length === 0 ? (
-                  <p className="status">No item in {store.name} matches "{query.trim()}".</p>
-                ) : (
+                {shown.length === 0 && <p className="status">No item in {store.name} matches "{query.trim()}".</p>}
+                {packaged.length > 0 && (
                   <table className="items items-compact">
                     <thead>
                       <tr>
@@ -225,7 +227,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {shown.map((tracked, index) => {
+                      {packaged.map((tracked, index) => {
                         const newest = tracked.entries[0]
                         const { name } = partsOf(newest)
                         return (
@@ -254,6 +256,35 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                       })}
                     </tbody>
                   </table>
+                )}
+                {byWeight.length > 0 && (
+                  <>
+                    <h3 className="review-subheading">Priced by weight</h3>
+                    <table className="items items-compact">
+                      <thead>
+                        <tr>
+                          <th scope="col" className="row-number">#</th>
+                          <th scope="col" className="item-code">Item code</th>
+                          <th scope="col" className="item">Item name</th>
+                          <th scope="col" className="price">Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byWeight.map((tracked, index) => {
+                          const newest = tracked.entries[0]
+                          const { name, unitPrice } = partsOf(newest)
+                          return (
+                            <tr key={tracked.key}>
+                              <td className="row-number">{packaged.length + index + 1}</td>
+                              <td className="item-code">{newest.item_code}</td>
+                              <td className="item"><ItemName segments={name} /></td>
+                              <td className="price">{unitPrice}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </section>
             </div>

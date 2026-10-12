@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Arrow } from './Arrow.tsx'
 import { ByWeightTable } from './ByWeightTable.tsx'
-import { itemParts } from './format.ts'
+import { isPricedByWeight, itemParts } from './format.ts'
 import { isFuelItem } from './fuel.ts'
 import { Loaded } from './Loaded.tsx'
 import { StoreTable } from './StoreTable.tsx'
@@ -40,10 +40,7 @@ export function StoresView({ country }: StoresViewProps) {
         // Anything picked out loose and priced by weight (produce, a bulk bin: no package size, just a per-kg or
         // per-100g rate) gets its own plainer table. Everything else, including a flat-priced item with no size at
         // all (the size just wasn't recorded, it isn't sold by weight), stays in the regular table.
-        const byWeightItems = activeStore.items.filter((item) => {
-          const parts = itemParts(item)
-          return parts.amounts.length === 0 && parts.unitPrice !== null
-        })
+        const byWeightItems = activeStore.items.filter((item) => isPricedByWeight(itemParts(item)))
         const packagedItems = activeStore.items.filter((item) => !byWeightItems.includes(item))
         return (
           <>

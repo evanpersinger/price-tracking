@@ -277,3 +277,9 @@ export function itemParts(item: Sized, store?: string): ItemParts {
 
   return { name, amounts, unitPrice, receiptName }
 }
+
+// Picked out loose and sold by weight (produce, a bulk bin): no package size, just a per-kg or per-100g rate. A flat
+// priced item with no size at all isn't one, its size just wasn't recorded.
+export function isPricedByWeight(parts: ItemParts): boolean {
+  return parts.amounts.length === 0 && parts.unitPrice !== null
+}
