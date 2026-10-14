@@ -82,9 +82,16 @@ def test_a_real_quantity_line_is_kept() -> None:
     result = extract_receipt._drop_deals(receipt(
         {"raw_name": "MILK", "price": 8.37, "quantity_info": "3 @ 2.79"},
         {"raw_name": "BANANAS", "price": 5.99, "quantity_info": "1.2 kg @ $4.99/kg"},
+        {"raw_name": "GUMMIES", "price": 4.04, "quantity_info": "0.245 kg @ $16.50 /0.00xkg"},
+        {"raw_name": "ALMONDS", "price": 3.50, "quantity_info": "350 g @ $1.00/100g"},
     ))
 
-    assert [item["quantity_info"] for item in result["items"]] == ["3 @ 2.79", "1.2 kg @ $4.99/kg"]
+    assert [item["quantity_info"] for item in result["items"]] == [
+        "3 @ 2.79",
+        "1.2 kg @ $4.99/kg",
+        "0.245 kg @ $16.50 /0.00xkg",
+        "350 g @ $1.00/100g",
+    ]
 
 
 def test_a_receipt_with_no_items_is_left_alone() -> None:

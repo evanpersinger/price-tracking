@@ -292,6 +292,9 @@ _DEAL_LINE_RE = re.compile(r"\b(instant|savings?|discount|coupon|promo|promotion
 _DISCOUNT_FOR_RE = re.compile(r"^\s*\d{6,}\s*/\s*(\d{4,})")
 # A shelf offer printed under an item, "2 for $1.25" or "$4.99 ea or 2/$9.00", is not what was bought
 _DEAL_QUANTITY_RE = re.compile(r"\bfor\s*\$?\d|\bea\b.*\bor\b|\d\s*/\s*\$?\d|\bsave\b|%\s*off", re.IGNORECASE)
+# A weight line, "0.465 kg @ $3.30 /kg", is what was bought, never a shelf offer, even when its rate has a digit after
+# the slash ("/100g") that _DEAL_QUANTITY_RE would read as "2/$9"
+_WEIGHT_LINE_RE = re.compile(r"^\s*\d+(?:\.\d+)?\s*(?:kg|g|lbs?|oz)\b\s*@", re.IGNORECASE)
 
 
 _QUANTITY_AT_RE = re.compile(r"^\s*(\d+)\s*@\s*\$?(\d+(?:\.\d+)?)\s*$")
@@ -348,7 +351,11 @@ def _drop_deals(receipt: dict) -> dict:
             dropped.append(item)
             continue
         quantity_info = item.get("quantity_info")
-        if quantity_info and _DEAL_QUANTITY_RE.search(str(quantity_info)):
+        if (
+            quantity_info
+            and not _WEIGHT_LINE_RE.match(str(quantity_info))
+            and _DEAL_QUANTITY_RE.search(str(quantity_info))
+        ):
             item = {**item, "quantity_info": None}
         kept.append({key: value for key, value in item.items() if key != "on_sale"})
     return {**receipt, "items": kept, "_dropped_items": dropped}
