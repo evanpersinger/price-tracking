@@ -252,7 +252,10 @@ export function itemParts(item: Sized, store?: string): ItemParts {
       if (segment.kind === 'unit-price' && unitPrice === null) unitPrice = segment.text.slice(1, -1).trim()
     }
   }
-  if (item.item_count !== null) rawAmounts.push(`${item.item_count}x`)
+  // A count of 1 beside a typed weight or volume ("1 Cookiescream" next to 56g) says nothing more, so only the size
+  // shows. The count stays saved, it's what makes an individual item's unit price read "per <item name>".
+  const hasMeasure = item.weight_g !== null || item.volume_ml !== null
+  if (item.item_count !== null && !(item.item_count === 1 && hasMeasure)) rawAmounts.push(`${item.item_count}x`)
   if (item.weight_g !== null) rawAmounts.push(`${item.weight_g}g`)
   if (item.volume_ml !== null) rawAmounts.push(`${item.volume_ml}ml`)
 

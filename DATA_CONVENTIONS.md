@@ -103,7 +103,9 @@ item was given.
 ## Typed unit price in a name
 
 Imported items carry a unit price in brackets at the end of the name, which the UI shows
-in the Unit price column and the API ignores (it works the comparison out itself). The
+in the Unit price column. The API ignores it and works the comparison out itself, except
+for a typed weight rate (`($7.72 per kg)`) on an item with no size, which `/api/cheapest`
+compares on (`WEIGHT_RATE` in `backend/server.py`). The
 review page also generates one automatically for a by-weight item with no fixed size
 (produce, a bulk bin): its own "Priced by weight" table saves the typed rate as
 `($7.72 per kg)`, letting `POST /api/items` accept the item with no `item_count`,
