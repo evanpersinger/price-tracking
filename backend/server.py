@@ -9,6 +9,7 @@ import logging
 import math
 import re
 import threading
+import time
 from contextlib import closing
 from datetime import date
 from typing import Literal, NamedTuple
@@ -19,7 +20,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect, log_activity
-from extract_receipt import extract_receipt
+from extract_receipt import RECEIPT_MODEL, extract_receipt
 
 PORT = 8021  # registered in ~/dotfiles/.claude/PORTS.md
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
@@ -250,6 +251,13 @@ def delete_item(item_id: int) -> None:
     log_activity("delete", item_id=item_id, name=name, price_cents=price_cents, store=store)
 
 
+def _receipt_error(status_code: int, detail: str, **fields: object) -> HTTPException:
+    """The error a turned-away receipt gets, logged as receipt_failed first so a read that never gave a result
+    still shows in activity.log. `error` is the exception text, for a 502 it holds the model's whole reply."""
+    log_activity("receipt_failed", status=status_code, reason=detail, model=RECEIPT_MODEL, **fields)
+    return HTTPException(status_code=status_code, detail=detail)
+
+
 @app.post("/api/receipt")
 async def read_receipt(request: Request) -> dict:
     """Read a receipt image (the raw JPEG or PNG as the request body) and return the items found on it.
@@ -258,24 +266,31 @@ async def read_receipt(request: Request) -> dict:
     """
     media_type = request.headers.get("content-type", "")
     if media_type not in RECEIPT_MEDIA_TYPES:
-        raise HTTPException(status_code=415, detail="Send a JPEG or PNG image.")
+        raise _receipt_error(415, "Send a JPEG or PNG image.", media_type=media_type)
     if not receipt_lock.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail="Another receipt is being read, try again in a moment.")
+        raise _receipt_error(409, "Another receipt is being read, try again in a moment.", media_type=media_type)
     try:
         image = await request.body()
         if len(image) > MAX_RECEIPT_BYTES:
-            raise HTTPException(status_code=413, detail="That image is over 10 MB.")
+            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=len(image))
+        started = time.perf_counter()
         result = await asyncio.to_thread(extract_receipt, image, media_type)
-        log_activity("receipt_read", store=result.get("store"), purchase_date=result.get("purchase_date"),
-                      items=result.get("items"), dropped_items=result.pop("_dropped_items", None),
-                      raw_reply=result.pop("_raw_reply", None))
+        log_activity("receipt_read", store=result.get("store"), store_address=result.get("store_address"),
+                      purchase_date=result.get("purchase_date"), items=result.get("items"),
+                      dropped_items=result.pop("_dropped_items", None), raw_reply=result.pop("_raw_reply", None),
+                      model=RECEIPT_MODEL, seconds=round(time.perf_counter() - started, 1),
+                      media_type=media_type, image_bytes=len(image))
         return result
     except requests.exceptions.RequestException as e:
         logger.warning("Ollama call failed: %s", e)
-        raise HTTPException(status_code=503, detail="Couldn't reach the local model. Is Ollama running?") from e
+        raise _receipt_error(503, "Couldn't reach the local model. Is Ollama running?", error=str(e),
+                             media_type=media_type, image_bytes=len(image),
+                             seconds=round(time.perf_counter() - started, 1)) from e
     except ValueError as e:
         logger.warning("Receipt read failed: %s", e)
-        raise HTTPException(status_code=502, detail="The model's reply couldn't be read, try again.") from e
+        raise _receipt_error(502, "The model's reply couldn't be read, try again.", error=str(e),
+                             media_type=media_type, image_bytes=len(image),
+                             seconds=round(time.perf_counter() - started, 1)) from e
     finally:
         receipt_lock.release()
 
