@@ -15,10 +15,15 @@ editing, or reviewing data by hand.
 - When there's genuinely no brand, set `brand` to the literal text `No Brand`, not
   `null`. `No Brand` is a real value, not a stand-in for "unknown", it means someone
   checked and confirmed the item has no brand.
-- Only set a brand when it's known for certain, don't guess from the name. Two narrow, hand-coded exceptions to
-  "don't guess" (both in `frontend/src/`): any Costco line with "KS" as its own word (`isKirklandSignature` in
-  `knownItems.ts`) defaults to `Kirkland`, and any line containing "Old Spice" (`isOldSpice` in `brands.ts`, any
-  store) defaults to `Old Spice`. Both are specific, well-known cases, not a general "infer the brand" rule.
+- The brand is the name printed on the product, not the company that owns it: `Sprite`, not Coca-Cola, and
+  `Doritos`, not PepsiCo.
+- Only set a brand when it's known for certain, don't guess from the name. A few narrow, hand-coded exceptions to
+  "don't guess" (all in `frontend/src/`): any Costco line with "KS" as its own word (`isKirklandSignature` in
+  `knownItems.ts`) defaults to `Kirkland`, any line containing "Old Spice" (`isOldSpice` in `brands.ts`, any store)
+  defaults to `Old Spice`, and a printed word on the hand-edited lists in `brands.ts` (`findBrandInName`) defaults to
+  its brand, either at every store (`ALL_STORES_BRAND_WORDS`, only for unmistakable brands like `DORITOS`) or only at
+  one store (`SPECIFIC_STORES_BRAND_WORDS`, like `CHIPITS` at Walmart). Each is a specific, well-known case, not a
+  general "infer the brand" rule, and the review page's Brand box stays editable.
 - Capitals don't matter in a brand: `Arm&Hammer` and `arm&hammer` are the same brand. `POST /api/items`
   saves a brand that matches a saved one ignoring case with the saved spelling (the first one saved wins).
   Rows edited by hand in the database aren't covered, keep their spelling consistent yourself.

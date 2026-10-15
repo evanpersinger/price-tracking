@@ -23,6 +23,7 @@ export const BRANDS: string[] = [
   'Fairlife',
   'Fibre 1',
   'Frito-Lay',
+  'Gigantico',
   'Great Value',
   'illy',
   "Joe's",
@@ -48,6 +49,7 @@ export const BRANDS: string[] = [
   'Old Spice',
   'Orange Naturals',
   'PepsiCo',
+  'Philips',
   'Phyzik',
   'Pirouline',
   'Premier Protein',
@@ -82,6 +84,7 @@ function normalize(text: string): string {
 export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
   DORITOS: 'Doritos',
   FAIRLIFE: 'Fairlife',
+  PHILIPS: 'Philips',
   SPRITE: 'Sprite',
 }
 
@@ -89,6 +92,7 @@ export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
 // Grouped by store like KNOWN_ITEMS in knownItems.ts, a group applies when the receipt's store name contains the
 // group's name, ignoring case. If a group has the same word as the all stores section, the group wins.
 export const SPECIFIC_STORES_BRAND_WORDS: Record<string, Record<string, string>> = {
+  'Canadian Superstore': { GIGANTICO: 'Gigantico' },
   Costco: { PIROULINE: 'Pirouline' },
   Walmart: { CHIPITS: 'Chipits' },
 }

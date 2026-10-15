@@ -23,7 +23,7 @@ interface Props {
 type RowStatus = 'idle' | 'saving' | 'added' | 'failed'
 
 // What the size number is in. 'none' is for items sold as identical units (soda cans), where the count is the size.
-const SIZE_UNITS = ['g', 'ml', 'L', 'none'] as const
+const SIZE_UNITS = ['g', 'kg', 'ml', 'L', 'none'] as const
 export type SizeUnit = (typeof SIZE_UNITS)[number]
 
 function toUnit(value: string): SizeUnit | '' {
@@ -214,7 +214,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
       display_name: row.displayName.trim(),
       price_cents: Math.round(price * 100),
       item_count: count ?? undefined,
-      weight_g: row.unit === 'g' ? (size ?? undefined) : undefined,
+      weight_g: row.unit === 'g' ? (size ?? undefined) : row.unit === 'kg' && size !== null ? Math.round(size * 1000) : undefined,
       volume_ml: row.unit === 'ml' ? (size ?? undefined) : row.unit === 'L' && size !== null ? Math.round(size * 1000) : undefined,
       brand: row.brand.trim() || NO_BRAND,
       fuel_type: row.fuelType.trim() || undefined,
