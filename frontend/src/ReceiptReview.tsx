@@ -30,12 +30,14 @@ function toUnit(value: string): SizeUnit | '' {
   return SIZE_UNITS.find((unit) => unit === value) ?? ''
 }
 
-// What a per-capsule dose is given in. IU (International Units) has no fixed weight, it's specific to each
-// compound, so unlike mg and g it can't be converted into a total pack weight; picking it just disables the dose
-// box, the dose stays in the item name instead (e.g. "Vitamin D3 1000 IU").
-const DOSE_UNITS = ['mg', 'g', 'IU'] as const
+// What the amount in a single capsule, can or bottle is given in: mg or g for a capsule's dose, ml or L for a can or
+// bottle's volume. IU (International Units) has no fixed weight, it's specific to each compound, so unlike the others
+// it can't be converted into a total pack size; picking it just disables the amount box, the dose stays in the item
+// name instead (e.g. "Vitamin D3 1000 IU").
+const DOSE_UNITS = ['mg', 'g', 'ml', 'L', 'IU'] as const
 type DoseUnit = (typeof DOSE_UNITS)[number]
 const DOSE_GRAMS_PER_UNIT: Partial<Record<DoseUnit, number>> = { mg: 1 / 1000, g: 1 }
+const DOSE_ML_PER_UNIT: Partial<Record<DoseUnit, number>> = { ml: 1, L: 1000 }
 
 // One receipt item as it's being edited: every field is the text in its input box
 interface Row {
@@ -46,7 +48,7 @@ interface Row {
   displayName: string // the Item name box, saved as the display name, starts as a known item's name or the receipt name
   price: string
   count: string
-  dose: string // optional: the dose on a single capsule/tablet, a shortcut that fills in size+unit below
+  dose: string // optional: the amount in a single capsule/tablet/can/bottle, a shortcut that fills in size+unit below
   doseUnit: DoseUnit
   size: string
   unit: SizeUnit | '' // defaults to 'none' (sold as whole units, no size needed) unless the receipt or a known item
@@ -64,7 +66,8 @@ interface Row {
 }
 
 type RowFields = Pick<
-  NewItem, 'name' | 'display_name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type' | 'dose_mg'
+  NewItem,
+  'name' | 'display_name' | 'price_cents' | 'item_count' | 'weight_g' | 'volume_ml' | 'brand' | 'fuel_type' | 'dose_mg' | 'unit_volume_ml'
 >
 
 // The receipt name is always saved next to the display name. It's only empty when the reader found no text at all, then
@@ -142,15 +145,19 @@ function parsePositive(text: string): number | null {
   return text.trim() !== '' && Number.isFinite(value) && value > 0 ? value : null
 }
 
-// Count x the dose on one capsule/tablet is the pack's total weight, which is what actually gets saved (see
-// checkRow); the dose itself is never sent anywhere, it only exists to fill size+unit in for the person. IU has no
-// gram equivalent (see DOSE_GRAMS_PER_UNIT), so it never fills anything in, the dose still goes in the name instead.
+// Count x the amount in one capsule, can or bottle is the pack's total weight or volume, which is what fills size+unit
+// in for the person (see checkRow for what gets sent). IU has no gram or ml equivalent (see DOSE_GRAMS_PER_UNIT and
+// DOSE_ML_PER_UNIT), so it never fills anything in, the dose still goes in the name instead.
 function doseTotal(count: string, dose: string, doseUnit: DoseUnit): Pick<Row, 'unit' | 'size'> | Record<string, never> {
   const gramsPerUnit = DOSE_GRAMS_PER_UNIT[doseUnit]
+  const mlPerUnit = DOSE_ML_PER_UNIT[doseUnit]
   const countNumber = parsePositive(count)
   const doseNumber = parsePositive(dose)
-  if (gramsPerUnit === undefined || countNumber === null || doseNumber === null) return {}
-  return { unit: 'g', size: String(countNumber * doseNumber * gramsPerUnit) }
+  if (countNumber === null || doseNumber === null) return {}
+  if (gramsPerUnit !== undefined) return { unit: 'g', size: String(countNumber * doseNumber * gramsPerUnit) }
+  // Rounded so 12 x 0.355 L reads 4260, not 4260.000000000001
+  if (mlPerUnit !== undefined) return { unit: 'ml', size: String(Math.round(countNumber * doseNumber * mlPerUnit * 1000) / 1000) }
+  return {}
 }
 
 // How many grams a rate's own denominator is, to turn "$7.72 per kg" bought as 1150g into a total price. "100g" is
@@ -194,6 +201,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   const size = parsePositive(row.size)
   const dose = parsePositive(row.dose)
   const doseGramsPerUnit = DOSE_GRAMS_PER_UNIT[row.doseUnit]
+  const doseMlPerUnit = DOSE_ML_PER_UNIT[row.doseUnit]
   // A count only makes sense for identical units (12 cans, 1 bath tissue pack), where it's the whole size. A
   // weight or volume item (chicken strips, cheese) is already sized by weight_g/volume_ml, so it's optional there.
   const countRequired = row.unit === 'none'
@@ -221,6 +229,8 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
       // DOSE_GRAMS_PER_UNIT is grams per unit, x1000 turns that into mg per unit; IU isn't in it (no weight
       // equivalent), so it's never sent.
       dose_mg: dose === null || doseGramsPerUnit === undefined ? undefined : dose * doseGramsPerUnit * 1000,
+      // The volume of one can or bottle, in ml (an L amount x1000), the same way dose_mg is the dose of one capsule
+      unit_volume_ml: dose === null || doseMlPerUnit === undefined ? undefined : Math.round(dose * doseMlPerUnit * 1000) / 1000,
     },
   }
 }
@@ -409,11 +419,11 @@ export function ReceiptReview({ result, onDone }: Props) {
                 {!isFuelReceipt && <th className="review-fit">Count</th>}
                 {!isFuelReceipt && (
                   <th className="has-tip review-fit" tabIndex={0} aria-describedby="dose-tip">
-                    Dose per capsule
+                    Amount per unit
                     <span id="dose-tip" role="tooltip" className="tip">
-                      Optional. The dose on a single capsule or tablet. With Count, mg or g fills in Size (whole pack)
-                      for you. IU has no weight equivalent, so it doesn't fill anything in, put the dose in the item
-                      name instead (e.g. "Vitamin D3 1000 IU").
+                      Optional. The amount in a single capsule, tablet, can or bottle: mg or g for a dose, ml or L for
+                      a drink. With Count, it fills in Size (whole pack) for you. IU has no weight equivalent, so it
+                      doesn't fill anything in, put the dose in the item name instead (e.g. "Vitamin D3 1000 IU").
                     </span>
                   </th>
                 )}
@@ -526,7 +536,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                             type="number"
                             min="0"
                             step="any"
-                            aria-label={`Dose per capsule of item ${rowNumber}`}
+                            aria-label={`Amount per unit of item ${rowNumber}`}
                             value={row.dose}
                             disabled={locked || row.hasNoSize || row.doseUnit === 'IU'}
                             onChange={(event) => {
@@ -536,7 +546,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                           />
                           <select
                             className="review-input"
-                            aria-label={`Dose unit of item ${rowNumber}`}
+                            aria-label={`Amount unit of item ${rowNumber}`}
                             value={row.doseUnit}
                             disabled={locked || row.hasNoSize}
                             onChange={(event) => {

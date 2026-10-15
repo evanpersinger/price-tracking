@@ -72,13 +72,17 @@ in which case it overwrites that row (keeping one row in `items`, with the old p
 instead of inserting a new one:
 
 1. **With an `item_code`**: an exact match on `item_code` within the store. This is the reliable case.
-2. **With no code** (most stores print one; a few, like Fresco, never do): a fuzzy match on name alone
+2. **With no code** (most stores print one, the ones that don't are listed below): a fuzzy match on name alone
    (`difflib.SequenceMatcher`, `DUPLICATE_NAME_SIMILARITY = 0.9` in `server.py`), tolerant of OCR noise (a dropped
    or swapped letter) but not much more. Brand and size are deliberately **not** checked, only the name. This was a
    simplification: since the name is now always the receipt's own text (see above), two genuinely different
    products should differ in their printed name reliably enough on its own. The known accepted risk is a false
    positive: two different products at the same codeless store with a near-identical printed name would merge.
 3. A gas item (`fuel_type` set) is never matched this way, every fill-up is deliberately its own row.
+
+**Stores known to print no item code** (everything there goes through the name match in point 2): Bulk Barn, Bulk
+Barrel, Shoppers, Amazon, Fresco. Sobeys and Sunripe have had no code on any saved item so far, but that is only a few
+items each, so they aren't confirmed. Add a store here when you find one.
 
 ## Item name vs. brand text
 
@@ -142,12 +146,15 @@ used when filling these in by hand:
 ## Capsule dose (`dose_mg`)
 
 - `items.dose_mg` is the dose on a single capsule/tablet, in mg, for supplements and similar count-sold products.
-  It's optional, set by the review page's "Dose per capsule" calculator (mg or g, converted to mg; g x1000).
+  It's optional, set by the review page's "Amount per unit" calculator (mg or g, converted to mg; g x1000).
 - A dose given in **IU** (International Units: Vitamin D, A, E and others) has no weight equivalent, so it's never
   stored in `dose_mg`. It stays part of the item name instead, e.g. `Vitamin D3 1000 IU`, same as before this
   column existed.
 - Leave `dose_mg` empty for anything that isn't sold by capsule/tablet. It has no relationship to `weight_g`
   (`weight_g` is the whole pack's total, `dose_mg` is per single unit), both can be set on the same item.
+- `items.unit_volume_ml` is the same idea for drinks: the volume of a single can or bottle, in ml, set by the same
+  "Amount per unit" calculator when its unit is ml or L (L x1000). Leave it empty for anything that isn't sold as
+  cans or bottles. It's saved for the record only, no table shows it and no unit price uses it yet.
 
 ## Spelling
 

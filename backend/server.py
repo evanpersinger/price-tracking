@@ -46,6 +46,7 @@ class Item(BaseModel):
     item_code: str | None
     fuel_type: str | None  # what the fuel is on a gas receipt, as printed, empty for everything else
     dose_mg: float | None  # the dose on a single capsule/tablet, empty for anything not sold that way or dosed in IU
+    unit_volume_ml: float | None  # the volume of a single can or bottle, empty for anything not sold that way
     # What it costs per item, per gram or per ml, from its size fields or the size written in its name. Only filled in
     # by /api/stores, empty for gas and for an item with no price or no size.
     unit: Literal["each", "g", "ml"] | None = None
@@ -68,21 +69,21 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         ).fetchall()
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.display_name, i.price_cents, i.rating, i.item_count, i.weight_g, "
-            "i.volume_ml, i.purchased_on, i.brand, i.item_code, i.fuel_type, i.dose_mg FROM items i "
+            "i.volume_ml, i.purchased_on, i.brand, i.item_code, i.fuel_type, i.dose_mg, i.unit_volume_ml FROM items i "
             "JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
             (country,),
         ).fetchall()
 
     items_by_store: dict[int, list[Item]] = {}
     for (id_, store_id, name, display_name, price_cents, rating, item_count, weight_g, volume_ml, purchased_on, brand,
-         item_code, fuel_type, dose_mg) in item_rows:
+         item_code, fuel_type, dose_mg, unit_volume_ml) in item_rows:
         unit, unit_price_cents = (None, None) if fuel_type else _item_unit_price(
             name, price_cents, item_count, weight_g, volume_ml
         )
         items_by_store.setdefault(store_id, []).append(Item(
             id=id_, name=name, display_name=display_name, price_cents=price_cents, rating=rating,
             item_count=item_count, weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
-            item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg, unit=unit,
+            item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg, unit_volume_ml=unit_volume_ml, unit=unit,
             unit_price_cents=None if unit_price_cents is None else round(unit_price_cents, 4),
         ))
 
@@ -108,6 +109,7 @@ class NewItem(BaseModel):
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
     dose_mg: float | None = Field(default=None, gt=0)  # the dose on a single capsule/tablet, empty when not applicable
+    unit_volume_ml: float | None = Field(default=None, gt=0)  # the volume of a single can or bottle, empty when not applicable
 
     model_config = {"str_strip_whitespace": True}
 
@@ -154,9 +156,11 @@ def add_item(new_item: NewItem) -> AddedItem:
                 brand,
             )
         values = (new_item.name, new_item.display_name, new_item.price_cents, new_item.item_count, new_item.weight_g,
-                  new_item.volume_ml, purchased_on, brand, new_item.item_code, new_item.fuel_type, new_item.dose_mg)
+                  new_item.volume_ml, purchased_on, brand, new_item.item_code, new_item.fuel_type, new_item.dose_mg,
+                  new_item.unit_volume_ml)
         existing_columns = (
-            "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg"
+            "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg, "
+            "unit_volume_ml"
         )
         if new_item.item_code:
             # A code the store already has means the same product at a new price, so overwrite that row
@@ -189,13 +193,15 @@ def add_item(new_item: NewItem) -> AddedItem:
             item_id = existing[0]
             conn.execute(
                 "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
-                "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ? WHERE id = ?",
+                "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ?, "
+                "unit_volume_ml = ? WHERE id = ?",
                 (*values, item_id),
             )
         else:
             item_id = conn.execute(
                 "INSERT INTO items (name, display_name, price_cents, item_count, weight_g, volume_ml, purchased_on, "
-                "brand, item_code, fuel_type, dose_mg, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "brand, item_code, fuel_type, dose_mg, unit_volume_ml, store_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
         # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
@@ -208,13 +214,14 @@ def add_item(new_item: NewItem) -> AddedItem:
     if existing:
         old_fields = dict(zip(
             ("name", "display_name", "price_cents", "item_count", "weight_g", "volume_ml", "brand", "fuel_type",
-             "dose_mg"),
+             "dose_mg", "unit_volume_ml"),
             existing[1:],
         ))
         new_fields = {
             "name": new_item.name, "display_name": new_item.display_name, "price_cents": new_item.price_cents,
             "item_count": new_item.item_count, "weight_g": new_item.weight_g, "volume_ml": new_item.volume_ml,
             "brand": brand, "fuel_type": new_item.fuel_type, "dose_mg": new_item.dose_mg,
+            "unit_volume_ml": new_item.unit_volume_ml,
         }
         changes = {field: {"old": old, "new": new_fields[field]}
                    for field, old in old_fields.items() if old != new_fields[field]}
@@ -224,13 +231,14 @@ def add_item(new_item: NewItem) -> AddedItem:
         log_activity("insert", store=new_item.store, country=new_item.country, item_id=item_id,
                       name=new_item.name, display_name=new_item.display_name, price_cents=new_item.price_cents,
                       item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml, brand=brand,
-                      item_code=new_item.item_code, fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg)
+                      item_code=new_item.item_code, fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg,
+                      unit_volume_ml=new_item.unit_volume_ml)
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, display_name=new_item.display_name,
         price_cents=new_item.price_cents, rating=None, item_count=new_item.item_count, weight_g=new_item.weight_g,
         volume_ml=new_item.volume_ml, purchased_on=purchased_on, brand=brand, item_code=new_item.item_code, fuel_type=new_item.fuel_type,
-        dose_mg=new_item.dose_mg,
+        dose_mg=new_item.dose_mg, unit_volume_ml=new_item.unit_volume_ml,
     )
 
 

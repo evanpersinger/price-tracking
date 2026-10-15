@@ -57,6 +57,7 @@ _ADDED_ITEM_COLUMNS = {
     "item_code": "TEXT",  # the product code the store prints on the receipt line, empty for the imported rows
     "fuel_type": "TEXT",  # what a gas receipt's fuel is, as printed (Unleaded, 87, Diesel), empty for everything else
     "dose_mg": "REAL",  # the dose on a single capsule/tablet, empty for anything not sold that way or dosed in IU
+    "unit_volume_ml": "REAL",  # the volume of a single can or bottle, empty for anything not sold that way
     # What the person called the item when adding it from a receipt, shown instead of name, which is then the
     # receipt's printed text. Every receipt item has both, the imported rows have only a name.
     "display_name": "TEXT",

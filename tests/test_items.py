@@ -205,6 +205,14 @@ def test_a_dose_is_saved_and_listed(client: TestClient, add_item: Callable[..., 
     assert (dosed["dose_mg"], undosed["dose_mg"]) == (500, None)
 
 
+def test_a_volume_per_can_is_saved_and_listed(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Sprite", item_count=12, unit_volume_ml=355)
+    add_item(name="Salt")
+
+    canned, other = stores_in(client)[0]["items"]
+    assert (canned["unit_volume_ml"], other["unit_volume_ml"]) == (355, None)
+
+
 def test_a_purchase_with_a_date_is_saved_and_recorded_in_the_history(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
