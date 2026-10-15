@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findClosestBrand, isOldSpice } from './brands.ts'
+import { findBrandInName, findClosestBrand, isOldSpice } from './brands.ts'
 
 describe('findClosestBrand', () => {
   it('matches a brand typed exactly', () => {
@@ -23,6 +23,21 @@ describe('findClosestBrand', () => {
   it('returns null for a blank brand', () => {
     expect(findClosestBrand('')).toBeNull()
     expect(findClosestBrand('   ')).toBeNull()
+  })
+})
+
+describe('findBrandInName', () => {
+  it('finds the brand a store spells out in an item name, ignoring case and the item code', () => {
+    expect(findBrandInName('Walmart', 'CHIPITS S DK')).toBe('Chipits')
+    expect(findBrandInName('Walmart Supercentre', '0001234 chipits s dk')).toBe('Chipits')
+  })
+
+  it('does nothing at a store that has no entry for it', () => {
+    expect(findBrandInName('Costco', 'CHIPITS S DK')).toBeNull()
+  })
+
+  it('only matches a whole word, not letters inside a longer one', () => {
+    expect(findBrandInName('Walmart', 'CHIPITSY COOKIES')).toBeNull()
   })
 })
 

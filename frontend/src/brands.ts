@@ -19,6 +19,7 @@ export const BRANDS: string[] = [
   'Dare',
   'Dempsters',
   'Dunya Harvest',
+  'Fairlife',
   'Fibre 1',
   'Frito-Lay',
   'Great Value',
@@ -67,6 +68,28 @@ export const BRANDS: string[] = [
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+// Brands a store spells out in its item names: the printed word in capitals, and the brand it stands for. Grouped by
+// store like KNOWN_ITEMS in knownItems.ts, a group applies when the receipt's store name contains the group's name,
+// ignoring case. Per store on purpose, a word that is a brand at one store can be something else at another.
+// Hand-maintained, add a line whenever one comes up.
+export const STORE_BRAND_WORDS: Record<string, Record<string, string>> = {
+  Costco: { FAIRLIFE: 'Fairlife' },
+  Walmart: { CHIPITS: 'Chipits' },
+}
+
+// The brand a store's printed name spells out as a whole word ("CHIPITS S DK" at Walmart is Chipits), or null. Only a
+// word on its own counts, not letters inside a longer one.
+export function findBrandInName(store: string, printedName: string): string | null {
+  const storeName = store.toLowerCase()
+  const words = Object.entries(STORE_BRAND_WORDS).find(([name]) => storeName.includes(name.toLowerCase()))?.[1]
+  if (!words) return null
+  for (const word of splitItemCode(printedName).name.toUpperCase().split(/[^A-Z0-9]+/)) {
+    const brand = words[word]
+    if (brand !== undefined) return brand
+  }
+  return null
 }
 
 // A printed name that says "Old Spice" is naming its own brand, so a specific known item isn't needed for the brand
