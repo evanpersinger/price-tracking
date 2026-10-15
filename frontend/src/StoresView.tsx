@@ -4,6 +4,7 @@ import { ByWeightTable } from './ByWeightTable.tsx'
 import { isPricedByWeight, itemParts } from './format.ts'
 import { isFuelItem } from './fuel.ts'
 import { Loaded } from './Loaded.tsx'
+import { StoreButton } from './StoreButton.tsx'
 import { StoreTable } from './StoreTable.tsx'
 import type { Country, Store } from './types.ts'
 import { useLoad } from './useLoad.ts'
@@ -46,15 +47,12 @@ export function StoresView({ country }: StoresViewProps) {
           <>
             <div className="store-jump">
               {withItems.map((store, index) => (
-                <button
+                <StoreButton
                   key={store.id}
-                  type="button"
-                  className="nav-link"
-                  aria-current={index === activeIndexInRange ? 'true' : undefined}
+                  name={store.name}
+                  selected={index === activeIndexInRange}
                   onClick={() => setActiveIndex(index)}
-                >
-                  {store.name}
-                </button>
+                />
               ))}
             </div>
             <div className="store-viewport">

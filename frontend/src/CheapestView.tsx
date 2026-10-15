@@ -5,6 +5,7 @@ import { CheapestTable } from './CheapestTable.tsx'
 import { itemParts } from './format.ts'
 import { Loaded } from './Loaded.tsx'
 import { SearchResults } from './SearchResults.tsx'
+import { StoreButton } from './StoreButton.tsx'
 import type { CheapestStore, Country } from './types.ts'
 import { useLoad } from './useLoad.ts'
 
@@ -38,18 +39,15 @@ export function CheapestView({ country }: CheapestViewProps) {
           <>
             <div className="store-jump">
               {withItems.map((store, index) => (
-                <button
+                <StoreButton
                   key={store.id}
-                  type="button"
-                  className="nav-link"
-                  aria-current={!isSearching && index === activeIndexInRange ? 'true' : undefined}
+                  name={store.name}
+                  selected={!isSearching && index === activeIndexInRange}
                   onClick={() => {
                     setActiveIndex(index)
                     setQuery('')
                   }}
-                >
-                  {store.name}
-                </button>
+                />
               ))}
             </div>
             <div className="store-viewport">

@@ -55,9 +55,10 @@ Imported items have no receipt name (the name was typed in by hand), so their `d
 showing their `name`. They're exempt from this rule for now.
 
 Status: the column, the API, the review page (the Item name box saves `display_name`, the printed text saves `name`)
-and showing it on every screen are done. Items saved before the column existed have no display name yet, they show
-their `name` until they're given one. Search and Cheapest matching on the server still look at `name`, not
-`display_name`.
+and showing it on every screen are done. The receipt items saved before the column existed were given display names
+by hand on 2026-10-14, so every item with an `item_code` has one now (backup
+`backend/data/prices.backup-2026-10-14-before-display-names.db`). Only imported items still have none, they show their
+`name`. Search and Cheapest matching on the server still look at `name`, not `display_name`.
 
 ## Duplicate detection (not adding the same item twice)
 

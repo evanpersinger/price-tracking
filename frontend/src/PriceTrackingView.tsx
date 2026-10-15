@@ -5,6 +5,7 @@ import { formatLitres, formatPerLitre } from './fuel.ts'
 import { ItemName } from './ItemName.tsx'
 import { Loaded } from './Loaded.tsx'
 import { PriceDots } from './PriceDots.tsx'
+import { StoreButton } from './StoreButton.tsx'
 import type { Country, HistoryEntry } from './types.ts'
 import { useLoad } from './useLoad.ts'
 
@@ -183,18 +184,15 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
           <>
             <div className="store-jump">
               {stores.map((tracked, index) => (
-                <button
+                <StoreButton
                   key={tracked.id}
-                  type="button"
-                  className="nav-link"
-                  aria-current={index === activeIndexInRange ? 'true' : undefined}
+                  name={tracked.name}
+                  selected={index === activeIndexInRange}
                   onClick={() => {
                     setActiveIndex(index)
                     setQuery('')
                   }}
-                >
-                  {tracked.name}
-                </button>
+                />
               ))}
             </div>
             <div className="store-viewport">

@@ -9,7 +9,7 @@ function plain(text: string): string {
 // separate words ("FRESH CO") about as often as run together ("FreshCo"), and that split shouldn't stop it
 // matching the one saved name; unlike plain(), this never substring-matches, so "Metro" still won't match inside
 // "Metropolitan Market".
-function squashed(text: string): string {
+export function squashed(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
