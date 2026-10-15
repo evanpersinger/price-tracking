@@ -36,6 +36,11 @@ describe('findBrandInName', () => {
     expect(findBrandInName('Costco', 'CHIPITS S DK')).toBeNull()
   })
 
+  it('finds a brand that is the same at every store, with or without a group of its own', () => {
+    expect(findBrandInName('Sobeys', 'DORITOS NACHO CHEESE')).toBe('Doritos')
+    expect(findBrandInName('Walmart', 'DORITOS NACHO CHEESE')).toBe('Doritos')
+  })
+
   it('only matches a whole word, not letters inside a longer one', () => {
     expect(findBrandInName('Walmart', 'CHIPITSY COOKIES')).toBeNull()
   })

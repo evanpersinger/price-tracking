@@ -18,6 +18,7 @@ export const BRANDS: string[] = [
   'Cracker Barrel',
   'Dare',
   'Dempsters',
+  'Doritos',
   'Dunya Harvest',
   'Fairlife',
   'Fibre 1',
@@ -48,11 +49,13 @@ export const BRANDS: string[] = [
   'Orange Naturals',
   'PepsiCo',
   'Phyzik',
+  'Pirouline',
   'Premier Protein',
   'Pringles',
   'Quaker',
   'Quest',
   'Scotties',
+  'Sprite',
   'Steeves Maples',
   'Sunrise Farms',
   'SunRype',
@@ -70,21 +73,32 @@ function normalize(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-// Brands a store spells out in its item names: the printed word in capitals, and the brand it stands for. Grouped by
-// store like KNOWN_ITEMS in knownItems.ts, a group applies when the receipt's store name contains the group's name,
-// ignoring case. Per store on purpose, a word that is a brand at one store can be something else at another.
-// Hand-maintained, add a line whenever one comes up.
-export const STORE_BRAND_WORDS: Record<string, Record<string, string>> = {
-  Costco: { FAIRLIFE: 'Fairlife' },
+// Brands spelled out in item names: the printed word in capitals, and the brand it stands for. Two hand-maintained
+// sections, add a line whenever one comes up.
+
+// ALL STORES: applied to every store, for a name nothing else could be mistaken for (the same reasoning as
+// isOldSpice). Keep it to unmistakable brands, a word that could be a plain description ("Natural") belongs in a
+// specific store's section instead.
+export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
+  DORITOS: 'Doritos',
+  FAIRLIFE: 'Fairlife',
+  SPRITE: 'Sprite',
+}
+
+// SPECIFIC STORES: only applied at that store, a word that is a brand at one store can be something else at another.
+// Grouped by store like KNOWN_ITEMS in knownItems.ts, a group applies when the receipt's store name contains the
+// group's name, ignoring case. If a group has the same word as the all stores section, the group wins.
+export const SPECIFIC_STORES_BRAND_WORDS: Record<string, Record<string, string>> = {
+  Costco: { PIROULINE: 'Pirouline' },
   Walmart: { CHIPITS: 'Chipits' },
 }
 
-// The brand a store's printed name spells out as a whole word ("CHIPITS S DK" at Walmart is Chipits), or null. Only a
-// word on its own counts, not letters inside a longer one.
+// The brand a printed name spells out as a whole word ("CHIPITS S DK" at Walmart is Chipits), or null. Only a word on
+// its own counts, not letters inside a longer one.
 export function findBrandInName(store: string, printedName: string): string | null {
   const storeName = store.toLowerCase()
-  const words = Object.entries(STORE_BRAND_WORDS).find(([name]) => storeName.includes(name.toLowerCase()))?.[1]
-  if (!words) return null
+  const storeWords = Object.entries(SPECIFIC_STORES_BRAND_WORDS).find(([name]) => storeName.includes(name.toLowerCase()))?.[1]
+  const words = { ...ALL_STORES_BRAND_WORDS, ...storeWords }
   for (const word of splitItemCode(printedName).name.toUpperCase().split(/[^A-Z0-9]+/)) {
     const brand = words[word]
     if (brand !== undefined) return brand

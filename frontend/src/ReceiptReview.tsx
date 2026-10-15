@@ -10,7 +10,6 @@ import { findKnownItem, isKirklandSignature } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
 import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
 import { useLoad } from './useLoad.ts'
-import { formatPrice } from './format.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -59,7 +58,6 @@ interface Row {
   rate: string // the price per rateUnit, prefilled from the receipt's weight line, editable like any other field
   rateUnit: string // "kg", "lb", "100g", ... exactly as the receipt's quantity line denominates it
   known: boolean // matched an entry in knownItems.ts, which wins over a saved item
-  saved: Item | null // the item already in this store with the same code, saving overwrites it
   include: boolean
   status: RowStatus
   error: string | null
@@ -115,7 +113,6 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     rate: ratePerUnit ? String(ratePerUnit.amount) : '',
     rateUnit: ratePerUnit?.unit ?? '',
     known: known !== undefined,
-    saved: null,
     include: true,
     status: 'idle',
     error: null,
@@ -132,7 +129,6 @@ function fillFromSaved(row: Row, storeItems: Item[]): Row {
   const size = saved.weight_g ?? saved.volume_ml
   return {
     ...row,
-    saved,
     displayName: saved.display_name ?? saved.name,
     brand: saved.brand ?? '',
     count: saved.item_count === null ? '' : String(saved.item_count),
@@ -491,12 +487,6 @@ export function ReceiptReview({ result, onDone }: Props) {
                       />
                       {!isFuelReceipt && (
                         <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
-                      )}
-                      {row.saved && country !== null && (
-                        <div className="raw-name">
-                          Matched saved item, overwrites its price of{' '}
-                          {row.saved.price_cents === null ? 'nothing' : formatPrice(row.saved.price_cents, country)}
-                        </div>
                       )}
                     </td>
                     <td>
