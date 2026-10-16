@@ -12,11 +12,11 @@ import threading
 import time
 from contextlib import closing
 from datetime import date
-from typing import Literal, NamedTuple
+from typing import Annotated, Literal, NamedTuple
 
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect, log_activity
@@ -243,7 +243,7 @@ def add_item(new_item: NewItem) -> AddedItem:
 
 
 @app.delete("/api/items/{item_id}", status_code=204)
-def delete_item(item_id: int) -> None:
+def delete_item(item_id: Annotated[int, Path(le=9223372036854775807)]) -> None:
     """Delete an item and its price history, e.g. one added by mistake."""
     with closing(connect()) as conn, conn:
         item = conn.execute(
