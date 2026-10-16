@@ -38,4 +38,13 @@ describe('splitItemCode', () => {
     expect(splitItemCode('6262016 KS WATER 6/2000ML')).toEqual({ code: '6262016', name: 'KS WATER 6/2000ML' })
     expect(splitItemCode('WATER 2000ML 190104059728').code).toBe('190104059728')
   })
+
+  it('takes a lettered code after an Item No. label (Healthy Planet)', () => {
+    expect(splitItemCode('Item No.: FRU026\nPears Bartlett Green')).toEqual({ code: 'FRU026', name: 'Pears Bartlett Green' })
+    expect(splitItemCode('Item No.: A0087814\nIsoPure Zero Carb')).toEqual({ code: 'A0087814', name: 'IsoPure Zero Carb' })
+  })
+
+  it('does not mistake a longer word starting with "Item No" for the label', () => {
+    expect(splitItemCode('Item Notes: 5')).toEqual({ code: undefined, name: 'Item Notes: 5' })
+  })
 })

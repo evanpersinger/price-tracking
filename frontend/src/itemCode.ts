@@ -6,6 +6,11 @@
 // not a code either, so a run of digits followed by a unit is skipped.
 const CODE = /\d{4,}(?!\d)(?!\s*(?:ml|l|g|kg|lbs?|oz)\b)/i
 
+// Healthy Planet labels its code on a line above the name ("Item No.: FRU026"), and its codes mix in letters
+// ("A0087814"), so the digit run above would miss the first and cut the letter off the second. Checked first, since
+// the label says outright that what follows is the code.
+const LABELLED_CODE = /Item No\b\.?:?\s*(\S+)/i
+
 export interface PrintedItem {
   code: string | undefined
   name: string // the line without the code, and without the asterisks the model sometimes wraps names in
@@ -13,7 +18,7 @@ export interface PrintedItem {
 
 export function splitItemCode(printedName: string): PrintedItem {
   const text = printedName.replace(/\*/g, '')
-  const match = CODE.exec(text)
+  const match = LABELLED_CODE.exec(text) ?? CODE.exec(text)
   const withoutCode = match ? `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}` : text
-  return { code: match?.[0], name: withoutCode.replace(/\s+/g, ' ').trim() }
+  return { code: match?.[1] ?? match?.[0], name: withoutCode.replace(/\s+/g, ' ').trim() }
 }
