@@ -314,3 +314,19 @@ def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(
     add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=30000)
 
     assert len(stores_in(client)[0]["items"]) == 2
+
+
+@pytest.mark.parametrize("field", ["weight_g", "volume_ml"])
+def test_a_tiny_size_is_rejected(client: TestClient, field: str) -> None:
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Tiny", "display_name": "Tiny", "price_cents": 100, field: 1e-320,
+    })
+
+    assert response.status_code == 422
+
+
+def test_a_small_real_size_still_has_a_finite_unit_price(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(name="Saffron", weight_g=0.5, item_count=None)
+
+    [store] = client.get("/api/cheapest", params={"country": "CA"}).json()
+    assert store["items"][0]["unit_price_cents"] == 2000

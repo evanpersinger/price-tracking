@@ -93,6 +93,9 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
     ]
 
 
+MIN_SIZE = 0.001  # the smallest weight_g or volume_ml an item can have, far below any real pack
+
+
 class NewItem(BaseModel):
     country: Literal["CA", "US"]
     store: str = Field(min_length=1, max_length=100)  # an existing store's name, or a new one to create
@@ -123,6 +126,15 @@ class NewItem(BaseModel):
                 'an item needs a size (item_count, weight_g or volume_ml), or a typed unit price like '
                 '"($7.72 per kg)" in the name for a by-weight item with no fixed size'
             )
+        return self
+
+    @model_validator(mode="after")
+    def _sizes_are_not_tiny(self) -> "NewItem":
+        # A size this small makes the price per gram or ml overflow to infinity, which the API returns as null
+        for field in ("weight_g", "volume_ml"):
+            size = getattr(self, field)
+            if size is not None and size < MIN_SIZE:
+                raise ValueError(f"{field} must be at least {MIN_SIZE}")
         return self
 
 
