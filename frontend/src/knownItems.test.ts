@@ -23,6 +23,10 @@ describe('findKnownItem', () => {
     expect(findKnownItem('Costco', 'COOKI')?.name).toBe('Cookies')
   })
 
+  it('does not take a cooking item for cookies', () => {
+    expect(findKnownItem('Costco', '1234567 KS COOKING OIL')).toBeUndefined()
+  })
+
   it('uses a store group when the receipt name only contains it', () => {
     expect(findKnownItem('Costco Wholesale - North London', 'KS BATH')?.name).toBe('Bath Tissue')
   })
