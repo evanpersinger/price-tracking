@@ -1064,6 +1064,17 @@ select.review-input {
   font-weight: 600;
 }
 
+.row-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row-error {
+  margin: 0;
+  color: var(--warning);
+}
+
 .review-actions {
   display: flex;
   flex-wrap: wrap;

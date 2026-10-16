@@ -238,7 +238,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
 function rowStatus(row: Row, problems: string[]): { text: string; className: string } {
   if (row.status === 'added') return { text: 'Added', className: 'row-status row-status-good' }
   if (row.status === 'saving') return { text: 'Saving...', className: 'row-status' }
-  if (row.status === 'failed') return { text: row.error ?? 'Failed', className: 'row-status row-status-bad' }
+  if (row.status === 'failed') return { text: 'Failed', className: 'row-status row-status-bad' }
   if (!row.include) return { text: 'Skipped', className: 'row-status' }
   if (problems.length > 0) return { text: `Needs ${problems.join(', ')}`, className: 'row-status row-status-warn' }
   return { text: 'Ready', className: 'row-status row-status-good' }
@@ -291,6 +291,7 @@ export function ReceiptReview({ result, onDone }: Props) {
   // the data pages' StoreTable/ByWeightTable split, so they don't show Count/Size/Dose columns that don't apply.
   const regularRows = rows.filter((row) => !row.isByWeight)
   const weighedRows = rows.filter((row) => row.isByWeight)
+  const failedRows = [...regularRows, ...weighedRows].filter((row) => row.status === 'failed' && row.error)
 
   const readyRows = rows.filter((row) => row.include && row.status !== 'added' && checkRow(row).fields !== null)
   const countLabel = `${readyRows.length} ${readyRows.length === 1 ? 'item' : 'items'}`
@@ -735,6 +736,18 @@ export function ReceiptReview({ result, onDone }: Props) {
               </table>
             </div>
           </>
+        )}
+        {failedRows.length > 0 && (
+          <div className="row-errors">
+            {failedRows.map((row) => {
+              const name = row.displayName.trim() || row.receiptName
+              return (
+                <p key={row.id} className="row-error">
+                  {row.code ? `Item code ${row.code} (${name})` : name}: {row.error}
+                </p>
+              )
+            })}
+          </div>
         )}
         </>
       )}
