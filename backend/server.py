@@ -100,7 +100,7 @@ class NewItem(BaseModel):
     # What the person calls it, always given: every display name is saved paired with the receipt name it came from
     display_name: str = Field(min_length=1, max_length=200)
     price_cents: int = Field(gt=0)
-    item_count: int | None = Field(default=None, gt=0)  # how many items are in the pack, e.g. 24 buns
+    item_count: int | None = Field(default=None, gt=0, le=1_000_000)  # how many items are in the pack, e.g. 24 buns
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
     purchased_on: date | None = None  # from the receipt, left out when it couldn't be read, then no history is recorded
