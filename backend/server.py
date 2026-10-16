@@ -199,6 +199,7 @@ def add_item(new_item: NewItem) -> AddedItem:
                 None,
             )
         if existing:
+            _reject_a_size_typo(existing, new_item)
             item_id = existing[0]
             conn.execute(
                 "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
@@ -322,6 +323,8 @@ SIMILARITY = 0.85  # how alike two names' words must be to count as the same ite
 # match (see add_item), so this only needs to tolerate OCR noise, not genuinely different wording.
 DUPLICATE_NAME_SIMILARITY = 0.9
 SIZE_TOLERANCE = 0.02  # 1lb (453.6g) and 454g are the same amount
+MAX_UNIT_PRICE_SWING = 5  # a new size can make a saved item this many times dearer or cheaper per unit, more is a typo
+SWING_KINDS = ("weight", "volume", "count")  # in the order they are compared, finest first
 WEIGHT_G = {"g": 1, "kg": 1000, "lb": 453.592, "lbs": 453.592, "oz": 28.3495}
 VOLUME_ML = {"ml": 1, "l": 1000, "lt": 1000}
 FLUID_OZ_ML = 29.5735
@@ -462,6 +465,31 @@ def _item_unit_price(
     if price_cents is None or not amounts:
         return None, None
     return _unit_price(price_cents, amounts)
+
+
+def _reject_a_size_typo(saved: tuple, new_item: NewItem) -> None:
+    """Reject a new size that swings a saved item's price per unit by more than MAX_UNIT_PRICE_SWING either way.
+
+    The price comes off the receipt, so a swing means the typed size or unit is wrong (500 kg for 500 g). Compared in
+    the first of weight, volume and count that both have, so a different pack size at a matching price passes.
+    """
+    _, saved_name, _, saved_price, saved_count, saved_weight, saved_volume = saved[:7]
+    saved_amounts = _effective_amounts(saved_count, saved_weight, saved_volume, _split_name(saved_name)[1])
+    new_amounts = _effective_amounts(
+        new_item.item_count, new_item.weight_g, new_item.volume_ml, _split_name(new_item.name)[1]
+    )
+    kind = next((kind for kind in SWING_KINDS if kind in saved_amounts and kind in new_amounts), None)
+    if kind is None or not saved_price:
+        return
+
+    swing = (new_item.price_cents / new_amounts[kind]) / (saved_price / saved_amounts[kind])
+    if swing > MAX_UNIT_PRICE_SWING or swing < 1 / MAX_UNIT_PRICE_SWING:
+        # The count is the only number typed when two items are compared per item, size and amount per unit make up
+        # the weight or volume
+        detail = "Check your count, it looks off." if kind == "count" else (
+            "Check your count, size and amount per unit, they look off."
+        )
+        raise HTTPException(status_code=422, detail=detail)
 
 
 def _pick_winners(group: list[Offer]) -> list[Winner]:

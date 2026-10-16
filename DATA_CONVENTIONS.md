@@ -84,6 +84,15 @@ instead of inserting a new one:
 Barrel, Shoppers, Amazon, Fresco. Sobeys and Sunripe have had no code on any saved item so far, but that is only a few
 items each, so they aren't confirmed. Add a store here when you find one.
 
+### Size typo check
+
+When `POST /api/items` finds a repeat to overwrite, it compares the price per unit (per gram, else per ml, else per
+item, whichever both have) against the saved row. The price comes off the receipt, so a price per unit that is more
+than `MAX_UNIT_PRICE_SWING = 5` times higher or lower means the typed size or unit is wrong (500 kg for 500 g), and
+the item is rejected with a 422 instead of overwriting. A different pack size at a matching price passes. It doesn't
+cover a first purchase (nothing saved to compare to), dose, brand or names, or other stores. If the saved size is the
+wrong one, a correct entry gets blocked until the saved row is fixed or deleted.
+
 ## Item name vs. brand text
 
 The Item column shows a name exactly as saved, nothing is hidden or cut from it. The

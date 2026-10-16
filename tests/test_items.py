@@ -316,6 +316,33 @@ def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(
     assert len(stores_in(client)[0]["items"]) == 2
 
 
+@pytest.mark.parametrize("weight_g", [500_000, 0.5])
+def test_a_size_that_swings_the_price_per_unit_either_way_is_rejected(
+    client: TestClient, add_item: Callable[..., dict], weight_g: float
+) -> None:
+    add_item(item_code="123456", price_cents=1000, weight_g=500, item_count=None)
+
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
+        "weight_g": weight_g, "item_code": "123456",
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Check your count, size and amount per unit, they look off."
+    [item] = stores_in(client)[0]["items"]
+    assert item["weight_g"] == 500
+
+
+def test_a_different_pack_size_at_a_matching_price_is_accepted(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="123456", price_cents=1000, weight_g=500, item_count=None)
+    add_item(item_code="123456", price_cents=4000, weight_g=2000, item_count=None)
+
+    [item] = stores_in(client)[0]["items"]
+    assert (item["weight_g"], item["price_cents"]) == (2000, 4000)
+
+
 def test_a_zero_size_in_the_name_does_not_break_the_item_lists(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
