@@ -369,7 +369,8 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
     for match in matches:
         found = _to_amount(float(match.group(1)), match.group(2), has_volume)
         if found:
-            amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
+            if found[1] > 0:  # a zero size like (0g) is dropped, it would divide the price by zero
+                amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
             text = text.replace(match.group(0), " ", 1)
     return " ".join(text.split()), amounts
 
