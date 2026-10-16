@@ -2,8 +2,9 @@
 // ("6262016 KS BATH"), Dollarama puts a barcode after it ("CHOCOLATE 190104059728"). Costco's own codes vary in
 // length (Kirkland Baking Soda is only 4 digits), so a run of 4 or more digits is taken as the code. The price is
 // never part of this text (it's a separate field), so the only real risk is a short number that's actually part of
-// the name (like "7UP" or "2% Milk"), which stays under 4 digits.
-const CODE = /\d{4,}/
+// the name (like "7UP" or "2% Milk"), which stays under 4 digits. A size written with a unit ("1750ML", "2000 G") is
+// not a code either, so a run of digits followed by a unit is skipped.
+const CODE = /\d{4,}(?!\d)(?!\s*(?:ml|l|g|kg|lbs?|oz)\b)/i
 
 export interface PrintedItem {
   code: string | undefined
