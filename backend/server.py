@@ -102,7 +102,7 @@ class NewItem(BaseModel):
     name: str = Field(min_length=1, max_length=200)  # the receipt's printed text
     # What the person calls it, always given: every display name is saved paired with the receipt name it came from
     display_name: str = Field(min_length=1, max_length=200)
-    price_cents: int = Field(gt=0)
+    price_cents: int = Field(gt=0, le=100_000_000)
     item_count: int | None = Field(default=None, gt=0)  # how many items are in the pack, e.g. 24 buns
     weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
     volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
@@ -381,7 +381,8 @@ def _split_name(name: str) -> tuple[str, dict[str, float]]:
     for match in matches:
         found = _to_amount(float(match.group(1)), match.group(2), has_volume)
         if found:
-            amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
+            if found[1] > 0:  # a zero size like (0g) is dropped, it would divide the price by zero
+                amounts.setdefault(*found)  # an amount written twice, like (454g) (1lb), keeps the first
             text = text.replace(match.group(0), " ", 1)
     return " ".join(text.split()), amounts
 
@@ -532,6 +533,8 @@ def _cents_per_kg(name: str) -> float | None:
     if unit not in WEIGHT_G:
         return None
     grams = float(quantity or 1) * WEIGHT_G[unit]
+    if grams == 0:
+        return None
     return float(dollars) * 100 / grams * 1000
 
 

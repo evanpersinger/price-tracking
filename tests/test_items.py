@@ -330,3 +330,21 @@ def test_a_small_real_size_still_has_a_finite_unit_price(client: TestClient, add
 
     [store] = client.get("/api/cheapest", params={"country": "CA"}).json()
     assert store["items"][0]["unit_price_cents"] == 2000
+
+
+def test_a_zero_size_in_the_name_does_not_break_the_item_lists(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="Milk (0g) ($1.00 per kg)", display_name="Milk", price_cents=100, item_count=None)
+
+    for path in ("/api/stores", "/api/cheapest", "/api/search"):
+        response = client.get(path, params={"country": "CA", "q": "milk"})
+        assert response.status_code == 200, path
+
+
+def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: TestClient) -> None:
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Milk (0g)", "display_name": "Milk", "price_cents": 100,
+    })
+
+    assert response.status_code == 422
