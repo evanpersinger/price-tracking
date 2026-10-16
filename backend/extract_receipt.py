@@ -274,15 +274,19 @@ def _prompt_for_local_model() -> str:
 def _extract_json(text: str) -> dict:
     """Pull the JSON object out of the reply, in case the model wraps it in a code fence.
 
-    Raises ValueError if there's no valid JSON, so the API can turn it into an error response.
+    Raises ValueError if there's no valid JSON or its items aren't a list of objects, so the API can turn it into an error response.
     """
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"No JSON in the model's reply:\n{text}")
     try:
-        return json.loads(text[start:end + 1])
+        receipt = json.loads(text[start:end + 1])
     except json.JSONDecodeError as e:
         raise ValueError(f"Model returned invalid JSON ({e}):\n{text}") from e
+    items = receipt.get("items")
+    if items is not None and not (isinstance(items, list) and all(isinstance(item, dict) for item in items)):
+        raise ValueError(f"Model's items weren't a list of objects:\n{text}")
+    return receipt
 
 
 # Words that mark a line as a deal or a discount and not a bought item

@@ -4,6 +4,7 @@ import pytest
 import requests
 from fastapi.testclient import TestClient
 
+import extract_receipt
 import server
 
 PNG = {"content-type": "image/png"}
@@ -50,3 +51,20 @@ def test_a_second_receipt_while_one_is_being_read_is_a_409(client: TestClient) -
         server.receipt_lock.release()
 
     assert response.status_code == 409
+
+
+@pytest.mark.parametrize("reply", ['{"items": [null]}', '{"items": "none"}', '{"items": {"a": 1}}'])
+def test_a_model_reply_with_items_that_are_not_a_list_of_objects_is_a_502(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, reply: str
+) -> None:
+    monkeypatch.setattr(extract_receipt, "_image_ollama", lambda *_: reply)
+
+    assert client.post("/api/receipt", content=b"image", headers=PNG).status_code == 502
+
+
+def test_a_model_reply_without_items_is_still_read(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(extract_receipt, "_image_ollama", lambda *_: '{"store": "Costco"}')
+
+    response = client.post("/api/receipt", content=b"image", headers=PNG)
+
+    assert (response.status_code, response.json()["store"]) == (200, "Costco")
