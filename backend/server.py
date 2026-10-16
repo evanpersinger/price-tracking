@@ -17,6 +17,8 @@ from typing import Annotated, Literal, NamedTuple
 import requests
 import uvicorn
 from fastapi import FastAPI, HTTPException, Path, Query, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect, log_activity
@@ -30,6 +32,13 @@ logger = logging.getLogger("uvicorn.error")
 receipt_lock = threading.Lock()  # one receipt at a time, the local model is heavy
 
 app = FastAPI()
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    # the default body echoes the rejected input, which can't be sent back as JSON when it is infinity
+    errors = [{"type": e["type"], "loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 class Item(BaseModel):
@@ -101,15 +110,15 @@ class NewItem(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
     price_cents: int = Field(gt=0, le=100_000_000)
     item_count: int | None = Field(default=None, gt=0, le=1_000_000)  # how many items are in the pack, e.g. 24 buns
-    weight_g: float | None = Field(default=None, gt=0)  # total weight of the pack
-    volume_ml: float | None = Field(default=None, gt=0)  # total volume of the pack
+    weight_g: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # total weight of the pack
+    volume_ml: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # total volume of the pack
     purchased_on: date | None = None  # from the receipt, left out when it couldn't be read, then no history is recorded
     # (no history either without an item_code, except for gas)
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
-    dose_mg: float | None = Field(default=None, gt=0)  # the dose on a single capsule/tablet, empty when not applicable
-    unit_volume_ml: float | None = Field(default=None, gt=0)  # the volume of a single can or bottle, empty when not applicable
+    dose_mg: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # the dose on a single capsule/tablet, empty when not applicable
+    unit_volume_ml: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # the volume of a single can or bottle, empty when not applicable
 
     model_config = {"str_strip_whitespace": True}
 
