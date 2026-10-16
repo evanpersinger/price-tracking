@@ -27,10 +27,10 @@ def _cell(row: list[str], i: int) -> str:
 
 
 def _parse_price_cents(text: str) -> int | None:
-    """'$4.00' becomes 400, and blank or a bare '$' becomes None."""
+    """'$4.00' becomes 400, and blank, a bare '$' or text like 'NaN' or 'Infinity' becomes None."""
     try:
         return round(Decimal(text.replace("$", "").replace(",", "").strip()) * 100)
-    except InvalidOperation:
+    except (InvalidOperation, ValueError, OverflowError):
         return None
 
 
