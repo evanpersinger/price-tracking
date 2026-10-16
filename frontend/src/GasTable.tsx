@@ -31,7 +31,7 @@ export function GasTable({ store, country }: GasTableProps) {
           type="search"
           className="store-search"
           aria-label={`Search ${store.name} fill-ups by fuel type or date`}
-          placeholder="Search a fuel type or date"
+          placeholder="Search for a fuel type"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
