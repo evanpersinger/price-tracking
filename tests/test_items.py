@@ -314,3 +314,21 @@ def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(
     add_item(name="Gas", fuel_type="Unleaded", item_count=1, volume_ml=30000)
 
     assert len(stores_in(client)[0]["items"]) == 2
+
+
+def test_a_zero_size_in_the_name_does_not_break_the_item_lists(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="Milk (0g) ($1.00 per kg)", display_name="Milk", price_cents=100, item_count=None)
+
+    for path in ("/api/stores", "/api/cheapest", "/api/search"):
+        response = client.get(path, params={"country": "CA", "q": "milk"})
+        assert response.status_code == 200, path
+
+
+def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: TestClient) -> None:
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Milk (0g)", "display_name": "Milk", "price_cents": 100,
+    })
+
+    assert response.status_code == 422

@@ -7,6 +7,7 @@ export interface KnownItem {
   itemNumber?: string // the product code the store prints on the line, the most reliable way to match
   printedAs: string // how the name prints on the receipt, without the item number
   matches?: 'contains' // any line with printedAs in it, left out means the whole name has to match
+  except?: string // a 'contains' rule is skipped when the line also has this, like COOKING for the COOKI rule
   name: string
   brand?: string
   count: number
@@ -29,9 +30,9 @@ export const KNOWN_ITEMS: Record<string, KnownItem[]> = {
       size: 1200, // 1.2 kg
     },
     // Checked before the generic COOKI rule below, since "GINGER COOKI" also contains "COOKI"
-    { printedAs: 'GINGER COOKI', matches: 'contains', name: 'Ginger Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
+    { printedAs: 'GINGER COOKI', matches: 'contains', except: 'COOKING', name: 'Ginger Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
     // Every Costco cookie box has 24, Kirkland brand
-    { printedAs: 'COOKI', matches: 'contains', name: 'Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
+    { printedAs: 'COOKI', matches: 'contains', except: 'COOKING', name: 'Cookies', brand: 'Kirkland', count: 24, unit: 'none' },
   ],
 }
 
@@ -52,7 +53,12 @@ export function findKnownItem(store: string, printedName: string): KnownItem | u
   return (
     (code === undefined ? undefined : items.find((item) => item.itemNumber === code)) ??
     items.find((item) => item.matches !== 'contains' && normalize(item.printedAs) === printed) ??
-    items.find((item) => item.matches === 'contains' && printed.includes(normalize(item.printedAs)))
+    items.find(
+      (item) =>
+        item.matches === 'contains' &&
+        printed.includes(normalize(item.printedAs)) &&
+        !(item.except !== undefined && printed.includes(normalize(item.except))),
+    )
   )
 }
 
