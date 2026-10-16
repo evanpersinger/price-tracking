@@ -26,4 +26,13 @@ describe('splitItemCode', () => {
   it('takes a 4-digit code (Costco codes vary in length)', () => {
     expect(splitItemCode('4725 BAKING SODA')).toEqual({ code: '4725', name: 'BAKING SODA' })
   })
+
+  it('takes a lettered code after an Item No. label (Healthy Planet)', () => {
+    expect(splitItemCode('Item No.: FRU026\nPears Bartlett Green')).toEqual({ code: 'FRU026', name: 'Pears Bartlett Green' })
+    expect(splitItemCode('Item No.: A0087814\nIsoPure Zero Carb')).toEqual({ code: 'A0087814', name: 'IsoPure Zero Carb' })
+  })
+
+  it('does not mistake a longer word starting with "Item No" for the label', () => {
+    expect(splitItemCode('Item Notes: 5')).toEqual({ code: undefined, name: 'Item Notes: 5' })
+  })
 })
