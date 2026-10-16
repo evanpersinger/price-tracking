@@ -520,6 +520,8 @@ def _cents_per_kg(name: str) -> float | None:
     if unit not in WEIGHT_G:
         return None
     grams = float(quantity or 1) * WEIGHT_G[unit]
+    if grams == 0:
+        return None
     return float(dollars) * 100 / grams * 1000
 
 
