@@ -57,7 +57,7 @@ uv run python backend/import_sheet.py backend/data/imports/store_prices_ca.csv C
 uv run python backend/import_sheet.py backend/data/imports/store_prices_us.csv US
 ```
 
-A one-time load, already done for both countries. It creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices. It refuses to import a country twice, so the database stays the source of truth once items are added to it.
+A one-time load of the original price sheets. Those CSVs are in `backend/data/imports/`, which is gitignored, so a fresh clone doesn't have them. Skip this step: the app creates an empty database on first use, and items are added with the Add Item button. With a CSV in hand, the command creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices. It refuses to import a country twice, so the database stays the source of truth once items are added to it.
 
 ## Run the tests
 
