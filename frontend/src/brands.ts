@@ -133,11 +133,14 @@ function editDistance(a: string, b: string): number {
 }
 
 // How many edits ("Fiber1" -> "Fibre 1" is 2, swapping the "er"/"re") still count as the same brand. Scaled to
-// length (roughly 30%, capped at 3) so a short name like "Dare" isn't matched to an unrelated brand over one stray
-// edit, while a longer one tolerates a swapped pair of letters, not just a single one.
+// length (roughly 30%, capped at 3) so a longer name tolerates a swapped pair of letters, not just a single one.
 function tolerance(length: number): number {
   return Math.min(3, Math.max(1, Math.round(length * 0.3)))
 }
+
+// Names where both sides are shorter than this must match exactly (apart from case and punctuation), since one edit
+// turns "Care" into "Dare" or "Guest" into "Quest", a different brand.
+const MIN_LENGTH_FOR_TYPOS = 6
 
 // The closest known brand to whatever was typed, correcting a misspelling or a slightly different spelling, ignoring
 // case, spaces and punctuation. Null when nothing in the list is close enough, since it might just be a brand we
@@ -147,8 +150,10 @@ export function findClosestBrand(typed: string): string | null {
   if (!normalizedTyped) return null
   let best: { brand: string; distance: number } | null = null
   for (const brand of BRANDS) {
-    const distance = editDistance(normalizedTyped, normalize(brand))
-    if (distance <= tolerance(normalizedTyped.length) && (!best || distance < best.distance)) {
+    const normalizedBrand = normalize(brand)
+    const distance = editDistance(normalizedTyped, normalizedBrand)
+    const allowed = Math.max(normalizedTyped.length, normalizedBrand.length) < MIN_LENGTH_FOR_TYPOS ? 0 : tolerance(normalizedTyped.length)
+    if (distance <= allowed && (!best || distance < best.distance)) {
       best = { brand, distance }
     }
   }
