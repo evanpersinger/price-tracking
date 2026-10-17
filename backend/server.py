@@ -759,7 +759,7 @@ def _search_offer(offer: Offer, unit_price_cents: float) -> SearchOffer:
 
 @app.get("/api/search")
 def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> list[SearchList]:
-    """What every store sells an item for, cheapest first, for every item whose name has all the words in q.
+    """What every store sells an item for, cheapest first, for every item whose name has a word starting with each word in q.
 
     Offers are ranked on their own unit price, per item if they have a count, else per gram, else per ml. Each unit
     gets its own list because they can't be ranked against each other. A store that has the same item and size more
@@ -769,10 +769,12 @@ def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> 
     terms = q.lower().split()
     if not terms:
         return []
+    # a term has to start a word, so "chick" finds chicken but "ham" doesn't find graham
+    patterns = [re.compile(r"(?<![a-z0-9])" + re.escape(term)) for term in terms]
 
     cheapest_repeat: dict[tuple, Offer] = {}
     for offer in _sized_offers(country):
-        if not all(term in offer.words for term in terms):
+        if not all(pattern.search(offer.words) for pattern in patterns):
             continue
         key = (offer.store_id, offer.words, tuple(sorted(offer.amounts.items())))
         if key not in cheapest_repeat or offer.price_cents < cheapest_repeat[key].price_cents:

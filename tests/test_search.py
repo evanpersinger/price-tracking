@@ -31,6 +31,19 @@ def test_differently_named_versions_of_an_item_are_ranked_together(
     assert [offer["store_name"] for offer in result["offers"]] == ["Loblaws", "Fresco"]
 
 
+def test_a_search_word_matches_the_start_of_a_word_not_the_middle(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(store="Fresco", name="Graham Crackers", price_cents=400, item_count=1)
+    add_item(store="Costco", name="Ham Sliced", price_cents=500, item_count=1)
+    add_item(store="Walmart", name="Chicken Breast", price_cents=600, item_count=1)
+
+    [ham] = search(client, "ham")
+    assert [offer["store_name"] for offer in ham["offers"]] == ["Costco"]
+    [chicken] = search(client, "chick")
+    assert [offer["store_name"] for offer in chicken["offers"]] == ["Walmart"]
+
+
 def test_a_search_with_no_match_returns_nothing(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(store="Costco")
 
