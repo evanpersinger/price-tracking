@@ -35,6 +35,11 @@ describe('guessCountry from the address', () => {
 })
 
 describe('guessCountry from the store name', () => {
+  it('does not match a store name that is only part of a longer word', () => {
+    expect(guessCountry('Metro', null, [], stores('Metropolitan Market'))).toBeNull()
+    expect(guessCountry('Cos', null, [], stores('Costco'))).toBeNull()
+  })
+
   it('picks the country when only one has the store and there is no address', () => {
     expect(guessCountry('Fresco', null, CANADA, USA)).toBe('CA')
     expect(guessCountry('target', undefined, CANADA, USA)).toBe('US')

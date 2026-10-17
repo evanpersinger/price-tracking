@@ -22,15 +22,15 @@ function guessFromAddress(address: string | null | undefined): Country | null {
 }
 
 // The one country whose saved stores include this store, or null when both do (Costco) or neither does (a new
-// store). Names match ignoring case and when either one contains the other, since a receipt prints
-// "REAL CANADIAN SUPERSTORE #1234" for the saved "Canadian Superstore".
+// store). Names match ignoring case and when either one holds the other as whole words, since a receipt prints
+// "REAL CANADIAN SUPERSTORE #1234" for the saved "Canadian Superstore" but "Metro" is not "Metropolitan Market".
 function guessFromStoreName(store: string, canadianStores: Store[], americanStores: Store[]): Country | null {
-  const wanted = store.trim().toLowerCase()
-  if (wanted.length < 3) return null
+  const wanted = plain(store)
+  if (wanted.trim().length < 3) return null
 
   const sells = (stores: Store[]) =>
     stores.some((candidate) => {
-      const name = candidate.name.toLowerCase()
+      const name = plain(candidate.name)
       return name.includes(wanted) || wanted.includes(name)
     })
   const inCanada = sells(canadianStores)
