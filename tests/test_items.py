@@ -255,6 +255,19 @@ def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, 
     assert history() == []
 
 
+def test_posting_the_same_purchase_twice_records_it_in_the_history_once(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
+    add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
+    add_item(item_code="111", price_cents=500, purchased_on="2026-10-02")
+    add_item(item_code="111", price_cents=450, purchased_on="2026-10-02")
+
+    assert [(price, day) for _, price, day in history()] == [
+        (500, "2026-10-01"), (500, "2026-10-02"), (450, "2026-10-02"),
+    ]
+
+
 def test_same_name_without_a_code_overwrites_the_saved_item(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
