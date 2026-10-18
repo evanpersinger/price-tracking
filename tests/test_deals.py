@@ -35,6 +35,17 @@ def test_a_discount_line_takes_its_item_with_it() -> None:
     assert names(result) == ["1706959 KS FR EGGS"]
 
 
+def test_a_discount_line_does_not_take_an_item_whose_code_only_contains_its_code() -> None:
+    result = extract_receipt._drop_deals(receipt(
+        {"raw_name": "1234 BAKING SODA", "price": 3.99},
+        {"raw_name": "0000391935 /1234", "price": 1.00},
+        {"raw_name": "6123456 KS BUTTER", "price": 12.99},
+        {"raw_name": "7712345 KS EGGS", "price": 9.99},
+    ))
+
+    assert names(result) == ["6123456 KS BUTTER", "7712345 KS EGGS"]
+
+
 def test_a_size_with_a_slash_in_a_product_name_is_not_taken_for_a_discount() -> None:
     result = extract_receipt._drop_deals(receipt(
         {"raw_name": "CHEETOS 6/2000", "price": 9.99},

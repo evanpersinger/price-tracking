@@ -345,7 +345,9 @@ def _drop_deals(receipt: dict) -> dict:
             or bool(_DEAL_LINE_RE.search(raw_name))
             or bool(_DISCOUNT_FOR_RE.search(raw_name))
         )
-        is_on_sale = item.get("on_sale") is True or any(code in raw_name for code in discounted_codes)
+        is_on_sale = item.get("on_sale") is True or any(
+            re.search(rf"(?<!\d){re.escape(code)}(?!\d)", raw_name) for code in discounted_codes
+        )
         if is_deal_line or is_on_sale:
             dropped.append(item)
             continue
