@@ -16,6 +16,17 @@ describe('findClosestBrand', () => {
     expect(findClosestBrand('Biscof')).toBe('Biscoff')
   })
 
+  it('does not turn a short brand into a different one over a single edit', () => {
+    for (const typed of ['Care', 'Bare', 'Wide', 'Guest']) expect(findClosestBrand(typed)).toBeNull()
+    expect(findClosestBrand('dare')).toBe('Dare')
+    expect(findClosestBrand('TIDE')).toBe('Tide')
+  })
+
+  it('still corrects a typo in a longer brand', () => {
+    expect(findClosestBrand('Sprit')).toBe('Sprite')
+    expect(findClosestBrand('Natura')).toBe('Natural')
+  })
+
   it('returns null for a brand not on the list, rather than guessing', () => {
     expect(findClosestBrand('Some Random Brand Nobody Has Heard Of')).toBeNull()
   })
