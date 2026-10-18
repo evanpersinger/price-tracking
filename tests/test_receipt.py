@@ -80,6 +80,18 @@ def test_ollama_answering_with_an_http_error_is_a_502_not_a_503(
     assert "not found" in last_logged()["ollama_reply"]
 
 
+@pytest.mark.parametrize("items", ["[null]", '"none"', '{"a": 1}'])
+def test_items_that_are_not_a_list_of_objects_are_a_502_and_logged(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, items: str
+) -> None:
+    ollama_replies(monkeypatch, 200, {"message": {"content": f'{{"items": {items}}}'}})
+
+    response = client.post("/api/receipt", content=b"image", headers=PNG)
+
+    assert response.status_code == 502
+    assert last_logged()["action"] == "receipt_failed"
+
+
 def test_a_second_receipt_while_one_is_being_read_is_a_409(client: TestClient) -> None:
     server.receipt_lock.acquire()
     try:
