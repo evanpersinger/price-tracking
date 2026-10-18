@@ -11,6 +11,16 @@ cd frontend && pnpm install
 
 Receipt reading is open-source only, no paid API keys. The `local` route needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`). The `script` route needs Tesseract (`brew install tesseract` on macOS) and no model. The `local` route also uses Tesseract to spot gas receipts, and reads every receipt as a grocery one without it.
 
+## Try it with demo data
+
+A fresh clone has an empty database, and adding items needs a receipt photo and a local vision model. To see the app with something in it, fill the database with made-up prices first:
+
+```bash
+uv run python backend/seed_demo.py
+```
+
+It adds three Canadian and three US stores (real store names), about 70 items, price history and a few gas fill-ups. Every item, price and date is invented. It refuses to run if the database already has stores, so it can't touch real data. To keep the demo apart from a database of your own, set `PRICES_DB` to a new file first, for the script and for the API.
+
 ## Run it
 
 ```bash
@@ -57,7 +67,7 @@ uv run python backend/import_sheet.py backend/data/imports/store_prices_ca.csv C
 uv run python backend/import_sheet.py backend/data/imports/store_prices_us.csv US
 ```
 
-A one-time load of the original price sheets. Those CSVs are in `backend/data/imports/`, which is gitignored, so a fresh clone doesn't have them. Skip this step: the app creates an empty database on first use, and items are added with the Add Item button. With a CSV in hand, the command creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices. It refuses to import a country twice, so the database stays the source of truth once items are added to it.
+A one-time load of the original price sheets. Those CSVs are in `backend/data/imports/`, which is gitignored, so a fresh clone doesn't have them. Skip this step: use the demo data above, or let the app create an empty database on first use and add items with the Add Item button. With a CSV in hand, the command creates `backend/data/prices.db` (gitignored) with the stores, their discount text, student discounts, items and prices. It refuses to import a country twice, so the database stays the source of truth once items are added to it.
 
 ## Run the tests
 
