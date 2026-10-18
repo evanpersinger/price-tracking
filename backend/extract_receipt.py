@@ -119,7 +119,11 @@ def _image_ollama(model: str, image_b64: str, _media_type: str) -> str:
         timeout=300,  # local vision models are slow, especially on CPU
     )
     response.raise_for_status()
-    return response.json()["message"]["content"]
+    reply = response.json()
+    try:
+        return reply["message"]["content"]
+    except (KeyError, TypeError) as e:  # Ollama sends {"error": "..."} when it has no answer
+        raise ValueError(f"Ollama's reply had no message: {reply}") from e
 
 
 _PRICE_RE = re.compile(r"\$?\d+\.\d{2}")

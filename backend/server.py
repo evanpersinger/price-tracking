@@ -317,6 +317,11 @@ async def read_receipt(request: Request) -> dict:
                       model=RECEIPT_MODEL, seconds=round(time.perf_counter() - started, 1),
                       media_type=media_type, image_bytes=len(image))
         return result
+    except requests.exceptions.HTTPError as e:  # Ollama is up but refused, e.g. the model isn't pulled or is out of memory
+        logger.warning("Ollama answered with an error: %s", e)
+        raise _receipt_error(502, "The local model returned an error, check it's pulled and has enough memory.",
+                             error=str(e), ollama_reply=e.response.text[:500], media_type=media_type,
+                             image_bytes=len(image), seconds=round(time.perf_counter() - started, 1)) from e
     except requests.exceptions.RequestException as e:
         logger.warning("Ollama call failed: %s", e)
         raise _receipt_error(503, "Couldn't reach the local model. Is Ollama running?", error=str(e),
