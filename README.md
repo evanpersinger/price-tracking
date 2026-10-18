@@ -81,3 +81,7 @@ Every backend test uses its own temporary database, so `prices.db` is never touc
 ## Data rules
 
 How item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
+
+## License
+
+MIT, see [LICENSE](LICENSE). Store logos belong to their respective owners and are not covered by this license.

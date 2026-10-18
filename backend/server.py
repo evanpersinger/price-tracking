@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field, model_validator
 from db import connect, log_activity
 from extract_receipt import RECEIPT_MODEL, extract_receipt
 
-PORT = 8021  # registered in ~/dotfiles/.claude/PORTS.md
+PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 
