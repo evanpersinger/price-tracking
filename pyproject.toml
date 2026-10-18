@@ -5,7 +5,6 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "pytesseract",
-    "python-dotenv",
     "requests",
     "uvicorn",
 ]

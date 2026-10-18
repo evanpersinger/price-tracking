@@ -14,11 +14,8 @@ from pathlib import Path
 
 import pytesseract
 import requests
-from dotenv import load_dotenv
 from PIL import Image, ImageEnhance, ImageFilter
 from pytesseract import Output
-
-load_dotenv()
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_KEEP_ALIVE = "15s"  # stop the model 15 seconds after the run, overrides Ollama's 5 min default
