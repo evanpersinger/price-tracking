@@ -64,6 +64,18 @@ def test_item_without_a_size_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("field, size", [("weight_g", 1e-320), ("volume_ml", 5e-324)])
+def test_a_size_too_small_to_give_a_finite_unit_price_is_rejected(
+    client: TestClient, field: str, size: float
+) -> None:
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Tiny", "display_name": "Tiny", "price_cents": 100, field: size,
+    })
+
+    assert response.status_code == 422
+    assert stores_in(client) == []
+
+
 def test_item_without_a_display_name_is_rejected(client: TestClient) -> None:
     response = client.post(
         "/api/items",
