@@ -8,3 +8,9 @@ backend/output/
 node_modules/
 dist/
 frontend/.vitest/
+
+# Secrets
+*.pem
+*.key
+serviceAccountKey.json
+credentials.json

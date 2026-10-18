@@ -1,5 +1,7 @@
 # price-tracking
 
+[![CI](https://github.com/evanpersinger/price-tracking/actions/workflows/ci.yml/badge.svg)](https://github.com/evanpersinger/price-tracking/actions/workflows/ci.yml)
+
 Tracks grocery prices per store in Canada and the USA, so the same item can be compared across stores. Items get in through a receipt photo (read by a local open-source vision model, or by plain OCR), and the app works out which store sells each item cheapest per item, per gram or per ml. Not built yet: adding an item by hand with no receipt.
 
 ## Setup
