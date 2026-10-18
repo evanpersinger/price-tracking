@@ -53,10 +53,10 @@ export function CheapestView({ country }: CheapestViewProps) {
             <div className="store-viewport">
               {/* One card for both views, so the search box stays mounted (and focused) while typing swaps the store's
                   table for what every store sells the item for */}
-              <section className="store" aria-labelledby="cheapest-heading">
+              <section className="store" aria-labelledby={isSearching ? undefined : 'cheapest-heading'}>
                 <div className="store-head store-head-search">
                   <div>
-                    <h3 id="cheapest-heading" className="store-name">{isSearching ? 'All stores' : activeStore.name}</h3>
+                    {!isSearching && <h3 id="cheapest-heading" className="store-name">{activeStore.name}</h3>}
                   </div>
                   <input
                     type="search"

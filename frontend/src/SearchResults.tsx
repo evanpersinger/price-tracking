@@ -8,9 +8,6 @@ import { useLoad } from './useLoad.ts'
 
 const TYPING_PAUSE_MS = 250
 
-// Each list is ranked on one unit, a per item price can't be put against a per gram one
-const LIST_HEADINGS = { each: 'Compared per item', g: 'Compared per 100g', ml: 'Compared per 100ml' }
-
 interface SearchResultsProps {
   country: Country
   query: string
@@ -35,13 +32,11 @@ export function SearchResults({ country, query }: SearchResultsProps) {
         ) : (
           <div className="search-results">
             {lists.map((list) => {
+              // Each list is ranked on one unit, a per item price can't be put against a per gram one
               // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
               const showDose = list.offers.some((offer) => offer.dose_mg !== null)
               return (
-                <section key={list.unit} aria-labelledby={`search-${list.unit}`}>
-                  <div className="store-head">
-                    <h3 id={`search-${list.unit}`} className="store-name">{LIST_HEADINGS[list.unit]}</h3>
-                  </div>
+                <section key={list.unit}>
                   <table className="items">
                     <thead>
                       <tr>
