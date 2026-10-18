@@ -215,10 +215,15 @@ def add_item(new_item: NewItem) -> AddedItem:
                 (*values, store_id),
             ).lastrowid
         # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
+        # The same item, price and date again is the same receipt sent twice (a double click, a retry), so it is not
+        # recorded a second time
         if purchased_on and (new_item.item_code or new_item.fuel_type):
             conn.execute(
-                "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) VALUES (?, ?, ?, ?)",
-                (item_id, new_item.item_code, new_item.price_cents, purchased_on),
+                "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) "
+                "SELECT ?, ?, ?, ? WHERE NOT EXISTS "
+                "(SELECT 1 FROM price_history WHERE item_id = ? AND price_cents = ? AND purchased_on = ?)",
+                (item_id, new_item.item_code, new_item.price_cents, purchased_on,
+                 item_id, new_item.price_cents, purchased_on),
             )
 
     if existing:
