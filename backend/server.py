@@ -146,7 +146,12 @@ def add_item(new_item: NewItem) -> AddedItem:
     A purchase date is only saved when the receipt gave one, a guess like today's date would corrupt the price
     history. With a date and an item code (or a fuel type, gas has no code), the price is also recorded in
     price_history, even when an existing item is overwritten. Any other item is saved but not tracked.
+
+    A receipt older than the one the saved item came from is only recorded in price_history, the saved price, size and
+    date stay. The response still echoes the receipt.
     """
+    if new_item.purchased_on and new_item.purchased_on > date.today():
+        raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
     purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
         store = conn.execute(
@@ -169,7 +174,7 @@ def add_item(new_item: NewItem) -> AddedItem:
                   new_item.unit_volume_ml)
         existing_columns = (
             "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg, "
-            "unit_volume_ml"
+            "unit_volume_ml, purchased_on"
         )
         if new_item.item_code:
             # A code the store already has means the same product at a new price, so overwrite that row
@@ -198,15 +203,18 @@ def add_item(new_item: NewItem) -> AddedItem:
                  >= DUPLICATE_NAME_SIMILARITY),
                 None,
             )
+        # Dates are ISO strings, so comparing them as text orders them by day
+        older_receipt = bool(existing and purchased_on and existing[-1] and purchased_on < existing[-1])
         if existing:
             _reject_a_size_typo(existing, new_item)
             item_id = existing[0]
-            conn.execute(
-                "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
-                "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ?, "
-                "unit_volume_ml = ? WHERE id = ?",
-                (*values, item_id),
-            )
+            if not older_receipt:
+                conn.execute(
+                    "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
+                    "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ?, "
+                    "unit_volume_ml = ? WHERE id = ?",
+                    (*values, item_id),
+                )
         else:
             item_id = conn.execute(
                 "INSERT INTO items (name, display_name, price_cents, item_count, weight_g, volume_ml, purchased_on, "
@@ -226,11 +234,15 @@ def add_item(new_item: NewItem) -> AddedItem:
                  item_id, new_item.price_cents, purchased_on),
             )
 
-    if existing:
+    if older_receipt:
+        log_activity("older_receipt", store=new_item.store, country=new_item.country, item_id=item_id,
+                      item_code=new_item.item_code, price_cents=new_item.price_cents, purchased_on=purchased_on,
+                      saved_purchased_on=existing[-1])
+    elif existing:
         old_fields = dict(zip(
             ("name", "display_name", "price_cents", "item_count", "weight_g", "volume_ml", "brand", "fuel_type",
              "dose_mg", "unit_volume_ml"),
-            existing[1:],
+            existing[1:-1],
         ))
         new_fields = {
             "name": new_item.name, "display_name": new_item.display_name, "price_cents": new_item.price_cents,

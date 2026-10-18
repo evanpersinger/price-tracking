@@ -247,6 +247,39 @@ def test_a_repeat_purchase_overwrites_the_item_but_keeps_the_old_price_in_the_hi
     assert [(price, day) for _, price, day in history()] == [(1000, "2026-09-01"), (1200, "2026-09-20")]
 
 
+def test_an_older_receipt_goes_in_the_history_but_keeps_the_current_price(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
+    add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
+
+    [saved] = stores_in(client)[0]["items"]
+    assert (saved["price_cents"], saved["purchased_on"]) == (500, "2026-10-01")
+    assert [(price, day) for _, price, day in history()] == [(500, "2026-10-01"), (400, "2026-09-01")]
+    assert activity_log()[-1]["action"] == "older_receipt"
+
+
+def test_an_item_with_no_saved_date_is_overwritten_by_a_dated_receipt(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="111", price_cents=500)
+    add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
+
+    [saved] = stores_in(client)[0]["items"]
+    assert (saved["price_cents"], saved["purchased_on"]) == (400, "2026-09-01")
+
+
+def test_a_receipt_dated_in_the_future_is_rejected(client: TestClient) -> None:
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
+        "item_count": 12, "item_code": "111", "purchased_on": "2999-01-01",
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "That receipt's date is in the future, check it."
+    assert stores_in(client) == []
+
+
 def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item()
 
