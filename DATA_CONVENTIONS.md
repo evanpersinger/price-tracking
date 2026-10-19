@@ -72,12 +72,15 @@ in which case it overwrites that row (keeping one row in `items`, with the old p
 instead of inserting a new one:
 
 1. **With an `item_code`**: an exact match on `item_code` within the store. This is the reliable case.
-2. **With no code** (most stores print one, the ones that don't are listed below): a fuzzy match on name alone
+2. **With no code** (most stores print one, the ones that don't are listed below): a fuzzy match on name
    (`difflib.SequenceMatcher`, `DUPLICATE_NAME_SIMILARITY = 0.9` in `server.py`), tolerant of OCR noise (a dropped
-   or swapped letter) but not much more. Brand and size are deliberately **not** checked, only the name. This was a
-   simplification: since the name is now always the receipt's own text (see above), two genuinely different
-   products should differ in their printed name reliably enough on its own. The known accepted risk is a false
-   positive: two different products at the same codeless store with a near-identical printed name would merge.
+   or swapped letter) but not much more, **and** the same size (`_same_sizes`, 2% tolerance), so a 12 pack and a 24
+   pack with a near-identical name stay two rows. A by-weight item has no size on either side, so it matches on name
+   alone. Brand is deliberately **not** checked. Since the name is now always the receipt's own text (see above),
+   two genuinely different products should differ in their printed name reliably enough. The known accepted risk
+   is a false positive: two different products of the same size at the same codeless store with a near-identical
+   printed name would merge. The other side of it: a saved row with no size (some imported rows) is never matched
+   by a sized receipt item, and a mistyped size on a repeat purchase makes a new row instead of a 422.
 3. A gas item (`fuel_type` set) is never matched this way, every fill-up is deliberately its own row.
 
 **Stores known to print no item code** (everything there goes through the name match in point 2): Bulk Barn, Bulk

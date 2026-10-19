@@ -353,16 +353,26 @@ def test_a_by_weight_item_still_overwrites_despite_a_big_rate_swing(
     assert len(stores_in(client)[0]["items"]) == 1
 
 
-def test_a_different_brand_or_size_with_the_same_name_without_a_code_still_overwrites(
+def test_a_different_brand_with_the_same_name_and_size_without_a_code_still_overwrites(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
-    """The name is always the receipt's own printed text (see ReceiptReview's toRow), so it's the only thing that
-    needs to match; brand and size no longer factor in."""
+    """The name is always the receipt's own printed text (see ReceiptReview's toRow), so with the same size it's the
+    only thing that needs to match; brand doesn't factor in."""
     first = add_item(name="Chamomile Tea", brand="Kirkland", item_count=50)
-    second = add_item(name="Chamomile Tea", brand="Great Value", item_count=20)
+    second = add_item(name="Chamomile Tea", brand="Great Value", item_count=50)
 
     assert second["id"] == first["id"]
     assert len(stores_in(client)[0]["items"]) == 1
+
+
+def test_a_different_pack_size_with_the_same_name_without_a_code_is_a_new_item(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    first = add_item(name="Coca Cola 12x355ml", price_cents=900, item_count=12)
+    second = add_item(name="Coca Cola 24x355ml", price_cents=1600, item_count=24)
+
+    assert second["id"] != first["id"]
+    assert len(stores_in(client)[0]["items"]) == 2
 
 
 def test_a_repeat_fuel_item_without_a_code_is_never_overwritten(

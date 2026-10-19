@@ -189,19 +189,21 @@ def add_item(new_item: NewItem) -> AddedItem:
         else:
             # No code to go by (the receipt reader missed it, or this store never prints one): the name is always
             # the receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so
-            # a near-identical name at this store (tolerating OCR noise, not requiring an exact match) is enough on
-            # its own to mean a repeat of the same product.
+            # a near-identical name at this store (tolerating OCR noise, not requiring an exact match) with the same
+            # size means a repeat of the same product. A different size is a different pack, so it gets its own row.
             candidates = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ?", (store_id,)
             ).fetchall()
             # Strip the typed unit price (e.g. "($2.00 per kg)") before comparing: for a by-weight item it's the
             # only thing that changes between purchases, and a big swing in it shouldn't make the same product
-            # look like a different one.
+            # look like a different one. A by-weight item has no size, so it matches on its name alone.
             new_name = UNIT_PRICE.sub(" ", new_item.name).lower()
+            new_amounts = _amounts_of(new_item.name, new_item.item_count, new_item.weight_g, new_item.volume_ml)
             existing = next(
                 (row for row in candidates
                  if difflib.SequenceMatcher(None, new_name, UNIT_PRICE.sub(" ", row[1]).lower()).ratio()
-                 >= DUPLICATE_NAME_SIMILARITY),
+                 >= DUPLICATE_NAME_SIMILARITY
+                 and _same_sizes(_amounts_of(row[1], row[4], row[5], row[6]), new_amounts)),
                 None,
             )
         # Dates are ISO strings, so comparing them as text orders them by day
@@ -342,7 +344,7 @@ WEIGHT_RATE = re.compile(r"\(\s*\$(\d+(?:\.\d+)?)\s*per\s*(\d+(?:\.\d+)?)?\s*([a
 AMOUNT =re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
 SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
 # A stricter bar than SIMILARITY above: this one decides whether a new item overwrites an existing row (so a
-# false match loses data) rather than just grouping two offers for display, and it's paired with an exact size
+# false match loses data) rather than just grouping two offers for display, and it's paired with a size
 # match (see add_item), so this only needs to tolerate OCR noise, not genuinely different wording.
 DUPLICATE_NAME_SIMILARITY = 0.9
 SIZE_TOLERANCE = 0.02  # 1lb (453.6g) and 454g are the same amount
@@ -422,6 +424,11 @@ def _effective_amounts(
     return typed or text_amounts
 
 
+def _amounts_of(name: str, item_count: int | None, weight_g: float | None, volume_ml: float | None) -> dict[str, float]:
+    """An item's amounts from its size fields, or from the size written in its name when those are all empty."""
+    return _effective_amounts(item_count, weight_g, volume_ml, _split_name(name)[1])
+
+
 def _make_offers(rows: list[tuple]) -> list[Offer]:
     """Offers from (id, store id, store name, name, price_cents, item_count, weight_g, volume_ml, brand, item_code,
     dose_mg, display_name) rows."""
@@ -497,10 +504,8 @@ def _reject_a_size_typo(saved: tuple, new_item: NewItem) -> None:
     the first of weight, volume and count that both have, so a different pack size at a matching price passes.
     """
     _, saved_name, _, saved_price, saved_count, saved_weight, saved_volume = saved[:7]
-    saved_amounts = _effective_amounts(saved_count, saved_weight, saved_volume, _split_name(saved_name)[1])
-    new_amounts = _effective_amounts(
-        new_item.item_count, new_item.weight_g, new_item.volume_ml, _split_name(new_item.name)[1]
-    )
+    saved_amounts = _amounts_of(saved_name, saved_count, saved_weight, saved_volume)
+    new_amounts = _amounts_of(new_item.name, new_item.item_count, new_item.weight_g, new_item.volume_ml)
     kind = next((kind for kind in SWING_KINDS if kind in saved_amounts and kind in new_amounts), None)
     if kind is None or not saved_price:
         return
