@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytesseract
@@ -26,13 +27,11 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 _RECEIPT_PROMPT = (  # Prompt given to LLM
     "Read this grocery receipt and return a JSON object with purchase_date (YYYY-MM-DD), "
+    "date_printed (the date exactly as printed on the receipt, character for character, like '05/11/26' or "
+    "'Nov 5, 2026', without reordering or reformatting it and without the time, null if no date is printed), "
     "store, store_address (the store's "
     "address as printed near the top, with its city, province or state and postal code or ZIP, "
-    "null if it isn't printed), and items. "
-    "When the date is printed as three two-digit numbers with no month name, like '26/10/01', that order is "
-    "ambiguous between day-month-year and year-month-day. Real Canadian Superstore and other Loblaws-banner "
-    "stores (No Frills, Your Independent Grocer, Zehrs) print it year-month-day, so '26/10/01' is 2026-10-01, "
-    "not 2001-10-26.\n"
+    "null if it isn't printed), and items.\n"
     "Each item has "
     "raw_name (the entire line exactly as printed, including any product code or barcode number on it, "
     "not just the product name by itself), item_name (a clean, consistent product name, "
@@ -293,6 +292,42 @@ def _extract_json(text: str) -> dict:
     return receipt
 
 
+# The order each store prints an all-numeric date in (y year, m month, d day), matched against the store name the model
+# copied off the receipt. Real Canadian Superstore and the other Loblaws banners print year-month-day. Add a store here
+# when its dates come back wrong, a store that isn't listed keeps the model's own purchase_date.
+STORE_DATE_ORDERS = {
+    "superstore": "ymd",
+    "no frills": "ymd",
+    "independent grocer": "ymd",
+    "zehrs": "ymd",
+}
+# Three numbers split by / . or -, a two or four digit year at either end, so the time after it (12:59:26) never matches
+_PRINTED_DATE_RE = re.compile(r"(?<!\d)(\d{4}|\d{2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?!\d)")
+
+
+def _read_printed_date(receipt: dict) -> dict:
+    """Set purchase_date from date_printed, ordered the way the receipt's store prints it, and drop date_printed.
+
+    The model copies a date well but can't tell day-month-year from year-month-day when it is printed as '26/10/18'
+    (it read a Superstore receipt as 2018-10-26, the receipt is from 2026-10-18), so a store in STORE_DATE_ORDERS gets
+    its date ordered here. Any other store, or a date that doesn't parse, keeps the model's own purchase_date.
+    """
+    printed = str(receipt.get("date_printed") or "")
+    receipt = {key: value for key, value in receipt.items() if key != "date_printed"}
+    store = str(receipt.get("store") or "").lower()
+    order = next((order for name, order in STORE_DATE_ORDERS.items() if name in store), None)
+    match = _PRINTED_DATE_RE.search(printed)
+    if order is None or match is None:
+        return receipt
+    fields = dict(zip(order, map(int, match.groups())))
+    year = fields["y"] + 2000 if fields["y"] < 100 else fields["y"]
+    try:
+        purchase_date = date(year, fields["m"], fields["d"])
+    except ValueError:
+        return receipt
+    return {**receipt, "purchase_date": purchase_date.isoformat()}
+
+
 # Words that mark a line as a deal or a discount and not a bought item
 _DEAL_LINE_RE = re.compile(r"\b(instant|savings?|discount|coupon|promo|promotion|markdown|rebate|you saved)\b|\bsale\b", re.IGNORECASE)
 # A Costco discount line, "0000391935 /5051501", starts with its own long number and names the item code it took money
@@ -380,7 +415,8 @@ def extract_receipt(image_bytes: bytes, media_type: str) -> dict:
     """
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     raw_reply = _image_ollama(RECEIPT_MODEL, image_b64, media_type)
-    return {**_drop_deals(_fix_misread_unit_price(_extract_json(raw_reply))), "_raw_reply": raw_reply}
+    receipt = _drop_deals(_fix_misread_unit_price(_read_printed_date(_extract_json(raw_reply))))
+    return {**receipt, "_raw_reply": raw_reply}
 
 
 PROVIDERS = {"local": _image_ollama, "script": _image_script}
@@ -457,7 +493,8 @@ if __name__ == "__main__":
         image_b64 = base64.standard_b64encode(image_path.read_bytes()).decode("ascii")
         reply = PROVIDERS[provider](model, image_b64, MEDIA_TYPES[image_path.suffix.lower()])
         try:
-            result = json.dumps(_drop_deals(_fix_misread_unit_price(_extract_json(reply))), indent=2)
+            receipt = _drop_deals(_fix_misread_unit_price(_read_printed_date(_extract_json(reply))))
+            result = json.dumps(receipt, indent=2)
         except ValueError as e:
             sys.exit(str(e))
         print(f"{image_path.name}:")
