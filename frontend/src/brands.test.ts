@@ -55,6 +55,11 @@ describe('findBrandInName', () => {
   it('only matches a whole word, not letters inside a longer one', () => {
     expect(findBrandInName('Walmart', 'CHIPITSY COOKIES')).toBeNull()
   })
+
+  it('finds a brand printed as two words, only at a store that lists it', () => {
+    expect(findBrandInName('Real Canadian Superstore', 'NO NAME CHOC ICE MLK')).toBe('No Name')
+    expect(findBrandInName('Costco', 'NO NAME CHOC ICE MLK')).toBeNull()
+  })
 })
 
 describe('isOldSpice', () => {

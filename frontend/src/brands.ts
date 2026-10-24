@@ -46,6 +46,7 @@ export const BRANDS: string[] = [
   'Natural',
   'Nature Clean',
   'Nestle',
+  'No Name',
   'No Sugar',
   'Old Spice',
   'Orange Naturals',
@@ -95,19 +96,25 @@ export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
 // group's name, ignoring case. If a group has the same word as the all stores section, the group wins.
 export const SPECIFIC_STORES_BRAND_WORDS: Record<string, Record<string, string>> = {
   Adonis: { BLACKDI: 'Black Diamond' },
-  'Canadian Superstore': { GIGANTICO: 'Gigantico' },
+  'Canadian Superstore': { GIGANTICO: 'Gigantico', 'NO NAME': 'No Name' },
   Costco: { PIROULINE: 'Pirouline' },
+  // No Frills and Zehrs are assumed to print it like Superstore, no receipt from either yet.
+  'No Frills': { 'NO NAME': 'No Name' },
   Walmart: { CHIPITS: 'Chipits' },
+  Zehrs: { 'NO NAME': 'No Name' },
 }
 
-// The brand a printed name spells out as a whole word ("CHIPITS S DK" at Walmart is Chipits), or null. Only a word on
-// its own counts, not letters inside a longer one.
+// The brand a printed name spells out as a whole word ("CHIPITS S DK" at Walmart is Chipits), or as two words next to
+// each other ("NO NAME CHOC ICE MLK" at Superstore is No Name), or null. Only whole words count, not letters inside a
+// longer one.
 export function findBrandInName(store: string, printedName: string): string | null {
   const storeName = store.toLowerCase()
   const storeWords = Object.entries(SPECIFIC_STORES_BRAND_WORDS).find(([name]) => storeName.includes(name.toLowerCase()))?.[1]
   const words = { ...ALL_STORES_BRAND_WORDS, ...storeWords }
-  for (const word of splitItemCode(printedName).name.toUpperCase().split(/[^A-Z0-9]+/)) {
-    const brand = words[word]
+  const printedWords = splitItemCode(printedName).name.toUpperCase().split(/[^A-Z0-9]+/)
+  const pairs = printedWords.slice(1).map((word, i) => `${printedWords[i]} ${word}`)
+  for (const candidate of [...printedWords, ...pairs]) {
+    const brand = words[candidate]
     if (brand !== undefined) return brand
   }
   return null
