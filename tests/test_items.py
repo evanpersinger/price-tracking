@@ -281,6 +281,20 @@ def test_an_item_with_no_saved_date_is_overwritten_by_a_dated_receipt(
     assert (saved["price_cents"], saved["purchased_on"]) == (400, "2026-09-01")
 
 
+def test_a_receipt_with_no_date_overwrites_the_item_but_keeps_its_saved_date(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
+    add_item(item_code="111", price_cents=600)
+    [saved] = stores_in(client)[0]["items"]
+    assert (saved["price_cents"], saved["purchased_on"]) == (600, "2026-10-01")
+
+    # The kept date still turns away an older receipt
+    add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
+    [saved] = stores_in(client)[0]["items"]
+    assert (saved["price_cents"], saved["purchased_on"]) == (600, "2026-10-01")
+
+
 def test_a_receipt_dated_in_the_future_is_rejected(client: TestClient) -> None:
     response = client.post("/api/items", json={
         "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,

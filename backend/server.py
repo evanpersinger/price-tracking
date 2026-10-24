@@ -149,7 +149,8 @@ def add_item(new_item: NewItem) -> AddedItem:
     price_history, even when an existing item is overwritten. Any other item is saved but not tracked.
 
     A receipt older than the one the saved item came from is only recorded in price_history, the saved price, size and
-    date stay. The response still echoes the receipt.
+    date stay. A receipt with no date overwrites the item but keeps its saved date. The response still echoes the
+    receipt.
     """
     if new_item.purchased_on and new_item.purchased_on > date.today():
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
@@ -212,9 +213,12 @@ def add_item(new_item: NewItem) -> AddedItem:
             _reject_a_size_typo(existing, new_item)
             item_id = existing[0]
             if not older_receipt:
+                # A receipt with no date keeps the saved date, otherwise the older-receipt check above has nothing to
+                # compare against and a later, older receipt could overwrite the price
                 conn.execute(
                     "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
-                    "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, dose_mg = ?, "
+                    "volume_ml = ?, purchased_on = COALESCE(?, purchased_on), brand = ?, item_code = ?, fuel_type = ?, "
+                    "dose_mg = ?, "
                     "unit_volume_ml = ? WHERE id = ?",
                     (*values, item_id),
                 )
