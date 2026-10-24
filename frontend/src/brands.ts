@@ -33,6 +33,7 @@ export const BRANDS: string[] = [
   'Kirkland',
   'Lactantia',
   'Leanfit',
+  "Lenny & Larry's",
   'Lindt',
   'Loacker',
   'Lysol',
@@ -84,6 +85,7 @@ function normalize(text: string): string {
 export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
   DORITOS: 'Doritos',
   FAIRLIFE: 'Fairlife',
+  LENNY: "Lenny & Larry's",
   PHILIPS: 'Philips',
   SPRITE: 'Sprite',
 }
