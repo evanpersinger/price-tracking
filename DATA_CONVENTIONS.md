@@ -20,10 +20,11 @@ editing, or reviewing data by hand.
 - Only set a brand when it's known for certain, don't guess from the name. A few narrow, hand-coded exceptions to
   "don't guess" (all in `frontend/src/`): any Costco line with "KS" as its own word (`isKirklandSignature` in
   `knownItems.ts`) defaults to `Kirkland`, any line containing "Old Spice" (`isOldSpice` in `brands.ts`, any store)
-  defaults to `Old Spice`, and a printed word on the hand-edited lists in `brands.ts` (`findBrandInName`) defaults to
-  its brand, either at every store (`ALL_STORES_BRAND_WORDS`, only for unmistakable brands like `DORITOS`) or only at
-  one store (`SPECIFIC_STORES_BRAND_WORDS`, like `CHIPITS` at Walmart). Each is a specific, well-known case, not a
-  general "infer the brand" rule, and the review page's Brand box stays editable.
+  defaults to `Old Spice`, and a printed word (or two words next to each other) on the hand-edited lists in `brands.ts`
+  (`findBrandInName`) defaults to its brand, either at every store (`ALL_STORES_BRAND_WORDS`, only for unmistakable
+  brands like `DORITOS`) or only at one store (`SPECIFIC_STORES_BRAND_WORDS`, like `CHIPITS` at Walmart or `NO NAME` at
+  Superstore). Each is a specific, well-known case, not a general "infer the brand" rule, and the review page's Brand
+  box stays editable.
 - Capitals don't matter in a brand: `Arm&Hammer` and `arm&hammer` are the same brand. `POST /api/items`
   saves a brand that matches a saved one ignoring case with the saved spelling (the first one saved wins).
   Rows edited by hand in the database aren't covered, keep their spelling consistent yourself.
