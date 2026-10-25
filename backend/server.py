@@ -27,6 +27,7 @@ from extract_receipt import RECEIPT_MODEL, extract_receipt
 PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")
 receipt_lock = threading.Lock()  # one receipt at a time, the local model is heavy
@@ -71,7 +72,7 @@ class Store(BaseModel):
 
 @app.get("/api/stores")
 def list_stores(country: Literal["CA", "US"]) -> list[Store]:
-    """Every store in a country with its items, in the order they were added."""
+    """Every store in a country with its items, the ones with an item code first, then in the order they were added."""
     with closing(connect()) as conn:
         store_rows = conn.execute(
             "SELECT id, name, discount_text FROM stores WHERE country = ? ORDER BY id", (country,)
@@ -79,7 +80,7 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
         item_rows = conn.execute(
             "SELECT i.id, i.store_id, i.name, i.display_name, i.price_cents, i.rating, i.item_count, i.weight_g, "
             "i.volume_ml, i.purchased_on, i.brand, i.item_code, i.fuel_type, i.dose_mg, i.unit_volume_ml FROM items i "
-            "JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY i.id",
+            f"JOIN stores s ON s.id = i.store_id WHERE s.country = ? ORDER BY {ITEM_ORDER}",
             (country,),
         ).fetchall()
 
@@ -555,7 +556,7 @@ def _pick_winners(group: list[Offer]) -> list[Winner]:
 
 
 def _sized_offers(country: str) -> list[Offer]:
-    """Every priced grocery item in a country's stores that has a size, in the order they were added.
+    """Every priced grocery item in a country's stores that has a size, in `ITEM_ORDER`.
 
     Gas (anything with a fuel_type) is left out, it is compared on its own Gas Prices page and not per item.
     """
@@ -563,7 +564,7 @@ def _sized_offers(country: str) -> list[Offer]:
         rows = conn.execute(
             "SELECT i.id, i.store_id, s.name, i.name, i.price_cents, i.item_count, i.weight_g, i.volume_ml, i.brand, "
             "i.item_code, i.dose_mg, i.display_name FROM items i JOIN stores s ON s.id = i.store_id "
-            "WHERE s.country = ? AND i.price_cents IS NOT NULL AND i.fuel_type IS NULL ORDER BY i.id",
+            f"WHERE s.country = ? AND i.price_cents IS NOT NULL AND i.fuel_type IS NULL ORDER BY {ITEM_ORDER}",
             (country,),
         ).fetchall()
     return [offer for offer in _make_offers(rows) if offer.amounts]
@@ -596,7 +597,7 @@ def _cents_per_kg(name: str) -> float | None:
 
 
 def _weight_offers(country: str) -> list[WeightOffer]:
-    """Every grocery item in a country's stores that has no size but a typed rate per weight, in the order added.
+    """Every grocery item in a country's stores that has no size but a typed rate per weight, in `ITEM_ORDER`.
 
     That's produce and bulk bins ("Oranges ($5.50 per kg)"). The rate is what gets compared, so the price can be empty.
     """
@@ -604,7 +605,7 @@ def _weight_offers(country: str) -> list[WeightOffer]:
         rows = conn.execute(
             "SELECT i.id, i.store_id, s.name, i.name, i.display_name, i.brand, i.item_code, i.item_count, i.weight_g, "
             "i.volume_ml FROM items i JOIN stores s ON s.id = i.store_id "
-            "WHERE s.country = ? AND i.fuel_type IS NULL ORDER BY i.id",
+            f"WHERE s.country = ? AND i.fuel_type IS NULL ORDER BY {ITEM_ORDER}",
             (country,),
         ).fetchall()
 

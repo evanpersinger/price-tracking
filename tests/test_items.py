@@ -55,6 +55,17 @@ def test_stores_are_listed_per_country(client: TestClient, add_item: Callable[..
     assert [item["name"] for item in stores_in(client, "US")[0]["items"]] == ["Butter"]
 
 
+def test_items_with_an_item_code_are_listed_before_the_ones_without(
+    client: TestClient, add_item: Callable[..., dict],
+) -> None:
+    add_item(name="Butter")
+    add_item(name="Large Eggs", item_code="123456")
+    add_item(name="Bananas", item_code="654321")
+
+    [store] = stores_in(client)
+    assert [item["name"] for item in store["items"]] == ["Large Eggs", "Bananas", "Butter"]
+
+
 def test_item_without_a_size_is_rejected(client: TestClient) -> None:
     response = client.post(
         "/api/items",
