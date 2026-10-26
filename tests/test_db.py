@@ -44,3 +44,28 @@ def test_connect_fills_the_item_code_of_history_written_before_the_column_existe
         rows = conn.execute("SELECT item_id, item_code, price_cents FROM price_history").fetchall()
 
     assert rows == [(1, "123456", 449)]
+
+
+def test_connect_creates_the_indexes_once_and_tracks_them_in_user_version() -> None:
+    with closing(db.connect()) as conn:
+        indexes = {row[1] for row in conn.execute("PRAGMA index_list(items)")}
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+
+    assert {"items_store", "items_store_code"} <= indexes
+    assert version == db.SCHEMA_VERSION
+
+
+def test_log_activity_survives_an_unwritable_log(monkeypatch, tmp_path) -> None:
+    (tmp_path / "blocker").write_text("a file where the folder should be")
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "blocker" / "test.db")
+
+    db.log_activity("insert")  # must not raise
+
+
+def test_log_activity_moves_a_big_log_aside(monkeypatch) -> None:
+    monkeypatch.setattr(db, "MAX_LOG_BYTES", 10)
+    db.log_activity("first")
+    db.log_activity("second")
+
+    assert "first" in (db.DB_PATH.parent / "activity.log.1").read_text()
+    assert "second" in (db.DB_PATH.parent / "activity.log").read_text()

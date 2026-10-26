@@ -106,3 +106,17 @@ def test_stores_in_another_country_are_not_compared(client: TestClient, add_item
 
     [store] = cheapest(client, "CA")
     assert store["items"][0]["other_stores"] == 0
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    [("Milk 2%", "Milk 1%"), ("Vitamin C 500", "Vitamin C 1000")],
+)
+def test_names_that_differ_by_a_number_are_different_items(
+    client: TestClient, add_item: Callable[..., dict], first: str, second: str
+) -> None:
+    add_item(store="Costco", name=first, price_cents=500, item_count=None, volume_ml=1000)
+    add_item(store="Fresco", name=second, price_cents=300, item_count=None, volume_ml=1000)
+
+    stores = cheapest(client)
+    assert [(store["name"], store["items"][0]["other_stores"]) for store in stores] == [("Costco", 0), ("Fresco", 0)]
