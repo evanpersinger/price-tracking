@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 test_files/
+receipts_to_add/
 .vscode/
 backend/data/
 backend/input/
