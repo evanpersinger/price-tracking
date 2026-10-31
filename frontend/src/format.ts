@@ -24,6 +24,25 @@ export function formatUnitPrice(item: Pick<CheapestItem, 'unit' | 'unit_price_ce
   }
 }
 
+// The price per 100g, 100ml or item that the receipt review page shows live next to Size, so a wrong size (10800g for a
+// 250g tub, $0.27/100g instead of $11.60/100g) is obvious before saving. A weight wins, then a volume, then a count,
+// because those are the ones a typo in Size changes. (The Cheapest page ranks a pack with a count per item first.)
+export function previewUnitPrice(
+  item: { price_cents: number; item_count?: number; weight_g?: number; volume_ml?: number },
+  country: Country,
+): string | null {
+  if (item.weight_g !== undefined && item.weight_g > 0) {
+    return formatUnitPrice({ unit: 'g', unit_price_cents: item.price_cents / item.weight_g }, country)
+  }
+  if (item.volume_ml !== undefined && item.volume_ml > 0) {
+    return formatUnitPrice({ unit: 'ml', unit_price_cents: item.price_cents / item.volume_ml }, country)
+  }
+  if (item.item_count !== undefined && item.item_count > 0) {
+    return formatUnitPrice({ unit: 'each', unit_price_cents: item.price_cents / item.item_count }, country)
+  }
+  return null
+}
+
 // The Cheapest pages' unit price. A count of 1 (a hydration drink, a lime squeezer) has no pack to split up, so it
 // reads "per <item name>" instead of "each". A bigger count, and anything priced per gram or ml, stays as it is.
 export function formatCheapestUnitPrice(

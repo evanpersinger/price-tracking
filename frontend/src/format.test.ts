@@ -3,6 +3,7 @@ import {
   formatCheapestUnitPrice,
   formatPrice,
   formatUnitPrice,
+  previewUnitPrice,
   isZeroMoney,
   itemParts,
   labelSegments,
@@ -161,5 +162,24 @@ describe('itemParts', () => {
     expect(itemParts({ ...sized, name: 'KS BATH' }).receiptName).toBeNull()
     expect(itemParts({ ...sized, name: 'KS BATH' }, 'Fresco').receiptName).toBeNull()
     expect(itemParts({ ...sized, name: 'Bananas' }, 'Costco').receiptName).toBeNull()
+  })
+})
+
+
+describe('previewUnitPrice', () => {
+  it('shows the price per 100g, so a wrong size stands out', () => {
+    // a 250g tub for $29.00 is $11.60/100g, saved as 10800g it would read $0.27/100g
+    expect(previewUnitPrice({ price_cents: 2900, weight_g: 250 }, 'CA')).toBe('$11.60 per 100g')
+    expect(previewUnitPrice({ price_cents: 2900, item_count: 60, weight_g: 10800 }, 'CA')).toBe('$0.27 per 100g')
+  })
+
+  it('uses 100ml for a volume and each for a count', () => {
+    expect(previewUnitPrice({ price_cents: 500, volume_ml: 2000 }, 'US')).toBe('$0.25 per 100ml')
+    expect(previewUnitPrice({ price_cents: 1200, item_count: 24 }, 'CA')).toBe('$0.50 each')
+  })
+
+  it('shows nothing without a usable size', () => {
+    expect(previewUnitPrice({ price_cents: 500 }, 'CA')).toBeNull()
+    expect(previewUnitPrice({ price_cents: 500, weight_g: 0 }, 'CA')).toBeNull()
   })
 })
