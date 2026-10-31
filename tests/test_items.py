@@ -1,9 +1,9 @@
 """POST /api/items and GET /api/stores."""
 
 import json
-from datetime import date, timedelta
 from collections.abc import Callable
 from contextlib import closing
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
