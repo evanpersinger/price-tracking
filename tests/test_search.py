@@ -48,3 +48,13 @@ def test_a_search_with_no_match_returns_nothing(client: TestClient, add_item: Ca
     add_item(store="Costco")
 
     assert search(client, "milk") == []
+
+
+def test_an_item_is_found_by_its_display_name_as_well_as_its_receipt_name(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(store="Fresco", name="BNNA ORG", display_name="Organic Bananas", price_cents=300, item_count=None, weight_g=1000)
+
+    assert [offer["store_name"] for offer in search(client, "banana")[0]["offers"]] == ["Fresco"]
+    assert [offer["store_name"] for offer in search(client, "bnna")[0]["offers"]] == ["Fresco"]
+    assert search(client, "apple") == []

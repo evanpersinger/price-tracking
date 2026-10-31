@@ -807,7 +807,9 @@ def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> 
 
     cheapest_repeat: dict[tuple, Offer] = {}
     for offer in _sized_offers(country):
-        if not all(pattern.search(offer.words) for pattern in patterns):
+        # match the printed receipt name or the display name shown on screen
+        searched = [offer.words, (offer.display_name or "").lower()]
+        if not all(any(pattern.search(text) for text in searched) for pattern in patterns):
             continue
         key = (offer.store_id, offer.words, tuple(sorted(offer.amounts.items())))
         if key not in cheapest_repeat or offer.price_cents < cheapest_repeat[key].price_cents:
