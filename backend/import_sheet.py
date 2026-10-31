@@ -49,7 +49,9 @@ def _find_col(rows: list[list[str]], start: int, end: int, label: str) -> int | 
     return next((i for i in range(start, end) if _cell(rows[COLUMN_HEADER_ROW], i) == label), None)
 
 
-def _read_store(rows: list[list[str]], start: int, end: int) -> tuple[str | None, list[tuple[str, int | None, int | None]]]:
+def _read_store(
+    rows: list[list[str]], start: int, end: int
+) -> tuple[str | None, list[tuple[str, int | None, int | None]]]:
     """A store's discount text and its (name, price_cents, rating) items."""
     price_col = _find_col(rows, start, end, "Price")
     rating_col = _find_col(rows, start, end, "Rating (1-5)")
@@ -142,7 +144,8 @@ def import_sheet(csv_path: Path, country: str) -> None:
             unpriced = sum(1 for _, price, _ in items if price is None)
             total_items += len(items)
             total_unpriced += unpriced
-            print(f"{name}: {len(items)} items, {unpriced} with no price" + (f", discount: {discount}" if discount else ""))
+            discount_note = f", discount: {discount}" if discount else ""
+            print(f"{name}: {len(items)} items, {unpriced} with no price{discount_note}")
 
         students = _read_student_discounts(rows)
         conn.executemany(
