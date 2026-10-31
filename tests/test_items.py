@@ -1,6 +1,7 @@
 """POST /api/items and GET /api/stores."""
 
 import json
+from datetime import date, timedelta
 from collections.abc import Callable
 from contextlib import closing
 
@@ -452,3 +453,19 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     })
 
     assert response.status_code == 422
+
+
+def test_a_receipt_dated_over_two_years_ago_is_rejected(client: TestClient) -> None:
+    body = {
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
+        "item_count": 12, "item_code": "111",
+    }
+    too_old = (date.today() - timedelta(days=2 * 365 + 1)).isoformat()
+    recent_enough = (date.today() - timedelta(days=2 * 365)).isoformat()
+
+    rejected = client.post("/api/items", json={**body, "purchased_on": too_old})
+    accepted = client.post("/api/items", json={**body, "purchased_on": recent_enough})
+
+    assert rejected.status_code == 422
+    assert rejected.json()["detail"] == "That receipt's date is over 2 years ago, check it."
+    assert accepted.status_code == 201
