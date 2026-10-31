@@ -452,3 +452,26 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     })
 
     assert response.status_code == 422
+
+
+def test_a_code_added_to_an_item_saved_without_one_updates_that_row(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    first = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, price_cents=300)
+    second = add_item(
+        store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, price_cents=350, item_code="999"
+    )
+
+    assert second["id"] == first["id"]
+    [store] = client.get("/api/stores", params={"country": "CA"}).json()
+    [item] = store["items"]
+    assert (item["item_code"], item["price_cents"]) == ("999", 350)
+
+
+def test_a_code_does_not_take_over_a_row_that_has_a_different_code(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    first = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, item_code="111")
+    second = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, item_code="999")
+
+    assert second["id"] != first["id"]

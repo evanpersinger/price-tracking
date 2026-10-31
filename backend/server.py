@@ -179,22 +179,25 @@ def add_item(new_item: NewItem) -> AddedItem:
             "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg, "
             "unit_volume_ml, purchased_on"
         )
+        existing = None
         if new_item.item_code:
             # A code the store already has means the same product at a new price, so overwrite that row
             existing = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ? AND item_code = ?",
                 (store_id, new_item.item_code),
             ).fetchone()
-        elif new_item.fuel_type:
-            # No code on a gas receipt by design, every fill-up is its own row even if the grade repeats
-            existing = None
-        else:
-            # No code to go by (the receipt reader missed it, or this store never prints one): the name is always
-            # the receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so
-            # a near-identical name at this store (tolerating OCR noise, not requiring an exact match) with the same
-            # size means a repeat of the same product. A different size is a different pack, so it gets its own row.
+        # No code on a gas receipt by design, every fill-up is its own row even if the grade repeats
+        if not existing and not new_item.fuel_type:
+            # No row has this code (or the receipt has none: the reader missed it, or this store never prints one).
+            # The name is always the receipt's own printed text (see ReceiptReview's toRow), not a reworded or
+            # generalized one, so a near-identical name at this store (tolerating OCR noise, not requiring an exact
+            # match) with the same size means a repeat of the same product. A different size is a different pack, so
+            # it gets its own row. When the receipt has a code, only rows saved without one can match, so the code is
+            # added to that row instead of a duplicate being inserted.
             candidates = conn.execute(
-                f"SELECT {existing_columns} FROM items WHERE store_id = ?", (store_id,)
+                f"SELECT {existing_columns} FROM items WHERE store_id = ?"
+                + (" AND (item_code IS NULL OR item_code = '')" if new_item.item_code else ""),
+                (store_id,),
             ).fetchall()
             # Strip the typed unit price (e.g. "($2.00 per kg)") before comparing: for a by-weight item it's the
             # only thing that changes between purchases, and a big swing in it shouldn't make the same product
