@@ -4,6 +4,7 @@ Reads and writes backend/data/prices.db and only listens on 127.0.0.1. Run: pyth
 """
 
 import asyncio
+import io
 import difflib
 import logging
 import math
@@ -16,6 +17,7 @@ from typing import Annotated, Literal, NamedTuple
 
 import requests
 import uvicorn
+from PIL import Image
 from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -27,6 +29,8 @@ from extract_receipt import RECEIPT_MODEL, extract_receipt
 PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+MAX_RECEIPT_PIXELS = 80_000_000  # a phone photo is under 50 million, more is a decompression bomb
+IMAGE_FORMATS = {"image/jpeg": "JPEG", "image/png": "PNG"}
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")
@@ -301,6 +305,24 @@ def _receipt_error(status_code: int, detail: str, **fields: object) -> HTTPExcep
     return HTTPException(status_code=status_code, detail=detail)
 
 
+def _check_is_image(image: bytes, media_type: str) -> None:
+    """Raise a 415 unless the bytes are really the JPEG or PNG the Content-Type says, or a 413 if it has too many pixels
+    (read from the header, so a decompression bomb is never decoded)."""
+    try:
+        with Image.open(io.BytesIO(image)) as picture:
+            width, height = picture.size
+            if picture.format != IMAGE_FORMATS[media_type]:
+                raise ValueError(f"the body is {picture.format}, not {IMAGE_FORMATS[media_type]}")
+            if width * height <= MAX_RECEIPT_PIXELS:
+                picture.verify()
+    except Exception as e:  # Pillow raises many kinds for a broken or fake image
+        raise _receipt_error(415, "That isn't a readable JPEG or PNG image.", media_type=media_type,
+                             image_bytes=len(image), error=str(e)) from e
+    if width * height > MAX_RECEIPT_PIXELS:
+        raise _receipt_error(413, "That image has too many pixels.", media_type=media_type, image_bytes=len(image),
+                             width=width, height=height)
+
+
 @app.post("/api/receipt")
 async def read_receipt(request: Request) -> dict:
     """Read a receipt image (the raw JPEG or PNG as the request body) and return the items found on it.
@@ -313,9 +335,19 @@ async def read_receipt(request: Request) -> dict:
     if not receipt_lock.acquire(blocking=False):
         raise _receipt_error(409, "Another receipt is being read, try again in a moment.", media_type=media_type)
     try:
-        image = await request.body()
-        if len(image) > MAX_RECEIPT_BYTES:
-            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=len(image))
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_RECEIPT_BYTES:
+            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=int(declared))
+        # read in pieces and stop at the limit, so a huge upload is never held in memory whole
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_RECEIPT_BYTES:
+                raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=size)
+            chunks.append(chunk)
+        image = b"".join(chunks)
+        _check_is_image(image, media_type)
         started = time.perf_counter()
         result = await asyncio.to_thread(extract_receipt, image, media_type)
         log_activity("receipt_read", store=result.get("store"), store_address=result.get("store_address"),
