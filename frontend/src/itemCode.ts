@@ -3,7 +3,12 @@
 // length (Kirkland Baking Soda is only 4 digits), so a run of 4 or more digits is taken as the code. The price is
 // never part of this text (it's a separate field), so the only real risk is a short number that's actually part of
 // the name (like "7UP" or "2% Milk"), which stays under 4 digits.
-const CODE = /\d{4,}/
+//
+// A size in the name ("COCA COLA 1500ML", "KS WATER 6/2000ML", "FLOUR 2000 ML") is 4 or more digits too, but it is not
+// a code: taken as one it would be cut out of the name, and every 1500 mL item at the store would share the code
+// "1500" and overwrite each other. A run of digits glued to a letter, or followed by ml, kg, lb or oz, is skipped (a
+// spaced "G" or "L" still counts, it could start a brand like L'Oreal).
+const CODE = /(?<!\d)\d{4,}(?![\dA-Za-z])(?!\s*(?:ml|kg|lbs?|oz)\b)/i
 
 // Healthy Planet labels its code on a line above the name ("Item No.: FRU026"), and its codes mix in letters
 // ("A0087814"), so the digit run above would miss the first and cut the letter off the second. Checked first, since
