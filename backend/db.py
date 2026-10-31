@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -95,6 +96,7 @@ _UNIQUE_CODE_INDEX = (
     "WHERE item_code IS NOT NULL AND item_code != ''"
 )
 
+_prepare_lock = threading.Lock()  # requests run in threads, and two must not set up the same new database at once
 _ready: set[Path] = set()  # databases whose tables, columns and indexes were already checked by this process
 
 
@@ -114,8 +116,10 @@ def connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute("PRAGMA foreign_keys = ON")
     if DB_PATH not in _ready:
-        _prepare(conn)
-        _ready.add(DB_PATH)
+        with _prepare_lock:
+            if DB_PATH not in _ready:
+                _prepare(conn)
+                _ready.add(DB_PATH)
     return conn
 
 

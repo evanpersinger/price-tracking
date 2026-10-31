@@ -458,8 +458,10 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
 
 def test_simultaneous_requests_for_a_new_store_and_item_all_succeed() -> None:
     def post(price_cents: int) -> int:
-        body = {"country": "CA", "store": "Brand New Store", "name": "Large Eggs", "display_name": "Eggs", "price_cents": price_cents,
-                "item_count": 12, "item_code": "4242"}
+        body = {
+            "country": "CA", "store": "Brand New Store", "name": "Large Eggs", "display_name": "Eggs",
+            "price_cents": price_cents, "item_count": 12, "item_code": "4242",
+        }
         with TestClient(server.app, base_url="http://localhost") as client:
             return client.post("/api/items", json=body).status_code
 
