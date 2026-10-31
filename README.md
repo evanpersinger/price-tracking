@@ -32,6 +32,8 @@ uv run python backend/server.py   # API on http://127.0.0.1:8021, restart it aft
 cd frontend && pnpm dev           # UI on http://localhost:3009, needs the API running
 ```
 
+The API has no login and is meant for this computer only: it listens on 127.0.0.1 and rejects requests whose `Host` header isn't `127.0.0.1` or `localhost`.
+
 Optional environment variables: `PRICES_DB` (path to a different database, handy for testing on a copy), `OLLAMA_HOST`, and `RECEIPT_MODEL` (the model the API reads receipts with, default `gemma4:12b`).
 
 ## How to use it

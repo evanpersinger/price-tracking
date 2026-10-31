@@ -18,7 +18,7 @@ def temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(server.app)
+    return TestClient(server.app, base_url="http://localhost")
 
 
 @pytest.fixture

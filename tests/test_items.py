@@ -452,3 +452,10 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     })
 
     assert response.status_code == 422
+
+
+def test_a_request_with_a_foreign_host_header_is_refused(client: TestClient) -> None:
+    # DNS rebinding: a page's own domain resolves to 127.0.0.1, but the Host header keeps that domain
+    response = client.get("/api/stores", params={"country": "CA"}, headers={"Host": "evil.example"})
+    assert response.status_code == 400
+    assert client.get("/api/stores", params={"country": "CA"}, headers={"Host": "127.0.0.1:8021"}).status_code == 200

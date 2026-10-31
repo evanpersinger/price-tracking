@@ -19,6 +19,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from db import connect, log_activity
@@ -33,6 +34,9 @@ logger = logging.getLogger("uvicorn.error")
 receipt_lock = threading.Lock()  # one receipt at a time, the local model is heavy
 
 app = FastAPI()
+# The API is for this computer only. Refusing any other Host header stops a web page from reaching it through DNS
+# rebinding (a name the page controls that resolves to 127.0.0.1). The Vite dev proxy sends localhost.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 
 @app.exception_handler(RequestValidationError)
