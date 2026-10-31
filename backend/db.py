@@ -1,10 +1,13 @@
 """SQLite connection and tables for the price database, backend/data/prices.db unless PRICES_DB says otherwise."""
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = Path(os.environ.get("PRICES_DB", Path(__file__).resolve().parent / "data" / "prices.db"))
 
@@ -79,13 +82,40 @@ def _add_missing_columns(conn: sqlite3.Connection) -> None:
         conn.commit()  # the caller may close without committing, which would throw the backfill away
 
 
-def connect() -> sqlite3.Connection:
-    """Open the database, creating its folder and tables on first use and adding any missing columns."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+_INDEXES = """
+CREATE INDEX IF NOT EXISTS items_store_id ON items (store_id);
+CREATE INDEX IF NOT EXISTS items_store_id_item_code ON items (store_id, item_code);
+CREATE INDEX IF NOT EXISTS price_history_item_id ON price_history (item_id);
+"""
+
+# One row per code at a store. Kept apart from the plain indexes because a database that already has two rows with the
+# same code (see add_item) can't build it, and that must not stop the app from starting.
+_UNIQUE_CODE_INDEX = (
+    "CREATE UNIQUE INDEX IF NOT EXISTS items_store_id_item_code_unique ON items (store_id, item_code) "
+    "WHERE item_code IS NOT NULL AND item_code != ''"
+)
+
+_ready: set[Path] = set()  # databases whose tables, columns and indexes were already checked by this process
+
+
+def _prepare(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA)
     _add_missing_columns(conn)
+    conn.executescript(_INDEXES)
+    try:
+        conn.execute(_UNIQUE_CODE_INDEX)
+    except sqlite3.IntegrityError:
+        logger.warning("Two items at one store share an item code, so codes are not enforced as unique until fixed.")
+
+
+def connect() -> sqlite3.Connection:
+    """Open the database, creating its folder, tables, indexes and any missing columns the first time it is opened."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.execute("PRAGMA foreign_keys = ON")
+    if DB_PATH not in _ready:
+        _prepare(conn)
+        _ready.add(DB_PATH)
     return conn
 
 

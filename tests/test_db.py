@@ -2,6 +2,7 @@
 
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 import db
 
@@ -44,3 +45,22 @@ def test_connect_fills_the_item_code_of_history_written_before_the_column_existe
         rows = conn.execute("SELECT item_id, item_code, price_cents FROM price_history").fetchall()
 
     assert rows == [(1, "123456", 449)]
+
+
+def test_indexes_are_created_and_a_database_with_duplicate_codes_still_opens() -> None:
+    with closing(db.connect()) as conn:
+        names = {row[1] for row in conn.execute("PRAGMA index_list(items)")}
+    assert {"items_store_id", "items_store_id_item_code", "items_store_id_item_code_unique"} <= names
+
+
+def test_duplicate_item_codes_in_an_old_database_do_not_stop_it_opening(tmp_path: Path) -> None:
+    db._ready.discard(db.DB_PATH)
+    with closing(sqlite3.connect(db.DB_PATH)) as old, old:
+        old.executescript(db._SCHEMA)
+        old.execute("ALTER TABLE items ADD COLUMN item_code TEXT")
+        old.execute("INSERT INTO stores (name, country) VALUES ('Metro', 'CA')")
+        old.executemany("INSERT INTO items (store_id, name, item_code) VALUES (1, 'Bread', '7')", [(), ()])
+
+    with closing(db.connect()) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 2
+        assert "items_store_id_item_code_unique" not in {row[1] for row in conn.execute("PRAGMA index_list(items)")}

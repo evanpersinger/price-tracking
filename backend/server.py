@@ -157,6 +157,9 @@ def add_item(new_item: NewItem) -> AddedItem:
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
     purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
+        # Take the write lock now: two requests for the same new store or item would otherwise both find nothing
+        # and both insert, and the second would fail. Waiting requests retry for up to the connection's timeout.
+        conn.execute("BEGIN IMMEDIATE")
         store = conn.execute(
             "SELECT id FROM stores WHERE country = ? AND lower(name) = lower(?)", (new_item.country, new_item.store)
         ).fetchone()

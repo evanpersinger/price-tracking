@@ -2,12 +2,14 @@
 
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
 
 import db
+import server
 
 
 def history() -> list[tuple]:
@@ -452,3 +454,19 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     })
 
     assert response.status_code == 422
+
+
+def test_simultaneous_requests_for_a_new_store_and_item_all_succeed() -> None:
+    def post(price_cents: int) -> int:
+        body = {"country": "CA", "store": "Brand New Store", "name": "Large Eggs", "display_name": "Eggs", "price_cents": price_cents,
+                "item_count": 12, "item_code": "4242"}
+        with TestClient(server.app, base_url="http://localhost") as client:
+            return client.post("/api/items", json=body).status_code
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        statuses = list(pool.map(post, range(100, 116)))
+
+    assert statuses == [201] * 16
+    with closing(db.connect()) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM stores").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 1
