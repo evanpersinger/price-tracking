@@ -49,6 +49,7 @@ Optional environment variables: `PRICES_DB` (path to a different database, handy
 - **Cheapest:** each store's items are compared per item, per gram or per ml, and produce or bulk items with no size are compared per kg. The search lists what every store sells an item for, cheapest first.
 - **Price history:** an item with an item code and a date is also recorded in the price history, which Price Tracking graphs.
 - **Size check:** saving an item over one that's already stored is rejected if its price per unit is more than 5 times higher or lower, since that means a typed size is wrong.
+- **Activity log:** every write is appended to `backend/data/activity.log` (rotated to `activity.log.1` past 5 MB). It can contain receipt text and store addresses, so don't share it.
 - **Data rules:** how item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
 
 ## License

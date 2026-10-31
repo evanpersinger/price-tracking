@@ -1,10 +1,14 @@
 """SQLite connection and tables for the price database, backend/data/prices.db unless PRICES_DB says otherwise."""
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+MAX_LOG_BYTES = 5 * 1024 * 1024  # activity.log is rotated past this size
 
 DB_PATH = Path(os.environ.get("PRICES_DB", Path(__file__).resolve().parent / "data" / "prices.db"))
 
@@ -91,8 +95,19 @@ def connect() -> sqlite3.Connection:
 
 def log_activity(action: str, **fields: object) -> None:
     """Appends one JSON line to activity.log next to the database: every write an API endpoint makes, so what got
-    added or changed where can be reviewed for debugging. Not read by the app itself."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    added or changed where can be reviewed for debugging. Not read by the app itself.
+
+    The log is moved to activity.log.1 (replacing the previous one) once it passes MAX_LOG_BYTES. It is called after
+    the write has been committed, so a failure to write it is only logged as a warning, it must not turn a saved
+    item into an error response.
+    """
     entry = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "action": action, **fields}
-    with (DB_PATH.parent / "activity.log").open("a") as log_file:
-        log_file.write(json.dumps(entry) + "\n")
+    log_path = DB_PATH.parent / "activity.log"
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if log_path.exists() and log_path.stat().st_size > MAX_LOG_BYTES:
+            log_path.replace(log_path.with_name("activity.log.1"))
+        with log_path.open("a") as log_file:
+            log_file.write(json.dumps(entry, default=str) + "\n")
+    except OSError:
+        logger.warning("Could not write to %s", log_path, exc_info=True)

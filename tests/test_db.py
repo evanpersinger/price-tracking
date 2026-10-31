@@ -2,6 +2,9 @@
 
 import sqlite3
 from contextlib import closing
+from pathlib import Path
+
+import pytest
 
 import db
 
@@ -44,3 +47,20 @@ def test_connect_fills_the_item_code_of_history_written_before_the_column_existe
         rows = conn.execute("SELECT item_id, item_code, price_cents FROM price_history").fetchall()
 
     assert rows == [(1, "123456", 449)]
+
+
+def test_a_failing_activity_log_does_not_fail_the_write(tmp_path: Path, add_item) -> None:
+    # a directory where the log file should be makes the append raise OSError
+    (tmp_path / "activity.log").mkdir()
+
+    add_item()  # would be a 500 if the log error escaped
+
+
+def test_activity_log_is_rotated_when_it_is_too_big(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(db, "MAX_LOG_BYTES", 10)
+
+    db.log_activity("first")
+    db.log_activity("second")
+
+    assert "first" in (tmp_path / "activity.log.1").read_text()
+    assert "second" in (tmp_path / "activity.log").read_text()
