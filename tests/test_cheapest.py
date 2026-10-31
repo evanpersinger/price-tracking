@@ -106,3 +106,14 @@ def test_stores_in_another_country_are_not_compared(client: TestClient, add_item
 
     [store] = cheapest(client, "CA")
     assert store["items"][0]["other_stores"] == 0
+
+
+def test_names_that_differ_by_a_number_are_different_items(client: TestClient, add_item: Callable[..., dict]) -> None:
+    add_item(store="Costco", name="Milk 2%", price_cents=500, item_count=None, volume_ml=2000)
+    add_item(store="Fresco", name="Milk 1%", price_cents=300, item_count=None, volume_ml=2000)
+    add_item(store="Costco", name="Vitamin C 500", price_cents=800, item_count=None, weight_g=100)
+    add_item(store="Fresco", name="Vitamin C 1000", price_cents=700, item_count=None, weight_g=100)
+
+    stores = cheapest(client)
+    # nothing is cheaper at another store, because no item here is sold by two stores
+    assert all(item["other_stores"] == 0 for store in stores for item in store["items"])

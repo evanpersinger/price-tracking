@@ -347,6 +347,7 @@ async def read_receipt(request: Request) -> dict:
 UNIT_PRICE = re.compile(r"\([^()]*\$[^()]*\)")  # e.g. "($0.57 per pill)", worked out from the price
 WEIGHT_RATE = re.compile(r"\(\s*\$(\d+(?:\.\d+)?)\s*per\s*(\d+(?:\.\d+)?)?\s*([a-z]+)\s*\)")  # "($7.72 per kg)"
 AMOUNT =re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
+NUMBERS = re.compile(r"\d+(?:\.\d+)?")
 SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
 # A stricter bar than SIMILARITY above: this one decides whether a new item overwrites an existing row (so a
 # false match loses data) rather than just grouping two offers for display, and it's paired with a size
@@ -453,12 +454,23 @@ def _same_sizes(a: dict[str, float], b: dict[str, float]) -> bool:
     return a.keys() == b.keys() and all(abs(a[kind] - b[kind]) <= SIZE_TOLERANCE * max(a[kind], b[kind]) for kind in a)
 
 
+def _same_words(a: str, b: str) -> bool:
+    """Whether two names' words are the same item: their numbers match exactly and the rest is alike.
+
+    Numbers (a percent, a dose, a strength) are compared exactly because one changed digit makes a different
+    product, but a fuzzy ratio would score "milk 2%" and "milk 1%" as alike.
+    """
+    if NUMBERS.findall(a) != NUMBERS.findall(b):
+        return False
+    return difflib.SequenceMatcher(None, NUMBERS.sub("", a), NUMBERS.sub("", b)).ratio() >= SIMILARITY
+
+
 def _group_items(offers: list[Offer]) -> list[list[Offer]]:
     """Group offers into items by their words, keeping only the cheapest offer per store and size."""
     groups: list[list[Offer]] = []
     for offer in offers:
         group = next(
-            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            (g for g in groups if any(_same_words(offer.words, other.words) for other in g)),
             None,
         )
         if group is None:
@@ -626,7 +638,7 @@ def _cheapest_by_weight(offers: list[WeightOffer]) -> list[tuple[WeightOffer, in
     groups: list[list[WeightOffer]] = []  # one offer per store, its cheapest
     for offer in offers:
         group = next(
-            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            (g for g in groups if any(_same_words(offer.words, other.words) for other in g)),
             None,
         )
         if group is None:
