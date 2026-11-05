@@ -1,6 +1,6 @@
 import type { Country } from './types.ts'
 
-export interface CountryInfo {
+interface CountryInfo {
   code: Country
   path: string
   label: string

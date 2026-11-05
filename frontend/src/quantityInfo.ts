@@ -11,7 +11,7 @@ export function litresIn(quantityInfo: string | null | undefined): string | unde
   return quantityInfo ? LITRES.exec(quantityInfo)?.[1] : undefined
 }
 
-export interface QuantityFill {
+interface QuantityFill {
   count: string // empty unless the line says; how many items are in one pack, never how many packs were bought
   size: string // empty when the line doesn't say how big it is
   unit: 'g' | 'L' | '' // empty when the line doesn't say, so the person picks it

@@ -3,7 +3,7 @@ import type { SizeUnit } from './ReceiptReview.tsx'
 
 // Items where there is only one product it can be, so the review page fills in the size instead of asking for it.
 // Hand-maintained, add a line whenever one comes up.
-export interface KnownItem {
+interface KnownItem {
   itemNumber?: string // the product code the store prints on the line, the most reliable way to match
   printedAs: string // how the name prints on the receipt, without the item number
   matches?: 'contains' // any line with printedAs in it, left out means the whole name has to match
@@ -17,7 +17,7 @@ export interface KnownItem {
 
 // Grouped by store. A group applies when the receipt's store name contains the group's name, ignoring case, so
 // "Costco Wholesale - North London" uses the Costco group.
-export const KNOWN_ITEMS: Record<string, KnownItem[]> = {
+const KNOWN_ITEMS: Record<string, KnownItem[]> = {
   Costco: [
     { itemNumber: '6262016', printedAs: 'KS BATH', name: 'Bath Tissue', brand: 'Kirkland', count: 30, unit: 'none' },
     {

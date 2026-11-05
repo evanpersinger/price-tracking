@@ -2,7 +2,7 @@ import { splitItemCode } from './itemCode.ts'
 
 // Brand names we recognize, so an item's brand can be matched against a known spelling. Hand-maintained, add a
 // name whenever a new one comes up. All Canadian brands for now.
-export const BRANDS: string[] = [
+const BRANDS: string[] = [
   "Allen's",
   'Arm & Hammer',
   'Armstrong',
@@ -83,7 +83,7 @@ function normalize(text: string): string {
 // ALL STORES: applied to every store, for a name nothing else could be mistaken for (the same reasoning as
 // isOldSpice). Keep it to unmistakable brands, a word that could be a plain description ("Natural") belongs in a
 // specific store's section instead.
-export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
+const ALL_STORES_BRAND_WORDS: Record<string, string> = {
   DORITOS: 'Doritos',
   FAIRLIFE: 'Fairlife',
   LENNY: "Lenny & Larry's",
@@ -94,7 +94,7 @@ export const ALL_STORES_BRAND_WORDS: Record<string, string> = {
 // SPECIFIC STORES: only applied at that store, a word that is a brand at one store can be something else at another.
 // Grouped by store like KNOWN_ITEMS in knownItems.ts, a group applies when the receipt's store name contains the
 // group's name, ignoring case. If a group has the same word as the all stores section, the group wins.
-export const SPECIFIC_STORES_BRAND_WORDS: Record<string, Record<string, string>> = {
+const SPECIFIC_STORES_BRAND_WORDS: Record<string, Record<string, string>> = {
   Adonis: { BLACKDI: 'Black Diamond' },
   'Canadian Superstore': { GIGANTICO: 'Gigantico', 'NO NAME': 'No Name' },
   Costco: { PIROULINE: 'Pirouline' },

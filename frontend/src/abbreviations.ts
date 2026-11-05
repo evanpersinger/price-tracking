@@ -1,4 +1,4 @@
-export interface Abbreviation {
+interface Abbreviation {
   abbr: string
   meaning: string
 }

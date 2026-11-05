@@ -83,7 +83,7 @@ interface Sized {
   volume_ml: number | null
 }
 
-export interface ItemParts {
+interface ItemParts {
   name: Segment[] // just the words, the typed unit price is its own field below
   amounts: string[] // like "8 buns" or "500g", without the brackets
   unitPrice: string | null // the typed unit price, like "$0.50 per bun", without the brackets
