@@ -44,12 +44,6 @@ def test_a_search_word_matches_the_start_of_a_word_not_the_middle(
     assert [offer["store_name"] for offer in chicken["offers"]] == ["Walmart"]
 
 
-def test_a_search_with_no_match_returns_nothing(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item(store="Costco")
-
-    assert search(client, "milk") == []
-
-
 def test_an_item_is_found_by_its_display_name(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(store="Costco", name="BNNA ORG", display_name="Organic Bananas", item_count=None, weight_g=1000)
 

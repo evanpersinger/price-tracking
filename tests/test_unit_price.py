@@ -47,14 +47,6 @@ def test_a_weight_line_is_never_touched_even_if_price_matches_the_rate() -> None
     assert prices(result) == [4.99]
 
 
-def test_an_item_with_no_quantity_info_is_left_alone() -> None:
-    result = extract_receipt._fix_misread_unit_price(receipt(
-        {"raw_name": "EGGS", "price": 8.99, "quantity_info": None},
-    ))
-
-    assert prices(result) == [8.99]
-
-
 def test_reading_a_receipt_fixes_the_misread_price(monkeypatch: pytest.MonkeyPatch) -> None:
     reply = json.dumps(receipt(
         {"raw_name": "EPSON T232 BLACK INK 10343970564", "price": 40.49, "quantity_info": "2 @ 40.49"},

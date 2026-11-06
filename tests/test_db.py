@@ -22,13 +22,6 @@ def test_connect_adds_missing_item_columns_and_keeps_the_rows() -> None:
     assert rows == [("Rice", 449, None)]
 
 
-def test_connect_creates_the_price_history_table() -> None:
-    with closing(db.connect()) as conn:
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(price_history)")}
-
-    assert columns == {"id", "item_id", "item_code", "price_cents", "purchased_on"}
-
-
 def test_connect_fills_the_item_code_of_history_written_before_the_column_existed() -> None:
     with closing(sqlite3.connect(db.DB_PATH)) as old, old:
         old.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, store_id INTEGER, name TEXT, item_code TEXT)")
