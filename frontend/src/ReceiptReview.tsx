@@ -457,14 +457,13 @@ export function ReceiptReview({ result, onDone }: Props) {
             </thead>
             <tbody>
               {regularRows.map((row, index) => {
-                const { problems } = checkRow(row)
+                const { problems, fields } = checkRow(row)
                 const status = rowStatus(row, problems)
                 const locked = isSaving || row.status === 'added'
                 const rowNumber = index + 1
                 const fuelPrice = parsePositive(row.price)
                 const litres = parsePositive(row.size)
-                const checked = checkRow(row).fields
-                const unitPrice = checked === null ? null : previewUnitPrice(checked, country ?? 'CA')
+                const unitPrice = fields === null ? null : previewUnitPrice(fields, country ?? 'CA')
                 const litrePrice =
                   fuelPrice !== null && litres !== null
                     ? pricePerLitre(Math.round(fuelPrice * 100), litres * 1000, country ?? 'CA')
@@ -612,9 +611,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         </div>
                       )}
                       {!isFuelReceipt && unitPrice !== null && (
-                        <div className="review-unit-price" aria-label={`Unit price of item ${rowNumber}`}>
-                          {unitPrice}
-                        </div>
+                        <div className="review-unit-price">{unitPrice}</div>
                       )}
                     </td>
                     {isFuelReceipt && <td>{litrePrice}</td>}
