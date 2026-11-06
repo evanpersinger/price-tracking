@@ -8,7 +8,7 @@ Tracks grocery prices per store in Canada and the USA so the same item can be co
 
 ## Setup
 
-Needs [uv](https://docs.astral.sh/uv/), Node 22 and pnpm (`corepack enable` picks the version in `frontend/package.json`).
+Needs [uv](https://docs.astral.sh/uv/), Node 22.12 or newer and pnpm (`corepack enable` picks the version in `frontend/package.json`).
 
 ```bash
 uv sync
@@ -41,6 +41,7 @@ Optional environment variables: `PRICES_DB` (path to a different database, handy
 The same checks CI runs:
 
 ```bash
+uv run ruff check
 uv run pytest
 cd frontend && pnpm lint && pnpm test && pnpm build
 ```
