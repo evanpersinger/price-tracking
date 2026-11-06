@@ -16,6 +16,12 @@ def temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "test.db")
 
 
+@pytest.fixture(autouse=True)
+def any_receipt_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Most tests post fixed receipt dates, which would be too old for the real limit by now."""
+    monkeypatch.setattr(server, "MAX_RECEIPT_AGE_DAYS", 100_000)
+
+
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(server.app, base_url="http://127.0.0.1")

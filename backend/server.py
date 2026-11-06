@@ -12,7 +12,7 @@ import re
 import threading
 import time
 from contextlib import closing
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Literal, NamedTuple
 
 import requests
@@ -31,6 +31,7 @@ PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_PIXELS = 50_000_000  # a small file can still decode to a huge image
+MAX_RECEIPT_AGE_DAYS = 30  # an older date is most likely a misread year, not a receipt just bought
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")
@@ -164,7 +165,11 @@ def add_item(new_item: NewItem) -> AddedItem:
     """
     if new_item.purchased_on and new_item.purchased_on > date.today():
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
-    purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
+    if new_item.purchased_on and new_item.purchased_on < date.today() - timedelta(days=MAX_RECEIPT_AGE_DAYS):
+        raise HTTPException(
+            status_code=422, detail=f"That receipt's date is over {MAX_RECEIPT_AGE_DAYS} days ago, check it."
+        )
+    purchased_on =new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
         # Take the write lock now, so a second request for the same new store or item waits here and then finds the
         # row this one saved, instead of both seeing nothing and the second insert failing
