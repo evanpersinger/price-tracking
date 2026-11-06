@@ -24,7 +24,7 @@ from PIL import Image
 from pydantic import BaseModel, Field, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from db import connect, log_activity
+from db import backup_database, connect, log_activity
 from extract_receipt import RECEIPT_MODEL, extract_receipt
 
 PORT = 8021
@@ -898,4 +898,5 @@ def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> 
 
 
 if __name__ == "__main__":
+    backup_database()  # before the first connect(), so the first start of a day also keeps the pre-upgrade file
     uvicorn.run(app, host="127.0.0.1", port=PORT)

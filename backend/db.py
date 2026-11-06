@@ -3,9 +3,11 @@
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import threading
-from datetime import UTC, datetime
+from contextlib import closing
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 logger = logging.getLogger("uvicorn.error")
@@ -150,3 +152,35 @@ def log_activity(action: str, **fields: object) -> None:
             log_file.write(json.dumps(entry) + "\n")
     except OSError as e:
         logger.warning("Couldn't write to activity.log: %s", e)
+
+
+def backup_database() -> None:
+    """Once a day, on the first server start, copies the database and activity.log into backups/ next to them.
+
+    The copies are named by local date and never deleted. The database goes through sqlite's backup(), which is safe
+    with WAL mode on and a request writing at the same moment, a plain file copy is not. Today's database copy is what
+    marks the day as done, so it is written last, under a temporary name and then renamed: a failure part way leaves
+    no copy of today, and the next start tries again. A failure is only warned about, the server still starts. A
+    database that doesn't exist yet has nothing to copy.
+    """
+    if not DB_PATH.exists():
+        return
+    today = date.today().isoformat()
+    folder = DB_PATH.parent / "backups"
+    database_copy = folder / f"prices-{today}.db"
+    if database_copy.exists():
+        return
+    try:
+        folder.mkdir(mode=0o700, exist_ok=True)
+        log_path = DB_PATH.parent / "activity.log"
+        if log_path.exists():
+            log_copy = folder / f"activity-{today}.log"
+            shutil.copyfile(log_path, log_copy)
+            log_copy.chmod(0o600)
+        unfinished = folder / f"prices-{today}.db.tmp"
+        with closing(sqlite3.connect(DB_PATH, timeout=10)) as source, closing(sqlite3.connect(unfinished)) as target:
+            source.backup(target)
+        unfinished.chmod(0o600)
+        unfinished.replace(database_copy)
+    except (OSError, sqlite3.Error) as e:
+        logger.warning("Couldn't back up the database: %s", e)
