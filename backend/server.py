@@ -28,7 +28,7 @@ from db import connect, log_activity
 from extract_receipt import RECEIPT_MODEL, extract_receipt
 
 PORT = 8021
-RECEIPT_MEDIA_TYPES = {"image/jpeg": "JPEG", "image/png": "PNG"}  # content type -> the format Pillow must find
+RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_PIXELS = 50_000_000  # a small file can still decode to a huge image
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
@@ -329,12 +329,11 @@ async def _read_limited_body(request: Request, media_type: str) -> bytes:
 
 
 def _check_image(image: bytes, media_type: str) -> None:
-    """Make sure the bytes are the JPEG or PNG the content type says, and not too many pixels, before OCR and the
-    model get them. A 415 for anything else and a 413 for a decompression bomb."""
+    """Make sure the bytes are a readable image and not too many pixels, before OCR and the model get them. A 415
+    for anything else and a 413 for a decompression bomb. The format Pillow finds isn't compared to the content type,
+    a phone's JPEG can come back as MPO."""
     try:
         with Image.open(io.BytesIO(image)) as opened:
-            if opened.format != RECEIPT_MEDIA_TYPES[media_type]:
-                raise _receipt_error(415, "Send a JPEG or PNG image.", media_type=media_type, image_bytes=len(image))
             if opened.width * opened.height > MAX_RECEIPT_PIXELS:
                 raise _receipt_error(413, "That image has too many pixels.", media_type=media_type,
                                      image_bytes=len(image))

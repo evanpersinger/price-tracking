@@ -120,11 +120,16 @@ def test_a_body_that_is_not_an_image_labelled_png_is_a_415(client: TestClient) -
     assert last_logged()["action"] == "receipt_failed"
 
 
-def test_a_jpeg_labelled_png_is_a_415(client: TestClient) -> None:
+def test_a_phone_photo_saved_as_mpo_is_accepted(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A phone's JPEG can hold a second image, and Pillow then reports its format as MPO instead of JPEG."""
     buffer = io.BytesIO()
-    Image.new("RGB", (2, 2)).save(buffer, format="JPEG")
+    Image.new("RGB", (2, 2)).save(buffer, format="MPO", save_all=True, append_images=[Image.new("RGB", (2, 2))])
+    receipt = {"store": "Costco", "items": []}
+    monkeypatch.setattr(server, "extract_receipt", lambda image, media_type: receipt)
 
-    assert client.post("/api/receipt", content=buffer.getvalue(), headers=PNG).status_code == 415
+    response = client.post("/api/receipt", content=buffer.getvalue(), headers={"content-type": "image/jpeg"})
+
+    assert (response.status_code, response.json()) == (200, receipt)
 
 
 def test_a_body_over_the_size_limit_is_a_413(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
