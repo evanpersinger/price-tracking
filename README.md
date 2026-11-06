@@ -8,12 +8,14 @@ Tracks grocery prices per store in Canada and the USA so the same item can be co
 
 ## Setup
 
+Needs [uv](https://docs.astral.sh/uv/), Node 22 and pnpm (`corepack enable` picks the version in `frontend/package.json`).
+
 ```bash
 uv sync
 cd frontend && pnpm install
 ```
 
-Receipt reading is open-source only, no paid API keys. It needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`, the app defaults to `gemma4:12b`). Tesseract (`brew install tesseract` on macOS) is used to spot gas receipts, and without it every receipt is read as a grocery one.
+Receipt reading is open-source only, no paid API keys. It needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`, the app defaults to `gemma4:12b`). Tesseract (`brew install tesseract` on macOS, `sudo apt install tesseract-ocr` on Debian/Ubuntu) is used to spot gas receipts, and without it every receipt is read as a grocery one.
 
 ## Try it with demo data
 
@@ -33,6 +35,17 @@ cd frontend && pnpm dev           # UI on http://localhost:3009, needs the API r
 ```
 
 Optional environment variables: `PRICES_DB` (path to a different database, handy for testing on a copy), `OLLAMA_HOST`, and `RECEIPT_MODEL` (the model the API reads receipts with, default `gemma4:12b`).
+
+## Test
+
+The same checks CI runs:
+
+```bash
+uv run pytest
+cd frontend && pnpm lint && pnpm test && pnpm build
+```
+
+The tests don't need Ollama or Tesseract.
 
 ## How to use it
 
