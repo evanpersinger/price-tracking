@@ -1093,6 +1093,14 @@ select.review-input {
   gap: 6px;
 }
 
+/* The price per 100g, 100ml or item under Size, updating as the row changes */
+.review-unit-price {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The size box and its unit are a pair of small boxes, no wider than "2724" and "none" need */
 .review-size .review-input-number {
   width: 5rem;

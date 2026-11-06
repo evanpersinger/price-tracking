@@ -6,6 +6,7 @@ import { dedupeExact } from './dedupeExact.ts'
 import { splitItemCode } from './itemCode.ts'
 import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
+import { previewUnitPrice } from './format.ts'
 import { findKnownItem, isKirklandSignature } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
 import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
@@ -462,6 +463,8 @@ export function ReceiptReview({ result, onDone }: Props) {
                 const rowNumber = index + 1
                 const fuelPrice = parsePositive(row.price)
                 const litres = parsePositive(row.size)
+                const checked = checkRow(row).fields
+                const unitPrice = checked === null ? null : previewUnitPrice(checked, country ?? 'CA')
                 const litrePrice =
                   fuelPrice !== null && litres !== null
                     ? pricePerLitre(Math.round(fuelPrice * 100), litres * 1000, country ?? 'CA')
@@ -606,6 +609,11 @@ export function ReceiptReview({ result, onDone }: Props) {
                               </option>
                             ))}
                           </select>
+                        </div>
+                      )}
+                      {!isFuelReceipt && unitPrice !== null && (
+                        <div className="review-unit-price" aria-label={`Unit price of item ${rowNumber}`}>
+                          {unitPrice}
                         </div>
                       )}
                     </td>
