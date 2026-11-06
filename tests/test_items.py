@@ -3,11 +3,13 @@
 import json
 from collections.abc import Callable
 from contextlib import closing
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 import db
+import server
 
 
 def history() -> list[tuple]:
@@ -315,6 +317,24 @@ def test_a_receipt_dated_in_the_future_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
     assert response.json()["detail"] == "That receipt's date is in the future, check it."
     assert stores_in(client) == []
+
+
+def test_a_receipt_dated_over_30_days_ago_is_rejected(
+    client: TestClient, add_item: Callable[..., dict], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(server, "MAX_RECEIPT_AGE_DAYS", 30)  # conftest raises it for the other tests
+    on_the_limit = (date.today() - timedelta(days=30)).isoformat()
+    over_the_limit = (date.today() - timedelta(days=31)).isoformat()
+
+    rejected = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
+        "item_count": 12, "item_code": "111", "purchased_on": over_the_limit,
+    })
+
+    assert rejected.status_code == 422
+    assert rejected.json()["detail"] == "That receipt's date is over 30 days ago, check it."
+    assert stores_in(client) == []
+    assert add_item(item_code="111", purchased_on=on_the_limit)["purchased_on"] == on_the_limit
 
 
 def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, add_item: Callable[..., dict]) -> None:
