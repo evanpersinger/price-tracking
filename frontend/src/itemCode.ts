@@ -15,7 +15,7 @@ const CODE = /(?<!\d)\d{4,}(?![\dA-Za-z])(?!\s*(?:ml|kg|lbs?|oz)\b)/i
 // the label says outright that what follows is the code.
 const LABELLED_CODE = /Item No\b\.?:?\s*(\S+)/i
 
-export interface PrintedItem {
+interface PrintedItem {
   code: string | undefined
   name: string // the line without the code, and without the asterisks the model sometimes wraps names in
 }
