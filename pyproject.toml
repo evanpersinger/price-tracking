@@ -12,9 +12,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx",
-    "pytest",
-    "ruff",
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
 ]
 
 [tool.pytest.ini_options]
@@ -25,3 +25,6 @@ testpaths = ["tests"]
 line-length = 120
 src = ["backend", "tests"]
 extend-exclude = ["frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

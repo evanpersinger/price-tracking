@@ -329,7 +329,9 @@ def _read_printed_date(receipt: dict) -> dict:
 
 
 # Words that mark a line as a deal or a discount and not a bought item
-_DEAL_LINE_RE = re.compile(r"\b(instant|savings?|discount|coupon|promo|promotion|markdown|rebate|you saved)\b|\bsale\b", re.IGNORECASE)
+_DEAL_LINE_RE = re.compile(
+    r"\b(instant|savings?|discount|coupon|promo|promotion|markdown|rebate|you saved)\b|\bsale\b", re.IGNORECASE
+)
 # A Costco discount line, "0000391935 /5051501", starts with its own long number and names the item code it took money
 # off after a slash. A size like "6/2000ML" in a product name has no long number in front, so it never matches.
 _DISCOUNT_FOR_RE = re.compile(r"^\s*\d{6,}\s*/\s*(\d{4,})")

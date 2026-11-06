@@ -373,7 +373,7 @@ async def read_receipt(request: Request) -> dict:
                       model=RECEIPT_MODEL, seconds=round(time.perf_counter() - started, 1),
                       media_type=media_type, image_bytes=len(image))
         return result
-    except requests.exceptions.HTTPError as e:  # Ollama is up but refused, e.g. the model isn't pulled or is out of memory
+    except requests.exceptions.HTTPError as e:  # Ollama is up but refused, e.g. model not pulled or out of memory
         logger.warning("Ollama answered with an error: %s", e)
         raise _receipt_error(502, "The local model returned an error, check it's pulled and has enough memory.",
                              error=str(e), ollama_reply=e.response.text[:500], media_type=media_type,
@@ -846,7 +846,8 @@ def _search_offer(offer: Offer, unit_price_cents: float) -> SearchOffer:
     return SearchOffer(
         id=offer.id, store_id=offer.store_id, store_name=offer.store_name, name=offer.name,
         display_name=offer.display_name, price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4),
-        item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
+        item_count=offer.item_count,
+        weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
         dose_mg=offer.dose_mg,
     )
 

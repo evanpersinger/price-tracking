@@ -34,7 +34,8 @@ def test_connect_fills_the_item_code_of_history_written_before_the_column_existe
         old.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, store_id INTEGER, name TEXT, item_code TEXT)")
         old.execute("INSERT INTO items (store_id, name, item_code) VALUES (1, 'Rice', '123456')")
         old.execute(
-            "CREATE TABLE price_history (id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL, price_cents INTEGER NOT NULL, "
+            "CREATE TABLE price_history (id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL, "
+            "price_cents INTEGER NOT NULL, "
             "purchased_on TEXT NOT NULL)"
         )
         old.execute("INSERT INTO price_history (item_id, price_cents, purchased_on) VALUES (1, 449, '2026-09-28')")

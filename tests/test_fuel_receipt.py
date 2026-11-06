@@ -42,7 +42,10 @@ def test_a_missing_tesseract_means_a_grocery_receipt(monkeypatch: pytest.MonkeyP
     assert extract_receipt._is_fuel_receipt(a_receipt_image()) is False
 
 
-@pytest.mark.parametrize(("is_fuel", "prompt"), [(True, extract_receipt._FUEL_PROMPT), (False, extract_receipt._RECEIPT_PROMPT)])
+@pytest.mark.parametrize(
+    ("is_fuel", "prompt"),
+    [(True, extract_receipt._FUEL_PROMPT), (False, extract_receipt._RECEIPT_PROMPT)],
+)
 def test_the_model_gets_the_prompt_for_that_kind_of_receipt(
     monkeypatch: pytest.MonkeyPatch, is_fuel: bool, prompt: str
 ) -> None:
