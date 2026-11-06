@@ -64,7 +64,8 @@ Status: the column, the API, the review page (the Item name box saves `display_n
 and showing it on every screen are done. The receipt items saved before the column existed were given display names
 by hand on 2026-10-14, so every item with an `item_code` has one now (backup
 `backend/data/prices.backup-2026-10-14-before-display-names.db`). Only imported items still have none, they show their
-`name`. Search and Cheapest matching on the server still look at `name`, not `display_name`.
+`name`. Search matches a typed word against the display name as well as `name`, while Cheapest's matching of the
+same item across stores still looks at `name` only.
 
 ## Duplicate detection (not adding the same item twice)
 
@@ -72,9 +73,12 @@ by hand on 2026-10-14, so every item with an `item_code` has one now (backup
 in which case it overwrites that row (keeping one row in `items`, with the old price kept in `price_history`)
 instead of inserting a new one:
 
-1. **With an `item_code`**: an exact match on `item_code` within the store. This is the reliable case.
-2. **With no code** (most stores print one, the ones that don't are listed below): a fuzzy match on name
-   (`difflib.SequenceMatcher`, `DUPLICATE_NAME_SIMILARITY = 0.9` in `server.py`), tolerant of OCR noise (a dropped
+1. **With an `item_code`**: an exact match on `item_code` within the store. This is the reliable case. A line with
+   a code matches nothing else: it is never matched by name, so it can't overwrite a saved row that has no code (it
+   becomes its own row).
+2. **With no code** (most stores print one, the ones that don't are listed below): a fuzzy match on name, only against
+   the store's saved rows that have no code either (`difflib.SequenceMatcher`,
+   `DUPLICATE_NAME_SIMILARITY = 0.9` in `server.py`), tolerant of OCR noise (a dropped
    or swapped letter) but not much more, **and** the same size (`_same_sizes`, 2% tolerance), so a 12 pack and a 24
    pack with a near-identical name stay two rows. A by-weight item has no size on either side, so it matches on name
    alone. Brand is deliberately **not** checked. Since the name is now always the receipt's own text (see above),
@@ -96,6 +100,14 @@ than `MAX_UNIT_PRICE_SWING = 5` times higher or lower means the typed size or un
 the item is rejected with a 422 instead of overwriting. A different pack size at a matching price passes. It doesn't
 cover a first purchase (nothing saved to compare to), dose, brand or names, or other stores. If the saved size is the
 wrong one, a correct entry gets blocked until the saved row is fixed or deleted.
+
+## Receipt date (`purchased_on`)
+
+The date comes from the receipt and is never defaulted to today, a guess would corrupt the price history. With no
+date the item is saved without one and nothing goes in `price_history`. `POST /api/items` rejects a date in the
+future, and one more than `MAX_RECEIPT_AGE_DAYS = 30` days before today (a 422), since an older date is most likely a
+misread year. The review page's date box can be corrected, or cleared to save without a date. Rows saved before the
+30 day limit existed are not checked.
 
 ## Item name vs. brand text
 
