@@ -174,12 +174,19 @@ def add_item(new_item: NewItem) -> AddedItem:
         # Take the write lock now, so a second request for the same new store or item waits here and then finds the
         # row this one saved, instead of both seeing nothing and the second insert failing
         conn.execute("BEGIN IMMEDIATE")
-        store = conn.execute(
-            "SELECT id FROM stores WHERE country = ? AND lower(name) = lower(?)", (new_item.country, new_item.store)
-        ).fetchone()
-        store_id = store[0] if store else conn.execute(
-            "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
-        ).lastrowid
+        # Capitals don't matter in a store name, accented ones included. SQLite's lower() only folds plain letters, so
+        # ÉPICERIE would not match Épicerie and a second store would be made, hence the comparison in Python
+        saved_stores = conn.execute(
+            "SELECT id, name FROM stores WHERE country = ? ORDER BY id", (new_item.country,)
+        ).fetchall()
+        store_id = next(
+            (saved_id for saved_id, saved_name in saved_stores if saved_name.casefold() == new_item.store.casefold()),
+            None,
+        )
+        if store_id is None:
+            store_id = conn.execute(
+                "INSERT INTO stores (name, country) VALUES (?, ?)", (new_item.store, new_item.country)
+            ).lastrowid
         # Capitals don't matter in a brand, so one that matches a saved brand ignoring case takes the saved spelling
         # (the first one saved wins), keeping Arm&Hammer and arm&hammer as one brand
         brand = new_item.brand

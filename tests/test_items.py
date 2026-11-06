@@ -41,9 +41,15 @@ def test_adding_an_item_creates_its_store(client: TestClient, add_item: Callable
     )
 
 
-def test_store_name_is_matched_ignoring_case(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item(store="Costco")
-    add_item(store="costco", name="Butter")
+@pytest.mark.parametrize(
+    ("saved", "typed"), [("Costco", "costco"), ("Épicerie Mélanie", "ÉPICERIE MÉLANIE")]
+)
+def test_store_name_is_matched_ignoring_case(
+    client: TestClient, add_item: Callable[..., dict], saved: str, typed: str
+) -> None:
+    """SQLite's lower() leaves accented capitals alone, so the second name once made a second store."""
+    add_item(store=saved)
+    add_item(store=typed, name="Butter")
 
     [store] = stores_in(client)
     assert len(store["items"]) == 2
