@@ -516,7 +516,11 @@ def _same_words(a: str, b: str) -> bool:
     """
     if NUMBER.findall(a) != NUMBER.findall(b):
         return False
-    return difflib.SequenceMatcher(None, NUMBER.sub("", a), NUMBER.sub("", b)).ratio() >= SIMILARITY
+    matcher = difflib.SequenceMatcher(None, NUMBER.sub("", a), NUMBER.sub("", b))
+    # The two quick checks are upper bounds on ratio(), so a pair that fails either can't pass the full compare
+    if matcher.real_quick_ratio() < SIMILARITY or matcher.quick_ratio() < SIMILARITY:
+        return False
+    return matcher.ratio() >= SIMILARITY
 
 
 def _group_items(offers: list[Offer]) -> list[list[Offer]]:
