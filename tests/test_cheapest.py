@@ -120,3 +120,15 @@ def test_names_that_differ_by_a_number_are_different_items(
 
     stores = cheapest(client)
     assert [(store["name"], store["items"][0]["other_stores"]) for store in stores] == [("Costco", 0), ("Fresco", 0)]
+
+
+def test_by_weight_items_that_differ_by_a_number_are_different_items(
+    client: TestClient, add_imported: Callable[..., None]
+) -> None:
+    add_imported("Costco", "Ground Beef 80% ($9.00 per kg)", None)
+    add_imported("Fresco", "Ground Beef 90% ($11.00 per kg)", None)
+
+    stores = cheapest(client)
+    assert [(store["name"], store["by_weight"][0]["other_stores"]) for store in stores] == [
+        ("Costco", 0), ("Fresco", 0)
+    ]
