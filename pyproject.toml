@@ -3,18 +3,25 @@ name = "price-tracking"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "pytesseract",
-    "requests",
-    "uvicorn",
+    "fastapi>=0.142",
+    "pillow>=13.0",
+    "pytesseract>=0.3.13",
+    "requests>=2.34",
+    "uvicorn>=0.54",
 ]
 
 [dependency-groups]
 dev = [
     "httpx",
     "pytest",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["backend", "tests"]
+extend-exclude = ["frontend"]

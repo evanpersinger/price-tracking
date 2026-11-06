@@ -3,8 +3,8 @@
 import base64
 import io
 
-import pytest
 import pytesseract
+import pytest
 from PIL import Image
 
 import extract_receipt

@@ -1,10 +1,16 @@
 """SQLite connection and tables for the price database, backend/data/prices.db unless PRICES_DB says otherwise."""
 
 import json
+import logging
 import os
 import sqlite3
-from datetime import datetime, timezone
+import threading
+from datetime import UTC, datetime
 from pathlib import Path
+
+logger = logging.getLogger("uvicorn.error")
+
+MAX_LOG_BYTES = 5 * 1024 * 1024  # activity.log moves to activity.log.1 once it grows past this
 
 DB_PATH = Path(os.environ.get("PRICES_DB", Path(__file__).resolve().parent / "data" / "prices.db"))
 
@@ -79,20 +85,68 @@ def _add_missing_columns(conn: sqlite3.Connection) -> None:
         conn.commit()  # the caller may close without committing, which would throw the backfill away
 
 
+_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS items_store ON items (store_id)",
+    "CREATE INDEX IF NOT EXISTS price_history_item ON price_history (item_id)",
+)
+# A store has one row per item code. Not created if the database already holds duplicates, see _create_indexes.
+_UNIQUE_ITEM_CODE_INDEX = (
+    "CREATE UNIQUE INDEX IF NOT EXISTS items_store_code ON items (store_id, item_code) "
+    "WHERE item_code IS NOT NULL AND item_code != ''"
+)
+SCHEMA_VERSION = 1
+
+_ready_paths: set[Path] = set()  # databases whose tables and columns have been set up in this process
+_setup_lock = threading.Lock()
+
+
+def _create_indexes(conn: sqlite3.Connection) -> None:
+    for statement in _INDEXES:
+        conn.execute(statement)
+    try:
+        conn.execute(_UNIQUE_ITEM_CODE_INDEX)
+    except sqlite3.IntegrityError:
+        logger.warning("items has duplicate (store_id, item_code) rows, so the unique index was not created")
+
+
+def _set_up(conn: sqlite3.Connection) -> None:
+    """Create the tables, add missing columns and create indexes, once per database file per process."""
+    conn.execute("PRAGMA journal_mode = WAL")  # readers don't block the writer
+    conn.executescript(_SCHEMA)
+    _add_missing_columns(conn)
+    if conn.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
+        _create_indexes(conn)
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+
+
 def connect() -> sqlite3.Connection:
     """Open the database, creating its folder and tables on first use and adding any missing columns."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(_SCHEMA)
-    _add_missing_columns(conn)
+    path = DB_PATH.resolve()
+    if path not in _ready_paths:
+        with _setup_lock:
+            _set_up(conn)
+            _ready_paths.add(path)
     return conn
 
 
 def log_activity(action: str, **fields: object) -> None:
     """Appends one JSON line to activity.log next to the database: every write an API endpoint makes, so what got
-    added or changed where can be reviewed for debugging. Not read by the app itself."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    entry = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "action": action, **fields}
-    with (DB_PATH.parent / "activity.log").open("a") as log_file:
-        log_file.write(json.dumps(entry) + "\n")
+    added or changed where can be reviewed for debugging. Not read by the app itself.
+
+    The log holds receipt text and store addresses. It moves to activity.log.1 past MAX_LOG_BYTES, and a failure to
+    write it is only warned about, since by now the write it describes has already been saved.
+    """
+    entry = {"time": datetime.now(UTC).isoformat(timespec="seconds"), "action": action, **fields}
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        log_path = DB_PATH.parent / "activity.log"
+        if log_path.exists() and log_path.stat().st_size > MAX_LOG_BYTES:
+            log_path.replace(log_path.with_name("activity.log.1"))
+        with log_path.open("a") as log_file:
+            log_file.write(json.dumps(entry) + "\n")
+    except OSError as e:
+        logger.warning("Couldn't write to activity.log: %s", e)

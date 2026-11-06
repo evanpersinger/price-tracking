@@ -5,6 +5,7 @@ Reads and writes backend/data/prices.db and only listens on 127.0.0.1. Run: pyth
 
 import asyncio
 import difflib
+import io
 import logging
 import math
 import re
@@ -19,7 +20,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from PIL import Image
 from pydantic import BaseModel, Field, model_validator
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from db import connect, log_activity
 from extract_receipt import RECEIPT_MODEL, extract_receipt
@@ -27,12 +30,16 @@ from extract_receipt import RECEIPT_MODEL, extract_receipt
 PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+MAX_RECEIPT_PIXELS = 50_000_000  # a small file can still decode to a huge image
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")
 receipt_lock = threading.Lock()  # one receipt at a time, the local model is heavy
 
 app = FastAPI()
+# The API has no login and is only meant for this computer. Refusing any other Host header stops a web page that
+# rebinds its own domain to 127.0.0.1 from reading or deleting items through the browser.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 
 @app.exception_handler(RequestValidationError)
@@ -119,8 +126,10 @@ class NewItem(BaseModel):
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
-    dose_mg: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # the dose on a single capsule/tablet, empty when not applicable
-    unit_volume_ml: float | None = Field(default=None, gt=0, allow_inf_nan=False)  # the volume of a single can or bottle, empty when not applicable
+    # the dose on a single capsule/tablet, empty when not applicable
+    dose_mg: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    # the volume of a single can or bottle, empty when not applicable
+    unit_volume_ml: float | None = Field(default=None, gt=0, allow_inf_nan=False)
 
     model_config = {"str_strip_whitespace": True}
 
@@ -157,6 +166,9 @@ def add_item(new_item: NewItem) -> AddedItem:
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
     purchased_on = new_item.purchased_on.isoformat() if new_item.purchased_on else None
     with closing(connect()) as conn, conn:
+        # Take the write lock now, so a second request for the same new store or item waits here and then finds the
+        # row this one saved, instead of both seeing nothing and the second insert failing
+        conn.execute("BEGIN IMMEDIATE")
         store = conn.execute(
             "SELECT id FROM stores WHERE country = ? AND lower(name) = lower(?)", (new_item.country, new_item.store)
         ).fetchone()
@@ -179,22 +191,24 @@ def add_item(new_item: NewItem) -> AddedItem:
             "id, name, display_name, price_cents, item_count, weight_g, volume_ml, brand, fuel_type, dose_mg, "
             "unit_volume_ml, purchased_on"
         )
+        existing = None
         if new_item.item_code:
-            # A code the store already has means the same product at a new price, so overwrite that row
+            # A code the store already has means the same product at a new price, so overwrite that row. A line with
+            # a code matches nothing else: a saved row without a code stays as it is
             existing = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ? AND item_code = ?",
                 (store_id, new_item.item_code),
             ).fetchone()
-        elif new_item.fuel_type:
-            # No code on a gas receipt by design, every fill-up is its own row even if the grade repeats
-            existing = None
-        else:
-            # No code to go by (the receipt reader missed it, or this store never prints one): the name is always
-            # the receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so
-            # a near-identical name at this store (tolerating OCR noise, not requiring an exact match) with the same
+        elif not new_item.fuel_type:
+            # No code to go by (the receipt reader missed it, or this store never prints one): the name is always the
+            # receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so a
+            # near-identical name at this store (tolerating OCR noise, not requiring an exact match) with the same
             # size means a repeat of the same product. A different size is a different pack, so it gets its own row.
+            # Only rows without a code are compared, a line without a code never overwrites a coded row, that would
+            # wipe its code. (Gas has no code by design, every fill-up is its own row even if the grade repeats.)
             candidates = conn.execute(
-                f"SELECT {existing_columns} FROM items WHERE store_id = ?", (store_id,)
+                f"SELECT {existing_columns} FROM items WHERE store_id = ? AND (item_code IS NULL OR item_code = '')",
+                (store_id,),
             ).fetchall()
             # Strip the typed unit price (e.g. "($2.00 per kg)") before comparing: for a by-weight item it's the
             # only thing that changes between purchases, and a big swing in it shouldn't make the same product
@@ -265,15 +279,16 @@ def add_item(new_item: NewItem) -> AddedItem:
     else:
         log_activity("insert", store=new_item.store, country=new_item.country, item_id=item_id,
                       name=new_item.name, display_name=new_item.display_name, price_cents=new_item.price_cents,
-                      item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml, brand=brand,
+                      item_count=new_item.item_count, weight_g=new_item.weight_g, volume_ml=new_item.volume_ml,
+                      brand=brand,
                       item_code=new_item.item_code, fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg,
                       unit_volume_ml=new_item.unit_volume_ml)
 
     return AddedItem(
         id=item_id, store_id=store_id, name=new_item.name, display_name=new_item.display_name,
         price_cents=new_item.price_cents, rating=None, item_count=new_item.item_count, weight_g=new_item.weight_g,
-        volume_ml=new_item.volume_ml, purchased_on=purchased_on, brand=brand, item_code=new_item.item_code, fuel_type=new_item.fuel_type,
-        dose_mg=new_item.dose_mg, unit_volume_ml=new_item.unit_volume_ml,
+        volume_ml=new_item.volume_ml, purchased_on=purchased_on, brand=brand, item_code=new_item.item_code,
+        fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg, unit_volume_ml=new_item.unit_volume_ml,
     )
 
 
@@ -301,6 +316,38 @@ def _receipt_error(status_code: int, detail: str, **fields: object) -> HTTPExcep
     return HTTPException(status_code=status_code, detail=detail)
 
 
+async def _read_limited_body(request: Request, media_type: str) -> bytes:
+    """The request body, giving up with a 413 as soon as it passes MAX_RECEIPT_BYTES instead of buffering all of it."""
+    chunks = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_RECEIPT_BYTES:
+            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=size)
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _check_image(image: bytes, media_type: str) -> None:
+    """Make sure the bytes are a readable image and not too many pixels, before OCR and the model get them. A 415
+    for anything else and a 413 for a decompression bomb. The format Pillow finds isn't compared to the content type,
+    a phone's JPEG can come back as MPO."""
+    try:
+        with Image.open(io.BytesIO(image)) as opened:
+            if opened.width * opened.height > MAX_RECEIPT_PIXELS:
+                raise _receipt_error(413, "That image has too many pixels.", media_type=media_type,
+                                     image_bytes=len(image))
+            opened.verify()
+    except HTTPException:
+        raise
+    except Image.DecompressionBombError as e:
+        raise _receipt_error(413, "That image has too many pixels.", media_type=media_type,
+                             image_bytes=len(image)) from e
+    except Exception as e:  # Pillow raises many kinds for a file that isn't a readable image
+        raise _receipt_error(415, "That file isn't a readable JPEG or PNG image.", media_type=media_type,
+                             image_bytes=len(image), error=str(e)) from e
+
+
 @app.post("/api/receipt")
 async def read_receipt(request: Request) -> dict:
     """Read a receipt image (the raw JPEG or PNG as the request body) and return the items found on it.
@@ -310,12 +357,14 @@ async def read_receipt(request: Request) -> dict:
     media_type = request.headers.get("content-type", "")
     if media_type not in RECEIPT_MEDIA_TYPES:
         raise _receipt_error(415, "Send a JPEG or PNG image.", media_type=media_type)
+    declared_bytes = request.headers.get("content-length", "")
+    if declared_bytes.isdigit() and int(declared_bytes) > MAX_RECEIPT_BYTES:
+        raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=int(declared_bytes))
     if not receipt_lock.acquire(blocking=False):
         raise _receipt_error(409, "Another receipt is being read, try again in a moment.", media_type=media_type)
     try:
-        image = await request.body()
-        if len(image) > MAX_RECEIPT_BYTES:
-            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=len(image))
+        image = await _read_limited_body(request, media_type)
+        _check_image(image, media_type)
         started = time.perf_counter()
         result = await asyncio.to_thread(extract_receipt, image, media_type)
         log_activity("receipt_read", store=result.get("store"), store_address=result.get("store_address"),
@@ -346,7 +395,8 @@ async def read_receipt(request: Request) -> dict:
 # Item matching
 UNIT_PRICE = re.compile(r"\([^()]*\$[^()]*\)")  # e.g. "($0.57 per pill)", worked out from the price
 WEIGHT_RATE = re.compile(r"\(\s*\$(\d+(?:\.\d+)?)\s*per\s*(\d+(?:\.\d+)?)?\s*([a-z]+)\s*\)")  # "($7.72 per kg)"
-AMOUNT =re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
+AMOUNT = re.compile(r"\(\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*\)")  # a bracket that is just a number and a unit
+NUMBER = re.compile(r"\d+(?:\.\d+)?")
 SIMILARITY = 0.85  # how alike two names' words must be to count as the same item, 1.0 is identical
 # A stricter bar than SIMILARITY above: this one decides whether a new item overwrites an existing row (so a
 # false match loses data) rather than just grouping two offers for display, and it's paired with a size
@@ -453,12 +503,23 @@ def _same_sizes(a: dict[str, float], b: dict[str, float]) -> bool:
     return a.keys() == b.keys() and all(abs(a[kind] - b[kind]) <= SIZE_TOLERANCE * max(a[kind], b[kind]) for kind in a)
 
 
+def _same_words(a: str, b: str) -> bool:
+    """Whether two names' words are alike enough to be the same item.
+
+    The numbers in them (a percent, a dose, a strength) must be identical, a single digit makes "milk 2%" and
+    "milk 1%" different products. Only the rest of the words are compared loosely.
+    """
+    if NUMBER.findall(a) != NUMBER.findall(b):
+        return False
+    return difflib.SequenceMatcher(None, NUMBER.sub("", a), NUMBER.sub("", b)).ratio() >= SIMILARITY
+
+
 def _group_items(offers: list[Offer]) -> list[list[Offer]]:
     """Group offers into items by their words, keeping only the cheapest offer per store and size."""
     groups: list[list[Offer]] = []
     for offer in offers:
         group = next(
-            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            (g for g in groups if any(_same_words(offer.words, member.words) for member in g)),
             None,
         )
         if group is None:
@@ -626,7 +687,7 @@ def _cheapest_by_weight(offers: list[WeightOffer]) -> list[tuple[WeightOffer, in
     groups: list[list[WeightOffer]] = []  # one offer per store, its cheapest
     for offer in offers:
         group = next(
-            (g for g in groups if difflib.SequenceMatcher(None, offer.words, g[0].words).ratio() >= SIMILARITY),
+            (g for g in groups if any(_same_words(offer.words, member.words) for member in g)),
             None,
         )
         if group is None:
@@ -784,15 +845,16 @@ class SearchList(BaseModel):
 def _search_offer(offer: Offer, unit_price_cents: float) -> SearchOffer:
     return SearchOffer(
         id=offer.id, store_id=offer.store_id, store_name=offer.store_name, name=offer.name,
-        display_name=offer.display_name, price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4), item_count=offer.item_count,
-        weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
+        display_name=offer.display_name, price_cents=offer.price_cents, unit_price_cents=round(unit_price_cents, 4),
+        item_count=offer.item_count, weight_g=offer.weight_g, volume_ml=offer.volume_ml, brand=offer.brand, item_code=offer.item_code,
         dose_mg=offer.dose_mg,
     )
 
 
 @app.get("/api/search")
 def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> list[SearchList]:
-    """What every store sells an item for, cheapest first, for every item whose name has a word starting with each word in q.
+    """What every store sells an item for, cheapest first, for every item whose name has a word starting with each
+    word in q. The receipt name and the display name both count.
 
     Offers are ranked on their own unit price, per item if they have a count, else per gram, else per ml. Each unit
     gets its own list because they can't be ranked against each other. A store that has the same item and size more
@@ -807,7 +869,8 @@ def search_items(country: Literal["CA", "US"], q: str = Query(min_length=1)) -> 
 
     cheapest_repeat: dict[tuple, Offer] = {}
     for offer in _sized_offers(country):
-        if not all(pattern.search(offer.words) for pattern in patterns):
+        display_words = (offer.display_name or "").lower()
+        if not all(pattern.search(offer.words) or pattern.search(display_words) for pattern in patterns):
             continue
         key = (offer.store_id, offer.words, tuple(sorted(offer.amounts.items())))
         if key not in cheapest_repeat or offer.price_cents < cheapest_repeat[key].price_cents:

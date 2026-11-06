@@ -50,6 +50,8 @@ Optional environment variables: `PRICES_DB` (path to a different database, handy
 - **Price history:** an item with an item code and a date is also recorded in the price history, which Price Tracking graphs.
 - **Size check:** saving an item over one that's already stored is rejected if its price per unit is more than 5 times higher or lower, since that means a typed size is wrong.
 - **Data rules:** how item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
+- **Localhost only:** the API has no login and only answers requests addressed to `127.0.0.1` or `localhost`. Don't expose it on a network.
+- **Activity log:** `backend/data/activity.log` records every write, including the receipt text the model read and the store address. It moves to `activity.log.1` past 5 MB, so keep it private.
 
 ## License
 

@@ -1,6 +1,7 @@
 """Reading prices from the store-prices CSV."""
 
 import pytest
+
 from import_sheet import _parse_price_cents
 
 

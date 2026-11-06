@@ -452,3 +452,47 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     })
 
     assert response.status_code == 422
+
+
+def test_a_line_with_a_code_does_not_update_a_saved_item_without_one(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    first = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, price_cents=300)
+    second = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, price_cents=350,
+                      item_code="999")
+
+    [store] = client.get("/api/stores", params={"country": "CA"}).json()
+    assert second["id"] != first["id"]
+    assert [(item["item_code"], item["price_cents"]) for item in store["items"]] == [("999", 350), (None, 300)]
+
+
+def test_a_different_code_with_the_same_name_is_a_different_item(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="WONDER BREAD 675G", item_count=None, weight_g=675, item_code="111")
+    second = add_item(name="WONDER BREAD 675G", item_count=None, weight_g=675, item_code="222")
+
+    [store] = client.get("/api/stores", params={"country": "CA"}).json()
+    assert len(store["items"]) == 2 and second["item_code"] == "222"
+
+
+def test_requests_adding_the_same_new_store_at_once_all_succeed(client: TestClient) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def post(n: int) -> int:
+        body = {"country": "CA", "store": "Brand New", "name": f"Item {n}", "display_name": f"Item {n}",
+                "price_cents": 100, "item_count": 1, "item_code": str(1000 + n)}
+        return client.post("/api/items", json=body).status_code
+
+    with ThreadPoolExecutor(8) as pool:
+        statuses = list(pool.map(post, range(8)))
+
+    assert statuses == [201] * 8
+    [store] = client.get("/api/stores", params={"country": "CA"}).json()
+    assert len(store["items"]) == 8
+
+
+def test_a_request_with_another_host_header_is_refused(client: TestClient) -> None:
+    response = client.get("/api/stores", params={"country": "CA"}, headers={"host": "evil.example:8021"})
+
+    assert response.status_code == 400
