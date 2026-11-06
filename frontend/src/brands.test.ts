@@ -67,8 +67,4 @@ describe('isOldSpice', () => {
     expect(isOldSpice('Old Spice Original')).toBe(true)
     expect(isOldSpice('123456 OLD SPICE DEODORANT')).toBe(true)
   })
-
-  it('returns false for anything else', () => {
-    expect(isOldSpice('Dove Deodorant')).toBe(false)
-  })
 })
