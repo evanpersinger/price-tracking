@@ -67,7 +67,8 @@ The tests don't need Ollama or Tesseract.
 - **Data rules:** how item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
 - **Localhost only:** the API has no login and only answers requests addressed to `127.0.0.1` or `localhost`. Don't expose it on a network.
 - **Activity log:** `backend/data/activity.log` records every write, including the receipt text the model read and the store address. It moves to `activity.log.1` past 5 MB, so keep it private.
-- **Database:** `backend/data/prices.db` is in SQLite's WAL mode, so `prices.db-wal` and `prices.db-shm` sit next to it while the API runs. To copy it by hand, stop the API first or use `sqlite3 prices.db ".backup copy.db"`, since a plain `cp` can miss recent writes. Nothing backs it up automatically yet.
+- **Database:** `backend/data/prices.db` is in SQLite's WAL mode, so `prices.db-wal` and `prices.db-shm` sit next to it while the API runs. To copy it by hand, stop the API first or use `sqlite3 prices.db ".backup copy.db"`, since a plain `cp` can miss recent writes.
+- **Backups:** the first time the API starts each day (`uv run python backend/server.py`), it copies the database and the activity log into `backend/data/backups/` as `prices-YYYY-MM-DD.db` and `activity-YYYY-MM-DD.log`, readable only by you. Nothing deletes old backups. If the copy fails, a warning is logged and the API still starts.
 
 ## License
 
