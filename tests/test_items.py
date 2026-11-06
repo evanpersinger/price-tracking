@@ -454,7 +454,7 @@ def test_a_zero_size_in_the_name_without_a_typed_rate_is_still_rejected(client: 
     assert response.status_code == 422
 
 
-def test_adding_a_code_to_an_item_saved_without_one_updates_that_row(
+def test_a_line_with_a_code_does_not_update_a_saved_item_without_one(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
     first = add_item(store="Metro", name="WONDER BREAD 675G", item_count=None, weight_g=675, price_cents=300)
@@ -462,8 +462,8 @@ def test_adding_a_code_to_an_item_saved_without_one_updates_that_row(
                       item_code="999")
 
     [store] = client.get("/api/stores", params={"country": "CA"}).json()
-    assert second["id"] == first["id"]
-    assert [(item["item_code"], item["price_cents"]) for item in store["items"]] == [("999", 350)]
+    assert second["id"] != first["id"]
+    assert [(item["item_code"], item["price_cents"]) for item in store["items"]] == [("999", 350), (None, 300)]
 
 
 def test_a_different_code_with_the_same_name_is_a_different_item(

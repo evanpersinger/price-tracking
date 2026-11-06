@@ -193,19 +193,19 @@ def add_item(new_item: NewItem) -> AddedItem:
         )
         existing = None
         if new_item.item_code:
-            # A code the store already has means the same product at a new price, so overwrite that row
+            # A code the store already has means the same product at a new price, so overwrite that row. A line with
+            # a code matches nothing else: a saved row without a code stays as it is
             existing = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ? AND item_code = ?",
                 (store_id, new_item.item_code),
             ).fetchone()
-        if existing is None and not new_item.fuel_type:
-            # No row has this code, or there is no code to go by (the receipt reader missed it, or this store never
-            # prints one): the name is always the receipt's own printed text now (see ReceiptReview's toRow), not a
-            # reworded or generalized one, so a near-identical name at this store (tolerating OCR noise, not
-            # requiring an exact match) with the same size means a repeat of the same product. A different size is a
-            # different pack, so it gets its own row. A code is only added to a row that has none, so the row saved
-            # without one earlier takes the code now. (Gas has no code by design, every fill-up is its own row even if
-            # the grade repeats.)
+        elif not new_item.fuel_type:
+            # No code to go by (the receipt reader missed it, or this store never prints one): the name is always the
+            # receipt's own printed text now (see ReceiptReview's toRow), not a reworded or generalized one, so a
+            # near-identical name at this store (tolerating OCR noise, not requiring an exact match) with the same
+            # size means a repeat of the same product. A different size is a different pack, so it gets its own row.
+            # Only rows without a code are compared, a line without a code never overwrites a coded row, that would
+            # wipe its code. (Gas has no code by design, every fill-up is its own row even if the grade repeats.)
             candidates = conn.execute(
                 f"SELECT {existing_columns} FROM items WHERE store_id = ? AND (item_code IS NULL OR item_code = '')",
                 (store_id,),
