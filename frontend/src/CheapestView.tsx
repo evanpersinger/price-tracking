@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Arrow } from './Arrow.tsx'
 import { CheapestByWeightTable } from './CheapestByWeightTable.tsx'
 import { CheapestTable } from './CheapestTable.tsx'
@@ -8,6 +8,7 @@ import { SearchResults } from './SearchResults.tsx'
 import { StoreButton } from './StoreButton.tsx'
 import type { CheapestStore, Country } from './types.ts'
 import { useLoad } from './useLoad.ts'
+import { useSlashToFocus } from './useSlashToFocus.ts'
 
 interface CheapestViewProps {
   country: Country
@@ -17,6 +18,8 @@ export function CheapestView({ country }: CheapestViewProps) {
   const state = useLoad<CheapestStore[]>(`/api/cheapest?country=${country}`)
   const [activeIndex, setActiveIndex] = useState(0)
   const [query, setQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  useSlashToFocus(searchRef)
   const searchText = query.trim()
   const isSearching = searchText !== ''
 
@@ -59,8 +62,10 @@ export function CheapestView({ country }: CheapestViewProps) {
                     {!isSearching && <h3 id="cheapest-heading" className="store-name">{activeStore.name}</h3>}
                   </div>
                   <input
+                    ref={searchRef}
                     type="search"
                     className="store-search"
+                    aria-keyshortcuts="/"
                     aria-label="Search for an item"
                     placeholder="Search for an item"
                     value={query}

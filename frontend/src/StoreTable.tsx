@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
 import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
 import type { Country, Store } from './types.ts'
+import { useSlashToFocus } from './useSlashToFocus.ts'
 
 interface StoreTableProps {
   store: Store
@@ -12,6 +13,8 @@ interface StoreTableProps {
 export function StoreTable({ store, country }: StoreTableProps) {
   const headingId = `store-${store.id}`
   const [query, setQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  useSlashToFocus(searchRef)
   // Every word typed has to be in the item's name, ignoring case
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
   const items = store.items.filter((item) => {
@@ -48,8 +51,10 @@ export function StoreTable({ store, country }: StoreTableProps) {
           {store.discount_text && <p className="discount">{store.discount_text}</p>}
         </div>
         <input
+          ref={searchRef}
           type="search"
           className="store-search"
+          aria-keyshortcuts="/"
           aria-label={`Search ${store.name} for an item name`}
           placeholder="Search for an item name"
           value={query}

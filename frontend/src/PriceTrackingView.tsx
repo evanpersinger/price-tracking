@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
 import { formatPrice, isPricedByWeight, itemParts } from './format.ts'
 import { formatLitres, formatPerLitre } from './fuel.ts'
@@ -8,6 +8,7 @@ import { PriceDots } from './PriceDots.tsx'
 import { StoreButton } from './StoreButton.tsx'
 import type { Country, HistoryEntry } from './types.ts'
 import { useLoad } from './useLoad.ts'
+import { useSlashToFocus } from './useSlashToFocus.ts'
 
 interface PriceTrackingViewProps {
   country: Country
@@ -99,6 +100,8 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
   const [pickedKey, setPickedKey] = useState<string | null>(null)
   const [range, setRange] = useState<Range>(DEFAULT_RANGE)
   const [today] = useState(() => new Date()) // when the page opened, what the graphs count back from
+  const searchRef = useRef<HTMLInputElement>(null) // empty while one item's graph is showing, there's no box then
+  useSlashToFocus(searchRef)
 
   return (
     <Loaded state={state}>
@@ -202,8 +205,10 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                     <h2 id="price-tracking-heading" className="store-name">{store.name}</h2>
                   </div>
                   <input
+                    ref={searchRef}
                     type="search"
                     className="store-search"
+                    aria-keyshortcuts="/"
                     aria-label={`Search ${store.name} for an item name`}
                     placeholder="Search for an item name"
                     value={query}

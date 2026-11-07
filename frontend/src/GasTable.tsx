@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { pricePerLitre } from './fuel.ts'
 import type { Country, Store } from './types.ts'
+import { useSlashToFocus } from './useSlashToFocus.ts'
 
 interface GasTableProps {
   store: Store // a station with only its fuel items
@@ -11,7 +12,9 @@ interface GasTableProps {
 export function GasTable({ store, country }: GasTableProps) {
   const headingId = `gas-${store.id}`
   const [query, setQuery] = useState('')
-  const sorted = [...store.items].sort(
+  const searchRef = useRef<HTMLInputElement>(null)
+  useSlashToFocus(searchRef)
+  const sorted =[...store.items].sort(
     (a, b) => (b.purchased_on ?? '').localeCompare(a.purchased_on ?? '') || b.id - a.id,
   )
   // A fill-up has no item name to look through, so every word typed has to be in its fuel type or its date
@@ -28,8 +31,10 @@ export function GasTable({ store, country }: GasTableProps) {
           <h2 id={headingId} className="store-name">{store.name}</h2>
         </div>
         <input
+          ref={searchRef}
           type="search"
           className="store-search"
+          aria-keyshortcuts="/"
           aria-label={`Search ${store.name} fill-ups by fuel type or date`}
           placeholder="Search for a fuel type"
           value={query}
