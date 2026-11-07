@@ -29,6 +29,13 @@ describe('matchSavedStore', () => {
     expect(matchSavedStore('FreshCo', stores('Fresh Co'))?.name).toBe('Fresh Co')
   })
 
+  it('matches a saved name run together when the receipt spells it as words with more around them', () => {
+    const saved = stores('BulkBarrel', 'SportChek')
+    expect(matchSavedStore('THE BULK BARREL', saved)?.name).toBe('BulkBarrel')
+    expect(matchSavedStore('SPORT CHEK #1234', saved)?.name).toBe('SportChek')
+    expect(matchSavedStore('Sport Cheque', saved)).toBeNull()
+  })
+
   it('finds nothing for a new store or a blank name', () => {
     expect(matchSavedStore('Some New Store', SAVED)).toBeNull()
     expect(matchSavedStore('', SAVED)).toBeNull()

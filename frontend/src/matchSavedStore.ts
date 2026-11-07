@@ -13,17 +13,31 @@ export function squashed(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
+// True when some run of neighbouring words in the receipt's name, joined with no spaces, is the saved name run together:
+// "THE BULK BARREL" and "SPORT CHEK #1234" hold the saved "BulkBarrel" and "SportChek". Whole words only, so "Metro" is
+// not found inside "Metropolitan".
+function holdsRunTogether(receiptStore: string, savedName: string): boolean {
+  const words = receiptStore.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+  const target = squashed(savedName)
+  return words.some((_, start) => {
+    let joined = ''
+    for (let end = start; end < words.length && joined.length < target.length; end++) {
+      joined += words[end]
+    }
+    return joined === target
+  })
+}
+
 // The saved store a receipt's store name points to, or null when none does. The same name ignoring case, or one that
 // holds the other as whole words, like "Costco 530" or "COSTCO WHOLESALE" for the saved "Costco". With several matches
 // the longest saved name wins.
 export function matchSavedStore(receiptStore: string, stores: Store[]): Store | null {
   const wanted = plain(receiptStore)
   if (wanted.trim().length < 3) return null
-  const wantedSquashed = squashed(receiptStore)
 
   const matches = stores.filter((store) => {
     const name = plain(store.name)
-    return wanted.includes(name) || name.includes(wanted) || squashed(store.name) === wantedSquashed
+    return wanted.includes(name) || name.includes(wanted) || holdsRunTogether(receiptStore, store.name)
   })
   return matches.reduce<Store | null>((best, store) => (best === null || store.name.length > best.name.length ? store : best), null)
 }
