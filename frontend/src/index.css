@@ -662,7 +662,9 @@ body:has(.page-review) {
   /* Mini rule for our data tables: cell text never wraps to a second line, columns just size to their content. */
   white-space: nowrap;
   padding: 10px 16px;
-  border: 3px solid var(--table-border);
+  border: 1px solid var(--border); /* hairlines between rows only, no vertical lines */
+  border-left: none;
+  border-right: none;
 }
 
 /* The store, cheapest, search and gas tables get roomier cells than the receipt review table */
@@ -701,7 +703,7 @@ body:has(.page-review) {
   position: sticky;
   top: -2px; /* a collapsed table paints a sticky cell 2px below its box, this closes the gap rows show through */
   z-index: 1;
-  box-shadow: 0 3px 0 var(--table-border);
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .items td.row-number {
@@ -771,7 +773,7 @@ body:has(.page-review) {
 }
 
 .amount-chip + .amount-chip {
-  border-left: 3px solid var(--table-border);
+  border-left: 1px solid var(--border);
 }
 
 .items td.unit-price {
