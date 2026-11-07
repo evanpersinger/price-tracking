@@ -78,6 +78,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
               <td className="brand">{item.brand}</td>
               <td className="item">
                 <ItemName segments={name} />
+                {item.brand && <div className="item-brand">{item.brand}</div>}
                 {receiptName && <div className="item-receipt-name">{receiptName}</div>}
               </td>
               <AmountCell amounts={amounts} />

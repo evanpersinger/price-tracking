@@ -731,6 +731,12 @@ body:has(.page-review) {
   color: var(--text-muted);
 }
 
+/* The brand under the item name, only shown on a phone where the Brand column is hidden (see the max-width: 599px
+   block below) */
+.item-brand {
+  display: none;
+}
+
 .items td.brand,
 .items td.fuel-type {
   color: var(--store);
@@ -792,6 +798,31 @@ body:has(.page-review) {
 
 .no-price {
   color: var(--text-muted);
+}
+
+/* On a phone the store and cheapest tables keep only the item name (with its brand under it), the unit price and the
+   price. Search results also keep the store. The row number, item code, brand, amount and capsule columns are hidden,
+   and the cells get less padding and smaller text so the columns fit. The compact tables (Price Tracking, Gas) and the
+   receipt review table are left as they are. */
+@media (max-width: 599px) {
+  .store .items:not(.items-compact) :is(.row-number, .item-code, .brand, .amount, .dose) {
+    display: none;
+  }
+
+  .store .items:not(.items-compact) {
+    font-size: 0.9375rem;
+  }
+
+  .store .items:not(.items-compact) th,
+  .store .items:not(.items-compact) td {
+    padding: 8px;
+  }
+
+  .item-brand {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+  }
 }
 
 .status {

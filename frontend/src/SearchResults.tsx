@@ -68,6 +68,7 @@ export function SearchResults({ country, query }: SearchResultsProps) {
                             <td className="brand">{offer.brand}</td>
                             <td className="item">
                               <ItemName segments={name} />
+                              {offer.brand && <div className="item-brand">{offer.brand}</div>}
                             </td>
                             <AmountCell amounts={amounts} />
                             <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>

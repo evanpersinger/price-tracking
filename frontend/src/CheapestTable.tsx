@@ -40,6 +40,7 @@ export function CheapestTable({ store, country }: CheapestTableProps) {
               <td className="brand">{item.brand}</td>
               <td className="item">
                 <ItemName segments={name} />
+                {item.brand && <div className="item-brand">{item.brand}</div>}
               </td>
               <AmountCell amounts={amounts} />
               <td className={isZeroMoney(computedUnitPrice) ? 'unit-price zero-money' : 'unit-price'}>
