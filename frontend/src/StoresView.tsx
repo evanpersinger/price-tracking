@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Arrow } from './Arrow.tsx'
 import { ByWeightTable } from './ByWeightTable.tsx'
 import { isPricedByWeight, itemParts } from './format.ts'
 import { isFuelItem } from './fuel.ts'
 import { Loaded } from './Loaded.tsx'
 import { StoreButton } from './StoreButton.tsx'
+import { StoreNav } from './StoreNav.tsx'
 import { StoreTable } from './StoreTable.tsx'
 import type { Country, Store } from './types.ts'
 import { useLoad } from './useLoad.ts'
@@ -74,28 +74,11 @@ export function StoresView({ country }: StoresViewProps) {
                   />
                 )}
               </div>
-              <div className="store-nav">
-                {activeIndexInRange < withItems.length - 1 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Next store"
-                    onClick={() => setActiveIndex(activeIndexInRange + 1)}
-                  >
-                    <Arrow direction="right" />
-                  </button>
-                )}
-                {activeIndexInRange > 0 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Previous store"
-                    onClick={() => setActiveIndex(activeIndexInRange - 1)}
-                  >
-                    <Arrow direction="left" />
-                  </button>
-                )}
-              </div>
+              <StoreNav
+                noun="store"
+                onPrevious={activeIndexInRange > 0 ? () => setActiveIndex(activeIndexInRange - 1) : null}
+                onNext={activeIndexInRange < withItems.length - 1 ? () => setActiveIndex(activeIndexInRange + 1) : null}
+              />
             </div>
           </>
         )

@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
-import { Arrow } from './Arrow.tsx'
 import { CheapestByWeightTable } from './CheapestByWeightTable.tsx'
 import { CheapestTable } from './CheapestTable.tsx'
 import { itemParts } from './format.ts'
 import { Loaded } from './Loaded.tsx'
 import { SearchResults } from './SearchResults.tsx'
 import { StoreButton } from './StoreButton.tsx'
+import { StoreNav } from './StoreNav.tsx'
 import type { CheapestStore, Country } from './types.ts'
 import { useLoad } from './useLoad.ts'
 import { useSlashToFocus } from './useSlashToFocus.ts'
@@ -89,28 +89,15 @@ export function CheapestView({ country }: CheapestViewProps) {
                 )}
               </section>
               {/* The column stays, empty, while searching, so the card and its search box don't shift sideways */}
-              <div className="store-nav">
-                {!isSearching && activeIndexInRange < withItems.length - 1 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Next store"
-                    onClick={() => setActiveIndex(activeIndexInRange + 1)}
-                  >
-                    <Arrow direction="right" />
-                  </button>
-                )}
-                {!isSearching && activeIndexInRange > 0 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Previous store"
-                    onClick={() => setActiveIndex(activeIndexInRange - 1)}
-                  >
-                    <Arrow direction="left" />
-                  </button>
-                )}
-              </div>
+              <StoreNav
+                noun="store"
+                onPrevious={!isSearching && activeIndexInRange > 0 ? () => setActiveIndex(activeIndexInRange - 1) : null}
+                onNext={
+                  !isSearching && activeIndexInRange < withItems.length - 1
+                    ? () => setActiveIndex(activeIndexInRange + 1)
+                    : null
+                }
+              />
             </div>
           </>
         )

@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Arrow } from './Arrow.tsx'
 import { isFuelItem } from './fuel.ts'
 import { GasTable } from './GasTable.tsx'
 import { Loaded } from './Loaded.tsx'
 import { StoreButton } from './StoreButton.tsx'
+import { StoreNav } from './StoreNav.tsx'
 import type { Country, Store } from './types.ts'
 import { useLoad } from './useLoad.ts'
 
@@ -41,28 +41,11 @@ export function GasView({ country }: GasViewProps) {
             </div>
             <div className="store-viewport">
               <GasTable key={activeStation.id} store={activeStation} country={country} />
-              <div className="store-nav">
-                {activeIndexInRange < stations.length - 1 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Next station"
-                    onClick={() => setActiveIndex(activeIndexInRange + 1)}
-                  >
-                    <Arrow direction="right" />
-                  </button>
-                )}
-                {activeIndexInRange > 0 && (
-                  <button
-                    type="button"
-                    className="store-nav-button"
-                    aria-label="Previous station"
-                    onClick={() => setActiveIndex(activeIndexInRange - 1)}
-                  >
-                    <Arrow direction="left" />
-                  </button>
-                )}
-              </div>
+              <StoreNav
+                noun="station"
+                onPrevious={activeIndexInRange > 0 ? () => setActiveIndex(activeIndexInRange - 1) : null}
+                onNext={activeIndexInRange < stations.length - 1 ? () => setActiveIndex(activeIndexInRange + 1) : null}
+              />
             </div>
           </>
         )
