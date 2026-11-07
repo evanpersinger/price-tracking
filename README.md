@@ -56,6 +56,8 @@ The tests don't need Ollama or Tesseract.
 - `/tracking/ca` and `/tracking/us`: Price Tracking, a graph of an item's price at one store over time.
 - `/abbreviations`: shorthand used in item names, like `SS` for sesame seed.
 - The Add Item button: drop a receipt photo, review and edit what the model read, then save the items.
+- Keyboard: `/` puts the cursor in the page's search box, and the left and right arrow keys switch to the previous or next store on Store Prices, Cheapest and Gas. The arrow keys are ignored while you're typing in a box.
+- Phone: below 600px wide, the Store Prices and Cheapest tables show only the item name (with its brand under it), the unit price and the price, and the arrows sit above the table. The receipt review page isn't laid out for a phone.
 
 ## How it works
 
