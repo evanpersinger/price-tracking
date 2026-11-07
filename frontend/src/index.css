@@ -825,6 +825,95 @@ body:has(.page-review) {
   }
 }
 
+/* On a phone, the page around those tables. The next and previous arrows sit in a row above the table instead of a
+   column beside it (that left the table about 185px wide), the card loses its side padding, the by-weight table stops
+   being at least 28rem wide, and the store name and search box shrink. */
+@media (max-width: 599px) {
+  .store-viewport {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .store-nav {
+    order: -1; /* above the table */
+    flex: none;
+    flex-direction: row-reverse; /* the next arrow comes first in the page, so reversed it sits on the right */
+    align-self: stretch;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .store-nav-button {
+    width: 64px;
+    height: 64px;
+  }
+
+  .store {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .store-compact {
+    width: auto;
+    min-width: 0;
+    align-self: stretch;
+  }
+
+  .store-name {
+    font-size: 2rem;
+  }
+
+  .store-search {
+    padding: 10px 14px;
+    font-size: 1.125rem;
+  }
+}
+
+/* On a phone, the header and the store buttons. The Add Item and country buttons were sized for a desktop and ran
+   into each other, the rows of view buttons couldn't wrap and pushed the page sideways, and a long store name made
+   its button wider than the screen. */
+@media (max-width: 599px) {
+  .add-item-button {
+    padding: 10px 22px;
+    font-size: 1.375rem;
+  }
+
+  .country-nav .nav-link {
+    padding: 6px 12px;
+    font-size: 1.125rem;
+  }
+
+  .currency-note {
+    font-size: 0.875rem;
+  }
+
+  .view-nav {
+    margin-top: 16px;
+  }
+
+  .view-nav-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .view-nav .nav-link {
+    padding: 8px 14px;
+    font-size: 1rem;
+  }
+
+  .store-jump {
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .store-jump button {
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 1rem;
+  }
+}
+
 .status {
   padding: 32px 0;
   color: var(--text-muted);
