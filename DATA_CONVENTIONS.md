@@ -181,6 +181,22 @@ used when filling these in by hand:
   "Amount per unit" calculator when its unit is ml or L (L x1000). Leave it empty for anything that isn't sold as
   cans or bottles. It's saved for the record only, no table shows it and no unit price uses it yet.
 
+## Store names
+
+- A store's name is whatever it was first saved as, and is shown that way everywhere (buttons, headings, the review
+  banner). A few are spelled as one word on purpose: `BulkBarrel` and `SportChek`. To rename a store, update
+  `stores.name` in the database by hand (copy `prices.db` first), nothing else needs to change.
+- The server finds a store by comparing the name ignoring capitals, accents included (`casefold()`, `add_item` in
+  `backend/server.py`), so `Épicerie Mélanie` and `ÉPICERIE MÉLANIE` are one store. It does not ignore spaces:
+  `Sport Chek` typed by hand does not match the saved `SportChek` and would make a second store.
+- The review page fills the Store box from the receipt's own store name (`matchSavedStore` in
+  `frontend/src/matchSavedStore.ts`): the same name ignoring case, a name that holds the saved one as whole words
+  (`Costco 530` for `Costco`), or a run of neighbouring words that spell the saved name with the spaces left out
+  (`THE BULK BARREL` for `BulkBarrel`, `SPORT CHEK #1234` for `SportChek`). It never matches part of a word, so
+  `Metropolitan Market` is not `Metro`.
+- Store logos are found by the saved name with only letters and digits kept, so a logo file's spelling and spacing
+  don't matter.
+
 ## Spelling
 
 Typos in imported item names (e.g. "Camoille" for Chamomile, "Vineagar") are generally
