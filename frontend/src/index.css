@@ -914,6 +914,50 @@ body:has(.page-review) {
   }
 }
 
+/* On a phone, the Add a receipt window. Its desktop size (52px padding, a 460px tall drop area with 56px text, a
+   button about 330px wide) was wider and taller than the screen. */
+@media (max-width: 599px) {
+  .receipt-modal-body {
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .receipt-modal-head h2 {
+    font-size: 1.5rem;
+  }
+
+  .receipt-modal-close {
+    font-size: 2rem;
+  }
+
+  .drop-area {
+    min-height: 160px;
+    font-size: 1.25rem;
+  }
+
+  .choose-file-button {
+    padding: 16px 32px;
+    font-size: 1.25rem;
+  }
+}
+
+/* On a phone, the compact tables (Gas, Price Tracking, Abbreviations). The large ones (Gas, Abbreviations) drop from
+   24px text to 18px, Price Tracking hides the row number and item code columns, and the cells get less padding. */
+@media (max-width: 599px) {
+  .store .items.items-compact.items-large {
+    font-size: 1.125rem;
+  }
+
+  .store .items.items-compact :is(.row-number, .item-code) {
+    display: none;
+  }
+
+  .store .items.items-compact th,
+  .store .items.items-compact td {
+    padding: 8px;
+  }
+}
+
 .status {
   padding: 32px 0;
   color: var(--text-muted);
