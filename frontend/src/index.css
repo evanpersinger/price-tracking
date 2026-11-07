@@ -256,7 +256,10 @@ main {
 }
 
 .nav-link:focus-visible,
-.retry:focus-visible {
+.retry:focus-visible,
+.add-item-button:focus-visible,
+.store-nav-button:focus-visible,
+.choose-file-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -383,8 +386,9 @@ td.store-column {
   padding-left: var(--gutter);
   padding-right: var(--gutter);
   box-sizing: border-box;
-  overflow-x: hidden; /* never a sideways scrollbar, the table narrows to fit instead */
-  overflow-y: auto;
+  /* never a sideways scrollbar, the table narrows to fit instead. clip, not hidden: hidden would make this a scroll
+     container, and a sticky table header sticks to the nearest one, which here never scrolls (the page does). */
+  overflow-x: clip;
 }
 
 /* The regular-items table and the sold-by-weight table for one store, stacked close together, sharing the nav
@@ -685,9 +689,19 @@ body:has(.page-review) {
   background: var(--hover-fill);
 }
 
-.items .price {
+.items .price,
+.items .unit-price {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* A long store scrolls inside its card, so keep the column names in view. The header cell's own background covers the
+   rows passing under it, and the shadow stands in for its bottom border, which a collapsed table drops when sticky. */
+.store .items thead th {
+  position: sticky;
+  top: -2px; /* a collapsed table paints a sticky cell 2px below its box, this closes the gap rows show through */
+  z-index: 1;
+  box-shadow: 0 3px 0 var(--table-border);
 }
 
 .items td.row-number {
