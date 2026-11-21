@@ -85,6 +85,7 @@ function normalize(text: string): string {
 // specific store's section instead.
 const ALL_STORES_BRAND_WORDS: Record<string, string> = {
   DORITOS: 'Doritos',
+  DRIZZILICI: 'Drizzilicious',
   FAIRLIFE: 'Fairlife',
   LENNY: "Lenny & Larry's",
   PHILIPS: 'Philips',
