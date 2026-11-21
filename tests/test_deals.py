@@ -70,6 +70,13 @@ def test_a_deal_line_is_never_an_item(line: dict) -> None:
     assert names(result) == ["EGGS"]
 
 
+@pytest.mark.parametrize("name", ["QUAKER INSTANT OATMEAL", "NESCAFE INSTANT COFFEE", "INSTANT NOODLES"])
+def test_a_product_with_instant_in_its_name_is_not_taken_for_a_deal(name: str) -> None:
+    result = extract_receipt._drop_deals(receipt({"raw_name": name, "price": 4.99}))
+
+    assert names(result) == [name]
+
+
 @pytest.mark.parametrize("discount", ["STUDENT DISCOUNT", "SENIOR DISCOUNT", "MEMBERSHIP DISCOUNT"])
 def test_a_student_or_senior_discount_is_not_a_sale_so_no_item_is_dropped_for_it(discount: str) -> None:
     result = extract_receipt._drop_deals(receipt(
