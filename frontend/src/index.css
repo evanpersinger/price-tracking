@@ -825,10 +825,10 @@ body:has(.page-review) {
   }
 }
 
-/* On a phone, the page around those tables. The next and previous arrows sit in a row above the table instead of a
-   column beside it (that left the table about 185px wide), the card loses its side padding, the by-weight table stops
-   being at least 28rem wide, and the store name and search box shrink. */
-@media (max-width: 599px) {
+/* On a window too narrow to fit the table beside the arrows (the table is about 790px wide at its narrowest, the arrows
+   and gutters take about 210px more, so under about 1000px they covered it), the next and previous arrows sit in a row
+   above the table instead of a column beside it, and the card loses its side padding so the table gets the whole width. */
+@media (max-width: 999px) {
   .store-viewport {
     flex-direction: column;
     gap: 12px;
@@ -852,7 +852,10 @@ body:has(.page-review) {
     padding-left: 0;
     padding-right: 0;
   }
+}
 
+/* On a phone, the by-weight table stops being at least 28rem wide, and the store name and search box shrink. */
+@media (max-width: 599px) {
   .store-compact {
     width: auto;
     min-width: 0;
