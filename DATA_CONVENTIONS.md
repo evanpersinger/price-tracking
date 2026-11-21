@@ -103,11 +103,11 @@ wrong one, a correct entry gets blocked until the saved row is fixed or deleted.
 
 ## Receipt date (`purchased_on`)
 
-The date comes from the receipt and is never defaulted to today, a guess would corrupt the price history. With no
-date the item is saved without one and nothing goes in `price_history`. `POST /api/items` rejects a date in the
-future, and one more than `MAX_RECEIPT_AGE_DAYS = 30` days before today (a 422), since an older date is most likely a
-misread year. The review page's date box can be corrected, or cleared to save without a date. Rows saved before the
-30 day limit existed are not checked.
+The date comes from the receipt and is never defaulted to today, a guess would corrupt the price history. It is
+required: without one there is no telling whether the receipt is older than the saved item and must not overwrite it.
+`POST /api/items` rejects a missing date, a date in the future, and one more than `MAX_RECEIPT_AGE_DAYS = 30` days
+before today (a 422), since an older date is most likely a misread year. The review page's date box can be corrected
+when the date was misread or couldn't be read. Rows saved before these checks existed, with no date, are not checked.
 
 ## Item name vs. brand text
 
