@@ -252,8 +252,8 @@ export function ReceiptReview({ result, onDone }: Props) {
   // A litre line means a fuel receipt, where a brand makes no sense, so the Brand column becomes Fuel type and the item
   // saves as No Brand
   const isFuelReceipt = (result.items ?? []).some((item) => litresIn(item.quantity_info) !== undefined)
-  // Left blank when the receipt's date couldn't be read, nothing is guessed, and an item with no date isn't recorded in
-  // the price history
+  // Left blank when the receipt's date couldn't be read, nothing is guessed, and nothing can be added until a date is
+  // typed (the server turns away an item without one)
   const [date, setDate] = useState(result.purchase_date && ISO_DATE.test(result.purchase_date) ? result.purchase_date : '')
   const [rows, setRows] = useState<Row[]>(() =>
     dedupeExact(result.items ?? []).map((item, index) => toRow(item, index, result.store ?? '')),
@@ -302,7 +302,8 @@ export function ReceiptReview({ result, onDone }: Props) {
     : storeList !== null && trimmedStore !== ''
       ? `Add ${countLabel} to ${targetLabel}`
       : `Add ${countLabel}`
-  const canSave = country !== null && trimmedStore !== '' && storeList !== null && readyRows.length > 0 && !isSaving
+  const canSave =
+    country !== null && trimmedStore !== '' && date !== '' && storeList !== null && readyRows.length > 0 && !isSaving
 
   function patchRow(id: number, patch: Partial<Row>) {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)))
@@ -323,7 +324,7 @@ export function ReceiptReview({ result, onDone }: Props) {
         await addItem({
           country,
           store: trimmedStore,
-          purchased_on: date || undefined,
+          purchased_on: date,
           ...fields,
           item_code: row.code,
         })
@@ -404,6 +405,9 @@ export function ReceiptReview({ result, onDone }: Props) {
       </div>
 
       {renderStoreBanner()}
+      {date === '' && (
+        <p className="store-banner store-banner-warn">Enter the receipt&apos;s date, it can&apos;t be added without one.</p>
+      )}
 
       {rows.length === 0 ? (
         <p className="status">No items were found on this receipt.</p>

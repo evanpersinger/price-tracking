@@ -111,7 +111,7 @@ export interface NewItem {
   item_count?: number
   weight_g?: number
   volume_ml?: number
-  purchased_on?: string // YYYY-MM-DD from the receipt, left out when it couldn't be read, then no price history is kept
+  purchased_on: string // YYYY-MM-DD from the receipt, the server turns away an item without one
   brand?: string
   item_code?: string
   fuel_type?: string
