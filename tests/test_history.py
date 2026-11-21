@@ -26,12 +26,6 @@ def test_purchases_are_listed_newest_first_and_a_repeat_keeps_the_old_price(
     ]
 
 
-def test_an_item_with_no_date_is_not_in_the_history(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item()
-
-    assert history(client) == []
-
-
 def test_only_the_countrys_own_purchases_are_listed(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(country="CA", store="Costco", item_code="123456", purchased_on="2026-09-01")
     add_item(country="US", store="Target", item_code="123456", purchased_on="2026-09-02")

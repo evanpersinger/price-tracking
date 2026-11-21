@@ -294,24 +294,28 @@ def test_an_item_with_no_saved_date_is_overwritten_by_a_dated_receipt(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
     add_item(item_code="111", price_cents=500)
+    with closing(db.connect()) as conn, conn:  # an imported row is saved with no date
+        conn.execute("UPDATE items SET purchased_on = NULL")
     add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
 
     [saved] = stores_in(client)[0]["items"]
     assert (saved["price_cents"], saved["purchased_on"]) == (400, "2026-09-01")
 
 
-def test_a_receipt_with_no_date_overwrites_the_item_but_keeps_its_saved_date(
+def test_a_receipt_with_no_date_is_rejected_and_never_overwrites_a_saved_item(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
     add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
-    add_item(item_code="111", price_cents=600)
-    [saved] = stores_in(client)[0]["items"]
-    assert (saved["price_cents"], saved["purchased_on"]) == (600, "2026-10-01")
 
-    # The kept date still turns away an older receipt
-    add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 600,
+        "item_count": 12, "item_code": "111",
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "That receipt has no date, add one."
     [saved] = stores_in(client)[0]["items"]
-    assert (saved["price_cents"], saved["purchased_on"]) == (600, "2026-10-01")
+    assert (saved["price_cents"], saved["purchased_on"]) == (500, "2026-10-01")
 
 
 def test_a_receipt_dated_in_the_future_is_rejected(client: TestClient) -> None:
@@ -341,14 +345,6 @@ def test_a_receipt_dated_over_30_days_ago_is_rejected(
     assert rejected.json()["detail"] == "That receipt's date is over 30 days ago, check it."
     assert stores_in(client) == []
     assert add_item(item_code="111", purchased_on=on_the_limit)["purchased_on"] == on_the_limit
-
-
-def test_no_date_is_made_up_and_nothing_goes_in_the_history(client: TestClient, add_item: Callable[..., dict]) -> None:
-    add_item()
-
-    [saved] = stores_in(client)[0]["items"]
-    assert saved["purchased_on"] is None
-    assert history() == []
 
 
 def test_posting_the_same_purchase_twice_records_it_in_the_history_once(
@@ -443,7 +439,7 @@ def test_a_size_that_swings_the_price_per_unit_either_way_is_rejected(
 
     response = client.post("/api/items", json={
         "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
-        "weight_g": weight_g, "item_code": "123456",
+        "weight_g": weight_g, "item_code": "123456", "purchased_on": date.today().isoformat(),
     })
 
     assert response.status_code == 422
@@ -507,7 +503,8 @@ def test_requests_adding_the_same_new_store_at_once_all_succeed(client: TestClie
 
     def post(n: int) -> int:
         body = {"country": "CA", "store": "Brand New", "name": f"Item {n}", "display_name": f"Item {n}",
-                "price_cents": 100, "item_count": 1, "item_code": str(1000 + n)}
+                "price_cents": 100, "item_count": 1, "item_code": str(1000 + n),
+                "purchased_on": date.today().isoformat()}
         return client.post("/api/items", json=body).status_code
 
     with ThreadPoolExecutor(8) as pool:

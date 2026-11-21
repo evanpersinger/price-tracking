@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -29,12 +30,12 @@ def client() -> TestClient:
 
 @pytest.fixture
 def add_item(client: TestClient) -> Callable[..., dict]:
-    """Add an item through POST /api/items, a 12-count Costco item in Canada unless the fields say otherwise."""
+    """Add a 12-count Costco item in Canada, bought today, through POST /api/items unless the fields say otherwise."""
 
     def _add(**fields: object) -> dict:
         body = {
             "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
-            "item_count": 12, **fields,
+            "item_count": 12, "purchased_on": date.today().isoformat(), **fields,
         }
         response = client.post("/api/items", json=body)
         assert response.status_code == 201, response.text

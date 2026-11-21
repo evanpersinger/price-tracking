@@ -122,8 +122,8 @@ class NewItem(BaseModel):
     # Sizes have a minimum because a tiny one makes the unit price overflow to infinity, which comes back as null
     weight_g: float | None = Field(default=None, ge=0.001, allow_inf_nan=False)  # total weight of the pack
     volume_ml: float | None = Field(default=None, ge=0.001, allow_inf_nan=False)  # total volume of the pack
-    purchased_on: date | None = None  # from the receipt, left out when it couldn't be read, then no history is recorded
-    # (no history either without an item_code, except for gas)
+    purchased_on: date | None = None  # from the receipt, add_item turns away an item that has none
+    # (only an item with an item_code, or gas, goes in the history)
     brand: str | None = Field(default=None, max_length=100)
     item_code: str | None = Field(default=None, max_length=40)  # the store's product code from the receipt line
     fuel_type: str | None = Field(default=None, max_length=40)  # what the fuel is on a gas receipt, as printed
@@ -155,21 +155,23 @@ class AddedItem(Item):
 def add_item(new_item: NewItem) -> AddedItem:
     """Add an item with its price to a store, creating the store if it isn't in that country yet.
 
-    A purchase date is only saved when the receipt gave one, a guess like today's date would corrupt the price
-    history. With a date and an item code (or a fuel type, gas has no code), the price is also recorded in
-    price_history, even when an existing item is overwritten. Any other item is saved but not tracked.
+    The receipt's date is required, and never defaulted to today: a guess would corrupt the price history, and without
+    a date there is no telling whether the receipt is older than the saved item and must not overwrite it. With an item
+    code (or a fuel type, gas has no code), the price is also recorded in price_history, even when an existing item is
+    overwritten. Any other item is saved but not tracked.
 
     A receipt older than the one the saved item came from is only recorded in price_history, the saved price, size and
-    date stay. A receipt with no date overwrites the item but keeps its saved date. The response still echoes the
-    receipt.
+    date stay. The response still echoes the receipt.
     """
-    if new_item.purchased_on and new_item.purchased_on > date.today():
+    if new_item.purchased_on is None:
+        raise HTTPException(status_code=422, detail="That receipt has no date, add one.")
+    if new_item.purchased_on > date.today():
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
-    if new_item.purchased_on and new_item.purchased_on < date.today() - timedelta(days=MAX_RECEIPT_AGE_DAYS):
+    if new_item.purchased_on < date.today() - timedelta(days=MAX_RECEIPT_AGE_DAYS):
         raise HTTPException(
             status_code=422, detail=f"That receipt's date is over {MAX_RECEIPT_AGE_DAYS} days ago, check it."
         )
-    purchased_on =new_item.purchased_on.isoformat() if new_item.purchased_on else None
+    purchased_on = new_item.purchased_on.isoformat()
     with closing(connect()) as conn, conn:
         # Take the write lock now, so a second request for the same new store or item waits here and then finds the
         # row this one saved, instead of both seeing nothing and the second insert failing
@@ -235,16 +237,14 @@ def add_item(new_item: NewItem) -> AddedItem:
                 None,
             )
         # Dates are ISO strings, so comparing them as text orders them by day
-        older_receipt = bool(existing and purchased_on and existing[-1] and purchased_on < existing[-1])
+        older_receipt = bool(existing and existing[-1] and purchased_on < existing[-1])
         if existing:
             _reject_a_size_typo(existing, new_item)
             item_id = existing[0]
             if not older_receipt:
-                # A receipt with no date keeps the saved date, otherwise the older-receipt check above has nothing to
-                # compare against and a later, older receipt could overwrite the price
                 conn.execute(
                     "UPDATE items SET name = ?, display_name = ?, price_cents = ?, item_count = ?, weight_g = ?, "
-                    "volume_ml = ?, purchased_on = COALESCE(?, purchased_on), brand = ?, item_code = ?, fuel_type = ?, "
+                    "volume_ml = ?, purchased_on = ?, brand = ?, item_code = ?, fuel_type = ?, "
                     "dose_mg = ?, "
                     "unit_volume_ml = ? WHERE id = ?",
                     (*values, item_id),
@@ -259,7 +259,7 @@ def add_item(new_item: NewItem) -> AddedItem:
         # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
         # The same item, price and date again is the same receipt sent twice (a double click, a retry), so it is not
         # recorded a second time
-        if purchased_on and (new_item.item_code or new_item.fuel_type):
+        if new_item.item_code or new_item.fuel_type:
             conn.execute(
                 "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) "
                 "SELECT ?, ?, ?, ? WHERE NOT EXISTS "
