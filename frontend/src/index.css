@@ -834,16 +834,32 @@ body:has(.page-review) {
   color: var(--price);
 }
 
+/* In a store table's Other stores column: whether another store sells the same item for less. Muted so it hints
+   instead of shouting, green only for the cheapest. */
+.price-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.price-chip-cheapest {
+  border-color: var(--price);
+  color: var(--price);
+}
+
 .no-price {
   color: var(--text-muted);
 }
 
 /* On a phone the store and cheapest tables keep only the item name (with its brand under it), the unit price and the
-   price. Search results also keep the store. The row number, item code, brand, amount and capsule columns are hidden,
+   price. Search results also keep the store. The row number, item code, brand, amount, capsule and other stores columns are hidden,
    and the cells get less padding and smaller text so the columns fit. The compact tables (Price Tracking, Gas) and the
    receipt review table are left as they are. */
 @media (max-width: 599px) {
-  .store .items:not(.items-compact) :is(.row-number, .item-code, .brand, .amount, .dose) {
+  .store .items:not(.items-compact) :is(.row-number, .item-code, .brand, .amount, .dose, .other-stores) {
     display: none;
   }
 

@@ -1,5 +1,11 @@
 export type Country = 'CA' | 'US'
 
+// Another store that sells the same item for less, and how much less it costs there, in percent
+export interface CheaperAt {
+  store: string
+  percent: number
+}
+
 export interface Item {
   id: number
   name: string // the receipt's printed text for an item added from a receipt
@@ -17,6 +23,8 @@ export interface Item {
   unit_volume_ml: number | null // the volume of a single can or bottle, empty for anything not sold that way
   unit: 'each' | 'g' | 'ml' | null // what unit_price_cents is per, empty with no price or no size, and for gas
   unit_price_cents: number | null // worked out by the API from the price and the size, in the size fields or the name
+  is_cheapest: boolean // another store sells the same item, and this store is the cheapest or tied
+  cheaper_at: CheaperAt | null // another store sells the same item for less, empty when none does or none was matched
 }
 
 export interface Store {

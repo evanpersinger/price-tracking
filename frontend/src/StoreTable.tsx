@@ -50,6 +50,8 @@ export function StoreTable({ store, country }: StoreTableProps) {
   const showUnitPrice = rows.some((row) => row.unitPrice !== null)
   // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
   const showDose = rows.some((row) => row.item.dose_mg !== null)
+  // Only a store with an item another store also sells has anything to put in the Other stores column
+  const showOtherStores = rows.some((row) => row.item.is_cheapest || row.item.cheaper_at !== null)
 
   return (
     <section className="store" aria-labelledby={headingId}>
@@ -83,6 +85,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
             )}
             {showDose && <th scope="col" className="dose">Capsule</th>}
             <SortableHeader column="price" label="Price" className="price" sort={sort} onSort={onSort} />
+            {showOtherStores && <th scope="col" className="other-stores">Other stores</th>}
           </tr>
         </thead>
         <tbody>
@@ -110,6 +113,16 @@ export function StoreTable({ store, country }: StoreTableProps) {
                   formatPrice(item.price_cents, country)
                 )}
               </td>
+              {showOtherStores && (
+                <td className="other-stores">
+                  {item.is_cheapest && <span className="price-chip price-chip-cheapest">Cheapest</span>}
+                  {item.cheaper_at && (
+                    <span className="price-chip">
+                      Cheaper at {item.cheaper_at.store} (-{item.cheaper_at.percent}%)
+                    </span>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
