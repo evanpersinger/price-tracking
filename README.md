@@ -62,9 +62,10 @@ The tests don't need Ollama or Tesseract.
 
 - **Adding items:** the model reads the receipt and saves nothing until you review it. The Item name box is the item's display name, and the receipt's printed text is saved next to it. One receipt is read at a time.
 - **Cheapest:** each store's items are compared per item, per gram or per ml, and produce or bulk items with no size are compared per kg. The search lists what every store sells an item for, cheapest first.
+- **Cheaper elsewhere:** Store Prices says when another store sells the same item for less. It only compares items with the same real brand and size, the rules are in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
 - **Price history:** an item with an item code and a date is also recorded in the price history, which Price Tracking graphs.
 - **Size check:** saving an item over one that's already stored is rejected if its price per unit is more than 5 times higher or lower, since that means a typed size is wrong.
-- **Date check:** a receipt dated in the future or more than 30 days ago is rejected, since that means the year was misread. Fix the date on the review page, or clear it to save the item without price history.
+- **Date check:** a receipt with no date, a date in the future, or a date more than 30 days ago is rejected, since the price history is built on the date and an old one usually means the year was misread. Fix the date on the review page. A receipt dated before the price already saved for that item only adds to the price history, it never overwrites the saved price.
 - **Data rules:** how item names, brands and unit prices are stored is in [DATA_CONVENTIONS.md](DATA_CONVENTIONS.md).
 - **Localhost only:** the API has no login and only answers requests addressed to `127.0.0.1` or `localhost`. Don't expose it on a network.
 - **Activity log:** `backend/data/activity.log` records every write, including the receipt text the model read and the store address. It moves to `activity.log.1` past 5 MB, so keep it private.

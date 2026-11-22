@@ -135,6 +135,28 @@ Hamburger buns or cheese slices that carry a count naturally end up compared per
 Nothing needs to be configured per category, it falls out of whatever size fields the
 item was given.
 
+## Cheaper elsewhere
+
+The Other stores column on the Store Prices tables says whether another store sells the same item for less
+(`cheaper_at`), or that this store is the cheapest of the stores that sell it (`is_cheapest`). It is matched far more
+strictly than `/api/cheapest`, since a wrong "cheaper at" is worse than none (`_compare_across_stores` in
+`backend/server.py`). Two items are the same only when all of these hold:
+
+- They are at different stores in the same country.
+- They have the same real brand. `No Brand` or an empty brand never matches, so an item whose brand is missing or wrong
+  never gets compared, which is why the brand rules above matter. Capitals, spaces and `&` don't matter (`Arm & Hammer`
+  matches `Arm&Hammer`).
+- They are the same size: the same count, weight and volume, within 2% (1lb is the same as 454g). Produce and bulk
+  items priced by weight have no brand or size, so they skip those two rules and compare the rate per kg instead.
+- Their created names are alike (`SIMILARITY`, small typos are fine): the display name, or the name of an imported item
+  that was typed by hand. An item with an item code and no display name has only the receipt's printed text, and is
+  never compared.
+- Their prices (or per-kg rates) are no more than 2x apart (`MAX_PRICE_RATIO`), a bigger gap most likely means it is
+  not the same item.
+
+A store that has the item twice counts by its cheaper row, and a tie makes every tied store "Cheapest". `/api/cheapest`
+and the search keep the looser matching.
+
 ## Typed unit price in a name
 
 Imported items carry a unit price in brackets at the end of the name, which the UI shows
