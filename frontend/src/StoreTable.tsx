@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
 import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
+import { OtherStoresCell } from './OtherStoresCell.tsx'
 import { SortableHeader } from './SortableHeader.tsx'
 import { nextSort, sortRows } from './sortRows.ts'
 import type { SortColumn, SortState } from './sortRows.ts'
@@ -113,16 +114,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
                   formatPrice(item.price_cents, country)
                 )}
               </td>
-              {showOtherStores && (
-                <td className="other-stores">
-                  {item.is_cheapest && <span className="price-chip">Cheapest</span>}
-                  {item.cheaper_at && (
-                    <span className="price-chip">
-                      Cheaper at {item.cheaper_at.store} (-{item.cheaper_at.percent}%)
-                    </span>
-                  )}
-                </td>
-              )}
+              {showOtherStores && <OtherStoresCell item={item} />}
             </tr>
           ))}
         </tbody>

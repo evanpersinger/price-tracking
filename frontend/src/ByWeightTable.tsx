@@ -1,5 +1,6 @@
 import { formatPrice, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
+import { OtherStoresCell } from './OtherStoresCell.tsx'
 import type { Country, Item, Store } from './types.ts'
 
 interface ByWeightTableProps {
@@ -12,6 +13,8 @@ interface ByWeightTableProps {
 // Produce and bulk-bin items (apples, broccoli, a scoop bin) have no package size to put in an Amount column, only a
 // price, so this is a plainer table than StoreTable's.
 export function ByWeightTable({ store, items, country, startIndex }: ByWeightTableProps) {
+  // Only shown when an item here is also sold by another store, same as StoreTable's
+  const showOtherStores = items.some((item) => item.is_cheapest || item.cheaper_at !== null)
   return (
     <section className="store store-compact" aria-label={`${store.name}, priced by weight`}>
       {startIndex === 0 && (
@@ -28,6 +31,7 @@ export function ByWeightTable({ store, items, country, startIndex }: ByWeightTab
             <th scope="col" className="item-code">Item code</th>
             <th scope="col" className="item">Item name</th>
             <th scope="col" className="price">Price</th>
+            {showOtherStores && <th scope="col" className="other-stores">Other stores</th>}
           </tr>
         </thead>
         <tbody>
@@ -48,6 +52,7 @@ export function ByWeightTable({ store, items, country, startIndex }: ByWeightTab
                     formatPrice(item.price_cents, country)
                   ))}
                 </td>
+                {showOtherStores && <OtherStoresCell item={item} />}
               </tr>
             )
           })}
