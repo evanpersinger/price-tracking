@@ -259,6 +259,7 @@ main {
 .retry:focus-visible,
 .add-item-button:focus-visible,
 .store-nav-button:focus-visible,
+.store-jump button:focus-visible,
 .choose-file-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
