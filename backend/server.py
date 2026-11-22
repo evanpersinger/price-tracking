@@ -27,13 +27,12 @@ from pydantic import BaseModel, Field, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from db import backup_database, connect, log_activity
-from extract_receipt import RECEIPT_MODEL, extract_receipt
+from extract_receipt import MAX_RECEIPT_AGE_DAYS, RECEIPT_MODEL, extract_receipt
 
 PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_PIXELS = 50_000_000  # a small file can still decode to a huge image
-MAX_RECEIPT_AGE_DAYS = 30  # an older date is most likely a misread year, not a receipt just bought
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")

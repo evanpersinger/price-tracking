@@ -10,7 +10,7 @@ import json
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytesseract
@@ -310,29 +310,65 @@ STORE_DATE_ORDERS = {
 }
 # Three numbers split by / . or -, a two or four digit year at either end, so the time after it (12:59:26) never matches
 _PRINTED_DATE_RE = re.compile(r"(?<!\d)(\d{4}|\d{2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?!\d)")
+# A receipt older than this is rejected when it is added (see server.py), since an old date is most likely a misread
+# year and not a receipt just bought. It also bounds the dates _fix_future_date will pick.
+MAX_RECEIPT_AGE_DAYS = 30
 
 
-def _read_printed_date(receipt: dict) -> dict:
+def _date_in_order(numbers: tuple[str, ...], order: str) -> date | None:
+    """The three printed numbers as a date, read in the given order (y year, m month, d day), or None if not a date."""
+    fields = dict(zip(order, map(int, numbers)))
+    year = fields["y"] + 2000 if fields["y"] < 100 else fields["y"]
+    try:
+        return date(year, fields["m"], fields["d"])
+    except ValueError:
+        return None
+
+
+def _fix_future_date(receipt: dict, numbers: tuple[str, ...], today: date) -> dict:
+    """Swap a purchase_date in the future for the one reading of the printed numbers that can be right.
+
+    A receipt can't be from the future, so a date after today means the model read the numbers in the wrong order
+    ('26/10/28' read as 2028-10-26 when it is 2026-10-28). The numbers are tried in every order, and a reading only
+    counts if it is a real date, not in the future and not older than MAX_RECEIPT_AGE_DAYS. It is only swapped when
+    exactly one date fits, with none or several the model's date stays, and adding it is refused as a future date.
+    """
+    try:
+        read = date.fromisoformat(str(receipt.get("purchase_date")))
+    except ValueError:
+        return receipt
+    if read <= today:
+        return receipt
+    oldest = today - timedelta(days=MAX_RECEIPT_AGE_DAYS)
+    fits = {
+        reading
+        for order in ("ymd", "dmy", "mdy")
+        if (reading := _date_in_order(numbers, order)) is not None and oldest <= reading <= today
+    }
+    if len(fits) != 1:
+        return receipt
+    return {**receipt, "purchase_date": fits.pop().isoformat()}
+
+
+def _read_printed_date(receipt: dict, today: date | None = None) -> dict:
     """Set purchase_date from date_printed, ordered the way the receipt's store prints it, and drop date_printed.
 
     The model copies a date well but can't tell day-month-year from year-month-day when it is printed as '26/10/18'
     (it read a Superstore receipt as 2018-10-26, the receipt is from 2026-10-18), so a store in STORE_DATE_ORDERS gets
-    its date ordered here. Any other store, or a date that doesn't parse, keeps the model's own purchase_date.
+    its date ordered here. Any other store keeps the model's own purchase_date, unless that date is in the future
+    (see _fix_future_date), and so does a date that doesn't parse.
     """
     printed = str(receipt.get("date_printed") or "")
     receipt = {key: value for key, value in receipt.items() if key != "date_printed"}
     store = str(receipt.get("store") or "").lower()
     order = next((order for name, order in STORE_DATE_ORDERS.items() if name in store), None)
     match = _PRINTED_DATE_RE.search(printed)
-    if order is None or match is None:
+    if match is None:
         return receipt
-    fields = dict(zip(order, map(int, match.groups())))
-    year = fields["y"] + 2000 if fields["y"] < 100 else fields["y"]
-    try:
-        purchase_date = date(year, fields["m"], fields["d"])
-    except ValueError:
-        return receipt
-    return {**receipt, "purchase_date": purchase_date.isoformat()}
+    if order is None:
+        return _fix_future_date(receipt, match.groups(), today or date.today())
+    purchase_date = _date_in_order(match.groups(), order)
+    return receipt if purchase_date is None else {**receipt, "purchase_date": purchase_date.isoformat()}
 
 
 # Words that mark a line as a deal or a discount and not a bought item
