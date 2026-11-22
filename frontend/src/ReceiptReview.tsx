@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { addItem } from './api.ts'
-import { findBrandInName, findClosestBrand, isOldSpice } from './brands.ts'
+import { findBrandInName, findClosestBrand, isOldSpice, isSoda } from './brands.ts'
 import { COUNTRIES } from './countries.ts'
 import { dedupeExact } from './dedupeExact.ts'
 import { splitItemCode } from './itemCode.ts'
@@ -65,6 +65,20 @@ interface Row {
   include: boolean
   status: RowStatus
   error: string | null
+}
+
+// A soda is sold by volume, so a weight unit is never right for one. The Amount box's unit starts on mg (for capsules),
+// which is how a can of Dr Pepper once saved as 355 mg, so a soda's Amount unit is always ml and its size unit is a
+// volume or none.
+const SODA_DOSE_UNITS: readonly DoseUnit[] = ['ml']
+const SODA_SIZE_UNITS: readonly SizeUnit[] = ['ml', 'L', 'none']
+
+function isSodaRow(row: Row): boolean {
+  return isSoda(row.brand, `${row.rawName} ${row.displayName}`)
+}
+
+function doseUnitOf(row: Row): DoseUnit {
+  return isSodaRow(row) ? 'ml' : row.doseUnit
 }
 
 type RowFields = Pick<
@@ -205,8 +219,8 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   const count = parsePositive(row.count)
   const size = parsePositive(row.size)
   const dose = parsePositive(row.dose)
-  const doseGramsPerUnit = DOSE_GRAMS_PER_UNIT[row.doseUnit]
-  const doseMlPerUnit = DOSE_ML_PER_UNIT[row.doseUnit]
+  const doseGramsPerUnit = DOSE_GRAMS_PER_UNIT[doseUnitOf(row)]
+  const doseMlPerUnit = DOSE_ML_PER_UNIT[doseUnitOf(row)]
   // A count only makes sense for identical units (12 cans, 1 bath tissue pack), where it's the whole size. A
   // weight or volume item (chicken strips, cheese) is already sized by weight_g/volume_ml, so it's optional there.
   const countRequired = row.unit === 'none'
@@ -217,6 +231,7 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
   if (countRequired && count === null) problems.push('count')
   else if (count !== null && !Number.isInteger(count)) problems.push('whole-number count')
   if (row.unit === '') problems.push('unit')
+  else if (isSodaRow(row) && !SODA_SIZE_UNITS.includes(row.unit)) problems.push('ml or L')
   else if (row.unit !== 'none' && size === null) problems.push('size')
   if (problems.length > 0 || price === null) return { problems, fields: null }
 
@@ -534,7 +549,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                           disabled={locked}
                           onChange={(event) => {
                             const count = event.target.value
-                            patchRow(row.id, { count, ...doseTotal(count, row.dose, row.doseUnit) })
+                            patchRow(row.id, { count, ...doseTotal(count, row.dose, doseUnitOf(row)) })
                           }}
                         />
                       </td>
@@ -549,23 +564,23 @@ export function ReceiptReview({ result, onDone }: Props) {
                             step="any"
                             aria-label={`Amount per unit of item ${rowNumber}`}
                             value={row.dose}
-                            disabled={locked || row.hasNoSize || row.doseUnit === 'IU'}
+                            disabled={locked || row.hasNoSize || doseUnitOf(row) === 'IU'}
                             onChange={(event) => {
                               const dose = event.target.value
-                              patchRow(row.id, { dose, ...doseTotal(row.count, dose, row.doseUnit) })
+                              patchRow(row.id, { dose, ...doseTotal(row.count, dose, doseUnitOf(row)) })
                             }}
                           />
                           <select
                             className="review-input"
                             aria-label={`Amount unit of item ${rowNumber}`}
-                            value={row.doseUnit}
+                            value={doseUnitOf(row)}
                             disabled={locked || row.hasNoSize}
                             onChange={(event) => {
                               const doseUnit = event.target.value as DoseUnit
                               patchRow(row.id, { doseUnit, ...doseTotal(row.count, row.dose, doseUnit) })
                             }}
                           >
-                            {DOSE_UNITS.map((unit) => (
+                            {(isSodaRow(row) ? SODA_DOSE_UNITS : DOSE_UNITS).map((unit) => (
                               <option key={unit} value={unit}>
                                 {unit}
                               </option>
@@ -610,7 +625,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                             }}
                           >
                             <option value="">Unit</option>
-                            {SIZE_UNITS.map((unit) => (
+                            {(isSodaRow(row) ? SODA_SIZE_UNITS : SIZE_UNITS).map((unit) => (
                               <option key={unit} value={unit}>
                                 {unit}
                               </option>
