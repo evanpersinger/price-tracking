@@ -779,6 +779,7 @@ body:has(.page-review) {
 
 .items td.amount {
   color: var(--amount);
+  font-variant-numeric: tabular-nums;
 }
 
 /* An item with two measurements (e.g. a count and a weight) splits the cell in half, like two cells inside one,
