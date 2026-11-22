@@ -11,9 +11,10 @@ import { useLoad } from './useLoad.ts'
 
 interface StoresViewProps {
   country: Country
+  onAddItem: () => void // opens the Add Item window, for the empty state
 }
 
-export function StoresView({ country }: StoresViewProps) {
+export function StoresView({ country, onAddItem }: StoresViewProps) {
   const state = useLoad<Store[]>(`/api/stores?country=${country}`)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -34,7 +35,14 @@ export function StoresView({ country }: StoresViewProps) {
           }))
           .filter((store) => store.items.length > 0)
         if (withItems.length === 0) {
-          return <p className="status">No prices added yet.</p>
+          return (
+            <div className="status">
+              <p>No prices added yet.</p>
+              <button type="button" className="retry" onClick={onAddItem}>
+                Add your first item
+              </button>
+            </div>
+          )
         }
         const activeIndexInRange = Math.min(activeIndex, withItems.length - 1)
         const activeStore = withItems[activeIndexInRange]

@@ -33,6 +33,7 @@ export default function App() {
   // gives each receipt its own review state, so a new one never inherits the edits of the last.
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
   const [review, setReview] = useState<{ id: number; result: ReceiptResult } | null>(null)
+  const openReceiptModal = () => setIsReceiptModalOpen(true)
 
   return (
     // A dropped file outside the modal must do nothing, not open the image in the tab
@@ -42,7 +43,7 @@ export default function App() {
       onDrop={(event) => event.preventDefault()}
     >
       {review === null && (
-        <button type="button" className="add-item-button" onClick={() => setIsReceiptModalOpen(true)}>
+        <button type="button" className="add-item-button" onClick={openReceiptModal}>
           Add Item
         </button>
       )}
@@ -114,7 +115,7 @@ export default function App() {
         ) : showAbbreviations ? (
           <AbbreviationsView />
         ) : (
-          <StoresView country={country.code} />
+          <StoresView country={country.code} onAddItem={openReceiptModal} />
         )}
       </main>
     </div>
