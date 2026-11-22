@@ -2,6 +2,9 @@ import { useRef, useState } from 'react'
 import { AmountCell } from './AmountCell.tsx'
 import { formatCheapestUnitPrice, formatPrice, isZeroMoney, itemParts } from './format.ts'
 import { ItemName } from './ItemName.tsx'
+import { SortableHeader } from './SortableHeader.tsx'
+import { nextSort, sortRows } from './sortRows.ts'
+import type { SortColumn, SortState } from './sortRows.ts'
 import type { Country, Store } from './types.ts'
 import { useSlashToFocus } from './useSlashToFocus.ts'
 
@@ -13,6 +16,10 @@ interface StoreTableProps {
 export function StoreTable({ store, country }: StoreTableProps) {
   const headingId = `store-${store.id}`
   const [query, setQuery] = useState('')
+  // Which column the rows are sorted by, none for the order they came in. Each store's table starts unsorted, since
+  // StoresView gives every store its own table.
+  const [sort, setSort] = useState<SortState | null>(null)
+  const onSort = (column: SortColumn) => setSort((current) => nextSort(current, column))
   const searchRef = useRef<HTMLInputElement>(null)
   useSlashToFocus(searchRef)
   // Every word typed has to be in the item's name, ignoring case
@@ -36,8 +43,9 @@ export function StoreTable({ store, country }: StoreTableProps) {
             country,
           )
         : null)
-    return { item, name, amounts, unitPrice, receiptName }
+    return { item, name, itemName, amounts, unitPrice, receiptName }
   })
+  const sortedRows = sortRows(rows, sort)
   // A store whose items never have a unit price (e.g. furniture, one-off goods) gets no column of blank cells
   const showUnitPrice = rows.some((row) => row.unitPrice !== null)
   // Most stores never sell anything dosed by capsule, so the column only shows up where it's actually used
@@ -68,15 +76,17 @@ export function StoreTable({ store, country }: StoreTableProps) {
             <th scope="col" className="row-number">#</th>
             <th scope="col" className="item-code">Item code</th>
             <th scope="col" className="brand">Brand</th>
-            <th scope="col" className="item">Item name</th>
+            <SortableHeader column="name" label="Item name" className="item" sort={sort} onSort={onSort} />
             <th scope="col" className="amount">Amount</th>
-            {showUnitPrice && <th scope="col" className="unit-price">Unit price</th>}
+            {showUnitPrice && (
+              <SortableHeader column="unit-price" label="Unit price" className="unit-price" sort={sort} onSort={onSort} />
+            )}
             {showDose && <th scope="col" className="dose">Capsule</th>}
-            <th scope="col" className="price">Price</th>
+            <SortableHeader column="price" label="Price" className="price" sort={sort} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ item, name, amounts, unitPrice, receiptName }, index) => (
+          {sortedRows.map(({ item, name, amounts, unitPrice, receiptName }, index) => (
             <tr key={item.id}>
               <td className="row-number">{index + 1}</td>
               <td className="item-code">{item.item_code}</td>

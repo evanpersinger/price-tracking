@@ -697,6 +697,37 @@ body:has(.page-review) {
   text-align: right;
 }
 
+/* A column header that sorts the table. It reads as the header's own text, with a hover and focus state so it looks
+   clickable. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+/* The numbers in these columns are right-aligned, so the arrow goes before the label and the label stays flush with them */
+.items th.unit-price .sort-button,
+.items th.price .sort-button {
+  flex-direction: row-reverse;
+}
+
+.sort-button:hover {
+  color: var(--text);
+}
+
+.sort-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* A long store scrolls inside its card, so keep the column names in view. The header cell's own background covers the
    rows passing under it, and the shadow stands in for its bottom border, which a collapsed table drops when sticky. */
 .store .items thead th {
