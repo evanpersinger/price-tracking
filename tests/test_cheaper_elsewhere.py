@@ -176,6 +176,43 @@ def test_a_store_counts_by_its_cheapest_row_of_an_item(client: TestClient, add_i
     }
 
 
+def test_produce_priced_by_weight_compares_the_rate_per_kg(
+    client: TestClient, add_imported: Callable[..., None]
+) -> None:
+    add_imported("Costco", "Oranges ($5.50 per kg)", None)  # no brand and no size, as produce never has either
+    add_imported("Fresco", "oranges ($3.28 per kg)", None)
+
+    assert standings(client) == {
+        "Costco": [(False, {"store": "Fresco", "percent": 40})],
+        "Fresco": [(True, None)],
+    }
+
+
+def test_a_rate_per_100g_and_the_same_rate_per_kg_tie(client: TestClient, add_imported: Callable[..., None]) -> None:
+    add_imported("Costco", "Table salt ($0.90 per 100g)", None)
+    add_imported("Fresco", "Table salt ($9.00 per kg)", None)
+
+    assert standings(client) == {"Costco": [(True, None)], "Fresco": [(True, None)]}
+
+
+def test_rates_per_kg_more_than_twice_apart_are_not_the_same_item(
+    client: TestClient, add_imported: Callable[..., None]
+) -> None:
+    add_imported("Costco", "Oranges ($9.00 per kg)", None)
+    add_imported("Fresco", "Oranges ($3.00 per kg)", None)
+
+    assert standings(client) == {"Costco": [(False, None)], "Fresco": [(False, None)]}
+
+
+def test_produce_with_a_different_name_is_a_different_item(
+    client: TestClient, add_imported: Callable[..., None]
+) -> None:
+    add_imported("Costco", "Granny Smith Apples ($5.00 per kg)", None)
+    add_imported("Fresco", "Apples ($4.00 per kg)", None)
+
+    assert standings(client) == {"Costco": [(False, None)], "Fresco": [(False, None)]}
+
+
 def test_stores_in_the_other_country_are_not_compared(client: TestClient, add_item: Callable[..., dict]) -> None:
     add_item(store="Costco", price_cents=1000, brand="Kirkland")
     add_item(store="Costco", country="US", price_cents=800, brand="Kirkland")
