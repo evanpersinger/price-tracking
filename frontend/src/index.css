@@ -836,13 +836,8 @@ body:has(.page-review) {
 
 /* In a store table's Other stores column: whether another store sells the same item for less, in the same green as
    the prices. */
-.price-chip {
-  display: inline-block;
-  padding: 1px 8px;
-  border: 1px solid var(--price);
-  border-radius: 10px;
+.items td.other-stores {
   color: var(--price);
-  font-size: 0.875rem;
 }
 
 .no-price {
