@@ -19,6 +19,23 @@ describe('matchSavedStore', () => {
     expect(matchSavedStore('Real Canadian Superstore #1234', SAVED)?.name).toBe('Canadian Superstore')
   })
 
+  it('ignores the branch or city on the receipt, the store is the same wherever it is', () => {
+    const saved = stores('Costco', 'Metro', 'Adonis', 'Walmart')
+    expect(matchSavedStore('COSTCO WHOLESALE LONDON', saved)?.name).toBe('Costco')
+    expect(matchSavedStore('Metro Oakridge Mall', saved)?.name).toBe('Metro')
+    expect(matchSavedStore('ADONIS MEDITERRANEAN MARKET #12 SCARBOROUGH', saved)?.name).toBe('Adonis')
+    expect(matchSavedStore('WALMART SUPERCENTRE WATERLOO', saved)?.name).toBe('Walmart')
+  })
+
+  it('takes a receipt that says only SUPERSTORE and a mall for the saved Canadian Superstore', () => {
+    expect(matchSavedStore('SUPERSTORE OAKRIDGE MALL', SAVED)?.name).toBe('Canadian Superstore')
+    expect(matchSavedStore('SUPERSTORE QUINTERNE MALL', SAVED)?.name).toBe('Canadian Superstore')
+  })
+
+  it('does not take SUPERSTORE for a store the country has not saved', () => {
+    expect(matchSavedStore('SUPERSTORE OAKRIDGE MALL', stores('Costco', 'Metro'))).toBeNull()
+  })
+
   it('does not match part of a word', () => {
     expect(matchSavedStore('Metropolitan Market', SAVED)).toBeNull()
   })

@@ -28,6 +28,21 @@ function holdsRunTogether(receiptStore: string, savedName: string): boolean {
   })
 }
 
+// A word that names a store whatever branch the receipt is from, for a store whose saved name has more words than its
+// receipts print: a Superstore receipt says "SUPERSTORE OAKRIDGE MALL", never "Canadian", so the saved "Canadian
+// Superstore" isn't found in it. The city or mall never decides the store. Only used when nothing matched by name, and
+// only for a store the picked country has saved. Hand-maintained, add a line whenever a store's receipts keep coming
+// back unmatched.
+const STORE_ALIASES: Record<string, string> = {
+  SUPERSTORE: 'Canadian Superstore',
+}
+
+function savedStoreForAlias(wanted: string, stores: Store[]): Store | null {
+  const alias = Object.entries(STORE_ALIASES).find(([word]) => wanted.includes(plain(word)))
+  if (alias === undefined) return null
+  return stores.find((store) => plain(store.name) === plain(alias[1])) ?? null
+}
+
 // The saved store a receipt's store name points to, or null when none does. The same name ignoring case, or one that
 // holds the other as whole words, like "Costco 530" or "COSTCO WHOLESALE" for the saved "Costco". With several matches
 // the longest saved name wins.
@@ -39,5 +54,6 @@ export function matchSavedStore(receiptStore: string, stores: Store[]): Store | 
     const name = plain(store.name)
     return wanted.includes(name) || name.includes(wanted) || holdsRunTogether(receiptStore, store.name)
   })
-  return matches.reduce<Store | null>((best, store) => (best === null || store.name.length > best.name.length ? store : best), null)
+  const byName = matches.reduce<Store | null>((best, store) => (best === null || store.name.length > best.name.length ? store : best), null)
+  return byName ?? savedStoreForAlias(wanted, stores)
 }
