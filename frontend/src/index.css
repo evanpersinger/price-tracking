@@ -738,6 +738,11 @@ body:has(.page-review) {
   box-shadow: 0 1px 0 var(--border);
 }
 
+/* The # header sits right over the right-aligned row numbers */
+.items th.row-number {
+  text-align: right;
+}
+
 .items td.row-number {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
