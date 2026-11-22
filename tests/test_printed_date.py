@@ -13,6 +13,12 @@ def test_a_superstore_date_is_read_year_month_day() -> None:
     assert result["purchase_date"] == "2026-10-18"
 
 
+def test_a_dollarama_date_is_read_year_month_day() -> None:
+    result = extract_receipt._read_printed_date(receipt("Dollarama", "2028-10-26", "26/10/28"))
+
+    assert result["purchase_date"] == "2026-10-28"
+
+
 def test_the_time_printed_after_the_date_is_ignored() -> None:
     result = extract_receipt._read_printed_date(receipt("REAL CANADIAN SUPERSTORE", "2018-10-26", "26/10/18 12:59:26"))
 

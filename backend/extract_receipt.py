@@ -298,9 +298,11 @@ def _extract_json(text: str) -> dict:
 
 
 # The order each store prints an all-numeric date in (y year, m month, d day), matched against the store name the model
-# copied off the receipt. Real Canadian Superstore and the other Loblaws banners print year-month-day. Add a store here
-# when its dates come back wrong, a store that isn't listed keeps the model's own purchase_date.
+# copied off the receipt. Real Canadian Superstore and the other Loblaws banners print year-month-day, and so does
+# Dollarama. Add a store here when its dates come back wrong, a store that isn't listed keeps the model's own
+# purchase_date.
 STORE_DATE_ORDERS = {
+    "dollarama": "ymd",
     "superstore": "ymd",
     "no frills": "ymd",
     "independent grocer": "ymd",
