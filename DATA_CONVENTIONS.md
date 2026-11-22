@@ -202,6 +202,9 @@ used when filling these in by hand:
 - `items.unit_volume_ml` is the same idea for drinks: the volume of a single can or bottle, in ml, set by the same
   "Amount per unit" calculator when its unit is ml or L (L x1000). Leave it empty for anything that isn't sold as
   cans or bottles. It's saved for the record only, no table shows it and no unit price uses it yet.
+- A soda (a brand on the `SODA_BRANDS` list in `frontend/src/brands.ts`, in the Brand box or spelled out in the item's
+  name) is sold by volume, so the review page only gives it ml for the Amount unit and ml, L or none for the size
+  unit, never a weight. Without that, the Amount unit's `mg` default saved a Dr Pepper 32 x 355 as 355 mg.
 
 ## Store names
 
