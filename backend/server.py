@@ -13,6 +13,7 @@ import threading
 import time
 from contextlib import closing
 from datetime import date, timedelta
+from itertools import combinations
 from typing import Annotated, Literal, NamedTuple
 
 import requests
@@ -50,6 +51,11 @@ async def validation_error(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": errors})
 
 
+class CheaperAt(BaseModel):
+    store: str  # the cheapest of the other stores that sell the same item
+    percent: int  # how much less it costs there than here, at least 1
+
+
 class Item(BaseModel):
     id: int
     name: str  # the receipt's printed text for an item added from a receipt
@@ -69,6 +75,10 @@ class Item(BaseModel):
     # by /api/stores, empty for gas and for an item with no price or no size.
     unit: Literal["each", "g", "ml"] | None = None
     unit_price_cents: float | None = None
+    # How it compares with the same item at other stores, see _compare_across_stores. Only filled in by /api/stores,
+    # both stay empty for an item no other store sells.
+    is_cheapest: bool = False  # another store sells it too, and this store is the cheapest or tied
+    cheaper_at: CheaperAt | None = None  # another store sells it for less
 
 
 class Store(BaseModel):
@@ -80,7 +90,12 @@ class Store(BaseModel):
 
 @app.get("/api/stores")
 def list_stores(country: Literal["CA", "US"]) -> list[Store]:
-    """Every store in a country with its items, the ones with an item code first, then in the order they were added."""
+    """Every store in a country with its items, the ones with an item code first, then in the order they were added.
+
+    Each item also says whether another store sells the same item for less (`cheaper_at`), or this store is the
+    cheapest of the stores that sell it (`is_cheapest`).
+    """
+    standings = _compare_across_stores(_sized_offers(country))
     with closing(connect()) as conn:
         store_rows = conn.execute(
             "SELECT id, name, discount_text FROM stores WHERE country = ? ORDER BY id", (country,)
@@ -103,6 +118,7 @@ def list_stores(country: Literal["CA", "US"]) -> list[Store]:
             item_count=item_count, weight_g=weight_g, volume_ml=volume_ml, purchased_on=purchased_on, brand=brand,
             item_code=item_code, fuel_type=fuel_type, dose_mg=dose_mg, unit_volume_ml=unit_volume_ml, unit=unit,
             unit_price_cents=None if unit_price_cents is None else round(unit_price_cents, 4),
+            is_cheapest=id_ in standings and standings[id_] is None, cheaper_at=standings.get(id_),
         ))
 
     return [
@@ -415,6 +431,7 @@ SIMILARITY = 0.85  # how alike two names' words must be to count as the same ite
 # match (see add_item), so this only needs to tolerate OCR noise, not genuinely different wording.
 DUPLICATE_NAME_SIMILARITY = 0.9
 SIZE_TOLERANCE = 0.02  # 1lb (453.6g) and 454g are the same amount
+MAX_PRICE_RATIO = 2  # two stores' prices for one item further apart than this means it is most likely not the same item
 MAX_UNIT_PRICE_SWING = 5  # a new size can make a saved item this many times dearer or cheaper per unit, more is a typo
 SWING_KINDS = ("weight", "volume", "count")  # in the order they are compared, finest first
 WEIGHT_G = {"g": 1, "kg": 1000, "lb": 453.592, "lbs": 453.592, "oz": 28.3495}
@@ -645,6 +662,65 @@ def _sized_offers(country: str) -> list[Offer]:
             (country,),
         ).fetchall()
     return [offer for offer in _make_offers(rows) if offer.amounts]
+
+
+def _real_brand(offer: Offer) -> str | None:
+    """The offer's brand as lowercase letters and digits, so "Arm & Hammer" and "Arm&Hammer" match. None when it has
+    no brand or is "No Brand"."""
+    brand = re.sub(r"[^a-z0-9]+", "", (offer.brand or "").lower())
+    return None if brand in ("", "nobrand") else brand
+
+
+def _created_name(offer: Offer) -> str | None:
+    """The name a person gave the item, lowercase and without its sizes. None for an item with only the receipt's text.
+
+    That is the display name, or the name of an imported item, which was typed by hand and has no item code. An item
+    from a receipt with no display name has nothing but the printed text, like "CHKN STRIPS", no name to match on.
+    """
+    if offer.display_name:
+        return _split_name(offer.display_name)[0]
+    return None if offer.item_code else offer.words
+
+
+def _compare_across_stores(offers: list[Offer]) -> dict[int, CheaperAt | None]:
+    """How each item that another store also sells compares with those stores: None when it is the cheapest (or tied),
+    else where it is cheaper. An item no other store sells is left out.
+
+    Much stricter than the matching the Cheapest page does, since a wrong "cheaper at" is worse than none. Two offers
+    are the same item only when they are at different stores, have the same real brand and the same size, have alike
+    created names, and their prices are no more than MAX_PRICE_RATIO apart. The size is the same, so the shelf prices
+    are compared as they are, with no price per unit.
+    """
+    by_brand: dict[str, list[tuple[Offer, str]]] = {}
+    for offer in offers:
+        brand, name = _real_brand(offer), _created_name(offer)
+        if brand and name:
+            by_brand.setdefault(brand, []).append((offer, name))
+
+    same_item_elsewhere: dict[int, list[Offer]] = {}
+    repeats: set[int] = set()  # a store can have the same item twice, only its cheaper row counts for that store
+    for candidates in by_brand.values():
+        for (a, a_name), (b, b_name) in combinations(candidates, 2):
+            if not (_same_sizes(a.amounts, b.amounts) and _same_words(a_name, b_name)):
+                continue
+            if a.store_id == b.store_id:
+                repeats.add(max(a, b, key=lambda offer: (offer.price_cents, offer.id)).id)
+            elif max(a.price_cents, b.price_cents) <= MAX_PRICE_RATIO * min(a.price_cents, b.price_cents):
+                same_item_elsewhere.setdefault(a.id, []).append(b)
+                same_item_elsewhere.setdefault(b.id, []).append(a)
+
+    standings: dict[int, CheaperAt | None] = {}
+    for offer in offers:
+        others = [other for other in same_item_elsewhere.get(offer.id, []) if other.id not in repeats]
+        if offer.id in repeats or not others:
+            continue
+        cheapest = min(others, key=lambda other: (other.price_cents, other.store_name))
+        if offer.price_cents <= cheapest.price_cents:
+            standings[offer.id] = None
+        else:
+            percent = max(1, round(100 * (offer.price_cents - cheapest.price_cents) / offer.price_cents))
+            standings[offer.id] = CheaperAt(store=cheapest.store_name, percent=percent)
+    return standings
 
 
 class WeightOffer(NamedTuple):
