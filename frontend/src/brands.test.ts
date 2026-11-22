@@ -11,6 +11,10 @@ describe('findClosestBrand', () => {
     expect(findClosestBrand('fibre1')).toBe('Fibre 1')
   })
 
+  it('corrects a misspelled brand', () => {
+    expect(findClosestBrand('Drizzzlicious')).toBe('Drizzilicious')
+  })
+
   it('corrects a misspelling, including a swapped pair of letters', () => {
     expect(findClosestBrand('Fiber1')).toBe('Fibre 1')
     expect(findClosestBrand('Biscof')).toBe('Biscoff')

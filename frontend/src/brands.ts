@@ -20,6 +20,7 @@ const BRANDS: string[] = [
   'Dare',
   'Dempsters',
   'Doritos',
+  'Drizzilicious',
   'Dunya Harvest',
   'Fairlife',
   'Fibre 1',
