@@ -5,19 +5,19 @@
   --hover-fill: #2a2a2a;
   --table-border: #606060; /* stronger than --border, for visible data table grid lines */
 
-  /* The stores and cheapest pages are two colors: the lighter top half (title, nav, store buttons) and the black
-     bottom half (the data, table included) */
-  --top-bg: #2a2f38;
-  --bottom-bg: #000000;
-  --review-bg: #14213d; /* the receipt review page, a deep navy so it reads as a different screen from the data pages */
+  /* The stores and cheapest pages are two greys: the darker top half (title, nav, store buttons) and the slightly
+     lighter bottom half (the data, table included) */
+  --top-bg: #1a1a1a;
+  --bottom-bg: #1e1e1e;
+  --review-bg: #121212; /* the receipt review page, the darkest grey so it still reads as a different screen from the data pages */
 
-  /* Buttons: solid and saturated, not the pastel text colors */
-  --btn-bg: #3730a3;
-  --btn-hover: #4f46e5;
+  /* Buttons: grey, with green for the one that is selected and for the next/previous store arrows */
+  --btn-bg: #2a2a2a;
+  --btn-hover: #343434;
   --btn-text: #ffffff;
-  --btn-active: linear-gradient(135deg, #0284c7, #7c3aed); /* the selected one, and the next/previous store arrows */
+  --btn-active: #16a34a;
   --btn-add: #16a34a;
-  --btn-back: #c2410c; /* the Back button, a burnt orange so it stands apart from the purple ones */
+  --btn-back: #c2410c; /* the Back button, a burnt orange so it stands apart from the grey ones */
   --btn-back-hover: #ea580c;
 
   /* One color per kind of text */
@@ -31,8 +31,8 @@
   --warning: #ef4444; /* flags a unit price that reads as $0, which should never happen */
   --text-muted: #9ca3af; /* labels and notes */
   --text: #e0e0e0;
-  --accent: #7dd3fc;
-  --accent-soft: rgba(125, 211, 252, 0.14);
+  --accent: #4ade80;
+  --accent-soft: rgba(74, 222, 128, 0.14);
 
   --radius: 10px;
   --gutter: 16px;
@@ -477,8 +477,8 @@ td.store-column {
   box-sizing: border-box;
 }
 
-/* Two colors: the page color is the lighter top half, and everything under the store buttons is a black band that
-   runs full width down to the bottom of the screen, with the store's table sitting directly on it. */
+/* Two colors: the page color is the darker top half, and everything under the store buttons is a slightly lighter
+   band that runs full width down to the bottom of the screen, with the store's table sitting directly on it. */
 body:has(.page-split) {
   background: var(--top-bg);
 }
@@ -540,7 +540,7 @@ body:has(.page-review) {
   border-radius: 0;
 }
 
-/* Orange instead of the purple of the other buttons, so going back reads as a different kind of action */
+/* Orange instead of the grey of the other buttons, so going back reads as a different kind of action */
 .back-button {
   margin-bottom: 8px;
   background: var(--btn-back);
@@ -619,7 +619,7 @@ body:has(.page-review) {
   width: min(22rem, 100%);
   padding: 14px 20px;
   background: var(--surface);
-  border: 2px solid var(--btn-bg);
+  border: 2px solid var(--table-border);
   border-radius: 0;
   color: var(--text);
   font: inherit;
@@ -628,7 +628,7 @@ body:has(.page-review) {
 
 .store-search:focus {
   outline: none;
-  border-color: var(--btn-hover);
+  border-color: var(--accent);
 }
 
 .store-name {
