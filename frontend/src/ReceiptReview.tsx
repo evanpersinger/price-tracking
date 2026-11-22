@@ -10,6 +10,7 @@ import { previewUnitPrice } from './format.ts'
 import { findKnownItem, isKirklandSignature } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
 import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
+import { sizeInName } from './sizeInName.ts'
 import { useLoad } from './useLoad.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
@@ -87,6 +88,9 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
   const litres = litresIn(item.quantity_info)
   const price = priceOfOne(typeof item.price === 'number' ? item.price : null, quantity)
   const ratePerUnit = quantity?.ratePerUnit
+  // A size printed in the name itself ("LCTS FREE SKM 2L RQ") fills in when nothing more reliable gave one: a known item
+  // and a quantity line that has a size both win over it, and so does a saved item with the same code (fillFromSaved)
+  const named = quantity?.size ? undefined : sizeInName(printed.name)
   // The receipt name is always what's actually printed, not a model-invented rewording or a known item's own name, so
   // a later repeat purchase can still be matched up by it (see add_item's dedup check)
   const receiptName = litres ? 'Gas' : printed.name || item.item_name || item.raw_name || ''
@@ -101,8 +105,8 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     count: known ? String(known.count) : (quantity?.count ?? ''),
     dose: '',
     doseUnit: 'mg',
-    size: known?.size !== undefined ? String(known.size) : (quantity?.size ?? ''),
-    unit: known?.unit ?? quantity?.unit ?? 'none',
+    size: known?.size !== undefined ? String(known.size) : (named?.size ?? quantity?.size ?? ''),
+    unit: known?.unit ?? named?.unit ?? quantity?.unit ?? 'none',
     brand:
       known?.brand ??
       (isKirklandSignature(store, printed.name)
