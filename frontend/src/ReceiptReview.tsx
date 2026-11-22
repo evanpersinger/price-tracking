@@ -11,6 +11,7 @@ import { findKnownItem, isKirklandSignature } from './knownItems.ts'
 import { matchSavedStore } from './matchSavedStore.ts'
 import { litresIn, priceOfOne, readQuantity } from './quantityInfo.ts'
 import { sizeInName } from './sizeInName.ts'
+import { typicalSize } from './typicalSize.ts'
 import { useLoad } from './useLoad.ts'
 import type { Country, Item, NewItem, ReceiptItem, ReceiptResult, Store } from './types.ts'
 
@@ -103,8 +104,9 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
   const price = priceOfOne(typeof item.price === 'number' ? item.price : null, quantity)
   const ratePerUnit = quantity?.ratePerUnit
   // A size printed in the name itself ("LCTS FREE SKM 2L RQ") fills in when nothing more reliable gave one: a known item
-  // and a quantity line that has a size both win over it, and so does a saved item with the same code (fillFromSaved)
-  const named = quantity?.size ? undefined : sizeInName(printed.name)
+  // and a quantity line that has a size both win over it, and so does a saved item with the same code (fillFromSaved).
+  // When the name has no size, a product's usual size at that price fills in instead (see typicalSize.ts)
+  const named = quantity?.size ? undefined : (sizeInName(printed.name) ?? typicalSize(printed.name, price))
   // The receipt name is always what's actually printed, not a model-invented rewording or a known item's own name, so
   // a later repeat purchase can still be matched up by it (see add_item's dedup check)
   const receiptName = litres ? 'Gas' : printed.name || item.item_name || item.raw_name || ''
