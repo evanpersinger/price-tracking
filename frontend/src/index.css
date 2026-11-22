@@ -325,12 +325,6 @@ main {
   color: var(--bg);
 }
 
-.currency-note {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 1.125rem;
-}
-
 .store-jump {
   display: flex;
   flex-wrap: wrap;
@@ -928,10 +922,6 @@ body:has(.page-review) {
   .country-nav .nav-link {
     padding: 6px 12px;
     font-size: 1.125rem;
-  }
-
-  .currency-note {
-    font-size: 0.875rem;
   }
 
   .view-nav {

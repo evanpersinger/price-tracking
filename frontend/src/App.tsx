@@ -64,11 +64,10 @@ export default function App() {
                   href={`${countryNavBase}${link.path}`}
                   aria-current={link.code === country.code ? 'page' : undefined}
                 >
-                  {link.label}
+                  {link.label} ({link.currency})
                 </a>
               ))}
             </nav>
-            <p className="currency-note">Currency: {country.currency}</p>
           </div>
         )}
         {review === null && (
