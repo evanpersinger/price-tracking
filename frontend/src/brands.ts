@@ -14,6 +14,7 @@ const BRANDS: string[] = [
   'Chosen Foods',
   'Christie',
   'Club House',
+  'Coca Cola',
   'Compliments',
   'Cracker Barrel',
   'Dare',
