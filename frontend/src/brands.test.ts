@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findBrandInName, findClosestBrand, isOldSpice } from './brands.ts'
+import { findBrandInName, findClosestBrand, isOldSpice, isSoda } from './brands.ts'
 
 describe('findClosestBrand', () => {
   it('matches a brand typed exactly', () => {
@@ -66,5 +66,27 @@ describe('isOldSpice', () => {
   it('recognizes Old Spice in a printed name, at any store', () => {
     expect(isOldSpice('Old Spice Original')).toBe(true)
     expect(isOldSpice('123456 OLD SPICE DEODORANT')).toBe(true)
+  })
+})
+
+describe('isSoda', () => {
+  it('recognizes a soda brand in the Brand box, ignoring case and punctuation', () => {
+    expect(isSoda('Coca Cola', 'COKE ZERO')).toBe(true)
+    expect(isSoda('coca-cola', '')).toBe(true)
+    expect(isSoda('Dr Pepper', '')).toBe(true)
+  })
+
+  it('recognizes a soda brand spelled out in the printed name, as one word or two', () => {
+    expect(isSoda('', '2068040 COKE VANILLA')).toBe(true)
+    expect(isSoda('', '1153876 DR PEPPER')).toBe(true)
+    expect(isSoda('', 'COCA-COLA CLASSIC')).toBe(true)
+    expect(isSoda('', 'SPRITE')).toBe(true)
+  })
+
+  it('does not take letters inside a longer word, or another item, for a soda', () => {
+    expect(isSoda('No Brand', 'COKED OVEN PIZZA')).toBe(false)
+    expect(isSoda('Kirkland', 'KS BATH')).toBe(false)
+    expect(isSoda('', 'CRUSHED TOMATOES')).toBe(false)
+    expect(isSoda('', '')).toBe(false)
   })
 })

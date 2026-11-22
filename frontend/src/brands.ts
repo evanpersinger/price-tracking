@@ -128,6 +128,21 @@ export function isOldSpice(printedName: string): boolean {
   return splitItemCode(printedName).name.toLowerCase().includes('old spice')
 }
 
+// Soda brands, hand-maintained like the lists above, add a name whenever a new one comes up. A drink with one of these
+// is sold by volume, so the review page never offers it a weight unit (the mg the Amount box starts on, for one). Keep
+// it to unmistakable names, a word that could be a plain description ("Crush") would lock a different item's units.
+const SODA_BRANDS = ['7UP', 'Canada Dry', 'Coca Cola', 'Coke', 'Dr Pepper', 'Fanta', 'Mountain Dew', 'Pepsi', 'Poppi', 'Schweppes', 'Sprite']
+const SODA_KEYS = new Set(SODA_BRANDS.map(normalize))
+
+// Whether a row is a soda: its brand is a soda brand, or its printed name spells one out as a whole word ("COKE ZR CF",
+// "DR PEPPER") or as two words next to each other ("COCA COLA"), ignoring case and punctuation.
+export function isSoda(brand: string, printedName: string): boolean {
+  if (SODA_KEYS.has(normalize(brand))) return true
+  const words = splitItemCode(printedName).name.split(/[^A-Za-z0-9]+/).filter(Boolean)
+  const pairs = words.slice(1).map((word, i) => `${words[i]}${word}`)
+  return [...words, ...pairs].some((candidate) => SODA_KEYS.has(normalize(candidate)))
+}
+
 // Edit distance between two strings (single-character insertions, deletions and substitutions).
 function editDistance(a: string, b: string): number {
   const dp = Array.from({ length: b.length + 1 }, (_, i) => i)
