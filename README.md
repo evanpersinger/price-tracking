@@ -15,7 +15,7 @@ uv sync
 cd frontend && pnpm install
 ```
 
-Receipt reading is open-source only, no paid API keys. It needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`, the app defaults to `gemma4:12b`). Tesseract (`brew install tesseract` on macOS, `sudo apt install tesseract-ocr` on Debian/Ubuntu) is used to spot gas receipts, and without it every receipt is read as a grocery one.
+Receipt reading is open-source only, no paid API keys. It needs [Ollama](https://ollama.com) running with a vision model pulled (`ollama pull <model>`, the app defaults to `qwen3.5:4b`). Tesseract (`brew install tesseract` on macOS, `sudo apt install tesseract-ocr` on Debian/Ubuntu) is used to spot gas receipts, and without it every receipt is read as a grocery one.
 
 ## Try it with demo data
 
@@ -34,7 +34,7 @@ uv run python backend/server.py   # API on http://127.0.0.1:8021, restart it aft
 cd frontend && pnpm dev           # UI on http://localhost:3009, needs the API running
 ```
 
-Optional environment variables: `PRICES_DB` (path to a different database, handy for testing on a copy), `OLLAMA_HOST`, and `RECEIPT_MODEL` (the model the API reads receipts with, default `gemma4:12b`).
+Optional environment variables: `PRICES_DB` (path to a different database, handy for testing on a copy), `OLLAMA_HOST`, and `RECEIPT_MODEL` (the model the API reads receipts with, default `qwen3.5:4b`).
 
 ## Test
 

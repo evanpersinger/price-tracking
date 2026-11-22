@@ -20,7 +20,7 @@ from pytesseract import Output
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_KEEP_ALIVE = "15s"  # stop the model 15 seconds after the run, overrides Ollama's 5 min default
-RECEIPT_MODEL = os.environ.get("RECEIPT_MODEL", "gemma4:12b")  # model the API uses, set RECEIPT_MODEL to switch
+RECEIPT_MODEL = os.environ.get("RECEIPT_MODEL", "qwen3.5:4b")  # model the API uses, set RECEIPT_MODEL to switch
 MEDIA_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 INPUT_DIR = Path(__file__).parent / "input"
 OUTPUT_DIR = Path(__file__).parent / "output"
