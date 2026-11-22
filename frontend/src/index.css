@@ -834,20 +834,15 @@ body:has(.page-review) {
   color: var(--price);
 }
 
-/* In a store table's Other stores column: whether another store sells the same item for less. Muted so it hints
-   instead of shouting, green only for the cheapest. */
+/* In a store table's Other stores column: whether another store sells the same item for less, in the same green as
+   the prices. */
 .price-chip {
   display: inline-block;
   padding: 1px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--price);
   border-radius: 10px;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
-.price-chip-cheapest {
-  border-color: var(--price);
   color: var(--price);
+  font-size: 0.875rem;
 }
 
 .no-price {

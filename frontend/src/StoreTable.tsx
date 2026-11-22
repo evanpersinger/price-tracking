@@ -115,7 +115,7 @@ export function StoreTable({ store, country }: StoreTableProps) {
               </td>
               {showOtherStores && (
                 <td className="other-stores">
-                  {item.is_cheapest && <span className="price-chip price-chip-cheapest">Cheapest</span>}
+                  {item.is_cheapest && <span className="price-chip">Cheapest</span>}
                   {item.cheaper_at && (
                     <span className="price-chip">
                       Cheaper at {item.cheaper_at.store} (-{item.cheaper_at.percent}%)
