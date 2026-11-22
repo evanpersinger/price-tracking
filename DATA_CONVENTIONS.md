@@ -206,6 +206,14 @@ used when filling these in by hand:
   name) is sold by volume, so the review page only gives it ml for the Amount unit and ml, L or none for the size
   unit, never a weight. Without that, the Amount unit's `mg` default saved a Dr Pepper 32 x 355 as 355 mg.
 
+## Sizes the review page fills in
+
+The review page pre-fills the size box when it can, and every fill stays editable. The first that applies wins:
+a known item (`knownItems.ts`), a saved item with the same item code at that store, the receipt's quantity line, a
+size printed in the item's own name (`sizeInName.ts`: `LCTS FREE SKM 2L RQ` fills 2 L, but a pack count like
+`12X355ML` or two sizes fills nothing), then a product's usual size at its usual price (`typicalSize.ts`: a
+`DRIZZILICI` line between $5 and $8 is the single 113 g bag). Nothing else is guessed.
+
 ## Store names
 
 - A store's name is whatever it was first saved as, and is shown that way everywhere (buttons, headings, the review
