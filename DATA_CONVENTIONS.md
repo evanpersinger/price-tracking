@@ -115,9 +115,13 @@ wrong one, a correct entry gets blocked until the saved row is fixed or deleted.
 
 The date comes from the receipt and is never defaulted to today, a guess would corrupt the price history. It is
 required: without one there is no telling whether the receipt is older than the saved item and must not overwrite it.
-`POST /api/items` rejects a missing date, a date in the future, and one more than `MAX_RECEIPT_AGE_DAYS = 30` days
-before today (a 422), since an older date is most likely a misread year. The review page's date box can be corrected
-when the date was misread or couldn't be read. Rows saved before these checks existed, with no date, are not checked.
+`POST /api/items` rejects a missing date and a date in the future (a 422). There is no limit on how old a date can be,
+an old receipt's price is still wanted in the price history. A receipt dated before the saved item's date only goes into
+the price history and leaves the saved row alone (the response has `history_only: true`, and the review page shows
+"History only"), and for an item with no item code, which has no history, it is turned away with a 422 instead. A saved
+item with no date (every imported one) has nothing to compare with, so any dated receipt overwrites it. A misread year
+now goes through without an error, so the review page's date box is worth a look, and "History only" on a row is the
+sign the date is older than the saved one. Rows saved before these checks existed, with no date, are not checked.
 
 ## Item name vs. brand text
 
