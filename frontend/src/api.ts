@@ -1,4 +1,4 @@
-import type { NewItem, ReceiptResult } from './types.ts'
+import type { AddedItem, NewItem, ReceiptResult } from './types.ts'
 
 // The server's own message when it sent one (the receipt and item endpoints do), otherwise just the status
 async function failure(response: Response): Promise<Error> {
@@ -19,13 +19,14 @@ export async function uploadReceipt(file: File): Promise<ReceiptResult> {
   return (await response.json()) as ReceiptResult
 }
 
-export async function addItem(item: NewItem): Promise<void> {
+export async function addItem(item: NewItem): Promise<AddedItem> {
   const response = await fetch('/api/items', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
   })
   if (!response.ok) throw await failure(response)
+  return (await response.json()) as AddedItem
 }
 
 export async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {

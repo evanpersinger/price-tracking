@@ -127,6 +127,11 @@ export interface NewItem {
   unit_volume_ml?: number // the volume of a single can or bottle
 }
 
+// What POST /api/items sends back, only the part the review page uses
+export interface AddedItem {
+  history_only: boolean // the receipt is older than the saved item, so it only went into the price history
+}
+
 // What POST /api/receipt returns. The fields come straight from the model's reply, so any of them can be missing.
 export interface ReceiptItem {
   raw_name: string // exactly as printed on the receipt

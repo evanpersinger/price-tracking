@@ -66,6 +66,7 @@ interface Row {
   known: boolean // matched an entry in knownItems.ts, which wins over a saved item
   include: boolean
   status: RowStatus
+  historyOnly: boolean // added, but the receipt is older than the saved item, so only its price history changed
   error: string | null
 }
 
@@ -140,6 +141,7 @@ function toRow(item: ReceiptItem, id: number, store: string): Row {
     known: known !== undefined,
     include: true,
     status: 'idle',
+    historyOnly: false,
     error: null,
   }
 }
@@ -259,6 +261,8 @@ function checkRow(row: Row): { problems: string[]; fields: RowFields | null } {
 }
 
 function rowStatus(row: Row, problems: string[]): { text: string; className: string } {
+  // A receipt older than the saved item leaves the saved price alone, the amber is so a wrong date gets noticed
+  if (row.status === 'added' && row.historyOnly) return { text: 'History only', className: 'row-status row-status-warn' }
   if (row.status === 'added') return { text: 'Added', className: 'row-status row-status-good' }
   if (row.status === 'saving') return { text: 'Saving...', className: 'row-status' }
   if (row.status === 'failed') return { text: 'Failed', className: 'row-status row-status-bad' }
@@ -358,7 +362,7 @@ export function ReceiptReview({ result, onDone }: Props) {
       const typedBrand = fields.brand ?? NO_BRAND
       const brand = typedBrand === NO_BRAND ? typedBrand : (findClosestBrand(typedBrand, savedBrands) ?? typedBrand)
       try {
-        await addItem({
+        const added = await addItem({
           country,
           store: trimmedStore,
           purchased_on: date,
@@ -367,7 +371,7 @@ export function ReceiptReview({ result, onDone }: Props) {
           brand,
           item_code: row.code,
         })
-        patchRow(row.id, { status: 'added' })
+        patchRow(row.id, { status: 'added', historyOnly: added.history_only })
       } catch (caught) {
         patchRow(row.id, { status: 'failed', error: caught instanceof Error ? caught.message : 'Something went wrong' })
       }
