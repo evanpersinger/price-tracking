@@ -291,6 +291,12 @@ export function ReceiptReview({ result, onDone }: Props) {
   const country = pickedCountry ?? guessedCountry
   const storeState = country === 'CA' ? caStores : country === 'US' ? usStores : null
   const storeList = storeState?.status === 'ready' ? storeState.data : null
+  // Every brand already saved in that country, so a brand typed close to one of them is corrected to its spelling
+  const savedBrands = [
+    ...new Set(
+      (storeList ?? []).flatMap((saved) => saved.items.map((item) => item.brand ?? '')).filter((brand) => brand !== '' && brand !== NO_BRAND),
+    ),
+  ]
 
   // The saved store the receipt's name points to ("Costco 530" for "Costco") fills the store box, until the person types
   const matchedStore = storeList !== null && typedStore === null ? matchSavedStore(receiptStore, storeList) : null
@@ -341,12 +347,16 @@ export function ReceiptReview({ result, onDone }: Props) {
       const fields = checkRow(row).fields
       if (fields === null) continue
       patchRow(row.id, { status: 'saving', error: null })
+      // The Brand box corrects itself when it loses focus, this catches one that was never left
+      const typedBrand = fields.brand ?? NO_BRAND
+      const brand = typedBrand === NO_BRAND ? typedBrand : (findClosestBrand(typedBrand, savedBrands) ?? typedBrand)
       try {
         await addItem({
           country,
           store: trimmedStore,
           purchased_on: date,
           ...fields,
+          brand,
           item_code: row.code,
         })
         patchRow(row.id, { status: 'added' })
@@ -657,7 +667,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                           disabled={locked}
                           onChange={(event) => patchRow(row.id, { brand: event.target.value })}
                           onBlur={() => {
-                            const closest = findClosestBrand(row.brand)
+                            const closest = findClosestBrand(row.brand, savedBrands)
                             if (closest && closest !== row.brand) patchRow(row.id, { brand: closest })
                           }}
                         />
