@@ -45,6 +45,27 @@ def test_the_extracted_receipt_is_returned(client: TestClient, monkeypatch: pyte
     assert (response.status_code, response.json()) == (200, receipt)
 
 
+def test_a_read_receipt_logs_the_name_of_the_uploaded_file(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(server, "extract_receipt", lambda image, media_type: {"store": "Costco", "items": []})
+
+    client.post("/api/receipt", content=IMAGE, headers={**PNG, "x-filename": "costco%20gas%20%281%29.png"})
+
+    assert last_logged()["filename"] == "costco gas (1).png"
+
+
+def test_a_turned_away_receipt_logs_the_name_of_the_uploaded_file(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def ollama_down(*_: object) -> dict:
+        raise requests.exceptions.ConnectionError
+
+    monkeypatch.setattr(server, "extract_receipt", ollama_down)
+
+    client.post("/api/receipt", content=IMAGE, headers={**PNG, "x-filename": "receipt.png"})
+
+    assert (last_logged()["action"], last_logged()["filename"]) == ("receipt_failed", "receipt.png")
+
+
 def test_a_body_that_is_not_jpeg_or_png_is_rejected(client: TestClient) -> None:
     response = client.post("/api/receipt", content=b"hello", headers={"content-type": "text/plain"})
 

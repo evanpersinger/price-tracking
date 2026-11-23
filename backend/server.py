@@ -16,6 +16,7 @@ from contextlib import closing
 from datetime import date, timedelta
 from itertools import combinations
 from typing import Annotated, Literal, NamedTuple
+from urllib.parse import unquote
 
 import requests
 import uvicorn
@@ -33,6 +34,7 @@ PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
 MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_PIXELS = 50_000_000  # a small file can still decode to a huge image
+MAX_FILENAME_LENGTH = 200  # how much of an uploaded receipt's file name is kept in the log
 ITEM_ORDER = "(i.item_code IS NULL OR i.item_code = ''), i.id"  # items with a code first, then in the order added
 
 logger = logging.getLogger("uvicorn.error")
@@ -345,19 +347,21 @@ def _receipt_error(status_code: int, detail: str, **fields: object) -> HTTPExcep
     return HTTPException(status_code=status_code, detail=detail)
 
 
-async def _read_limited_body(request: Request, media_type: str) -> bytes:
+async def _read_limited_body(request: Request, media_type: str, filename: str | None) -> bytes:
     """The request body, giving up with a 413 as soon as it passes MAX_RECEIPT_BYTES instead of buffering all of it."""
     chunks = []
     size = 0
     async for chunk in request.stream():
         size += len(chunk)
         if size > MAX_RECEIPT_BYTES:
-            raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=size)
+            raise _receipt_error(
+                413, "That image is over 10 MB.", media_type=media_type, filename=filename, image_bytes=size
+            )
         chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _check_image(image: bytes, media_type: str) -> None:
+def _check_image(image: bytes, media_type: str, filename: str | None) -> None:
     """Make sure the bytes are a readable image and not too many pixels, before OCR and the model get them. A 415
     for anything else and a 413 for a decompression bomb. The format Pillow finds isn't compared to the content type,
     a phone's JPEG can come back as MPO."""
@@ -365,16 +369,23 @@ def _check_image(image: bytes, media_type: str) -> None:
         with Image.open(io.BytesIO(image)) as opened:
             if opened.width * opened.height > MAX_RECEIPT_PIXELS:
                 raise _receipt_error(413, "That image has too many pixels.", media_type=media_type,
-                                     image_bytes=len(image))
+                                     filename=filename, image_bytes=len(image))
             opened.verify()
     except HTTPException:
         raise
     except Image.DecompressionBombError as e:
-        raise _receipt_error(413, "That image has too many pixels.", media_type=media_type,
+        raise _receipt_error(413, "That image has too many pixels.", media_type=media_type, filename=filename,
                              image_bytes=len(image)) from e
     except Exception as e:  # Pillow raises many kinds for a file that isn't a readable image
         raise _receipt_error(415, "That file isn't a readable JPEG or PNG image.", media_type=media_type,
-                             image_bytes=len(image), error=str(e)) from e
+                             filename=filename, image_bytes=len(image), error=str(e)) from e
+
+
+def _filename_of(request: Request) -> str | None:
+    """The uploaded file's name from the X-Filename header (the page percent-encodes it), cut to MAX_FILENAME_LENGTH,
+    or None when the header wasn't sent."""
+    sent = request.headers.get("x-filename")
+    return unquote(sent)[:MAX_FILENAME_LENGTH] if sent else None
 
 
 @app.post("/api/receipt")
@@ -384,38 +395,42 @@ async def read_receipt(request: Request) -> dict:
     Nothing is saved. Only one receipt is read at a time, a second one gets 409 instead of queuing.
     """
     media_type = request.headers.get("content-type", "")
+    filename = _filename_of(request)
     if media_type not in RECEIPT_MEDIA_TYPES:
-        raise _receipt_error(415, "Send a JPEG or PNG image.", media_type=media_type)
+        raise _receipt_error(415, "Send a JPEG or PNG image.", media_type=media_type, filename=filename)
     declared_bytes = request.headers.get("content-length", "")
     if declared_bytes.isdigit() and int(declared_bytes) > MAX_RECEIPT_BYTES:
-        raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, image_bytes=int(declared_bytes))
+        raise _receipt_error(413, "That image is over 10 MB.", media_type=media_type, filename=filename,
+                             image_bytes=int(declared_bytes))
     if not receipt_lock.acquire(blocking=False):
-        raise _receipt_error(409, "Another receipt is being read, try again in a moment.", media_type=media_type)
+        raise _receipt_error(409, "Another receipt is being read, try again in a moment.", media_type=media_type,
+                             filename=filename)
     try:
-        image = await _read_limited_body(request, media_type)
-        _check_image(image, media_type)
+        image = await _read_limited_body(request, media_type, filename)
+        _check_image(image, media_type, filename)
         started = time.perf_counter()
         result = await asyncio.to_thread(extract_receipt, image, media_type)
         log_activity("receipt_read", store=result.get("store"), store_address=result.get("store_address"),
                       purchase_date=result.get("purchase_date"), items=result.get("items"),
                       dropped_items=result.pop("_dropped_items", None), raw_reply=result.pop("_raw_reply", None),
                       model=RECEIPT_MODEL, seconds=round(time.perf_counter() - started, 1),
-                      media_type=media_type, image_bytes=len(image))
+                      media_type=media_type, filename=filename, image_bytes=len(image))
         return result
     except requests.exceptions.HTTPError as e:  # Ollama is up but refused, e.g. model not pulled or out of memory
         logger.warning("Ollama answered with an error: %s", e)
         raise _receipt_error(502, "The local model returned an error, check it's pulled and has enough memory.",
                              error=str(e), ollama_reply=e.response.text[:500], media_type=media_type,
-                             image_bytes=len(image), seconds=round(time.perf_counter() - started, 1)) from e
+                             filename=filename, image_bytes=len(image),
+                             seconds=round(time.perf_counter() - started, 1)) from e
     except requests.exceptions.RequestException as e:
         logger.warning("Ollama call failed: %s", e)
         raise _receipt_error(503, "Couldn't reach the local model. Is Ollama running?", error=str(e),
-                             media_type=media_type, image_bytes=len(image),
+                             media_type=media_type, filename=filename, image_bytes=len(image),
                              seconds=round(time.perf_counter() - started, 1)) from e
     except ValueError as e:
         logger.warning("Receipt read failed: %s", e)
         raise _receipt_error(502, "The model's reply couldn't be read, try again.", error=str(e),
-                             media_type=media_type, image_bytes=len(image),
+                             media_type=media_type, filename=filename, image_bytes=len(image),
                              seconds=round(time.perf_counter() - started, 1)) from e
     finally:
         receipt_lock.release()
