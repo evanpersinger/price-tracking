@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -31,3 +32,22 @@ def test_only_the_countrys_own_purchases_are_listed(client: TestClient, add_item
     add_item(country="US", store="Target", item_code="123456", purchased_on="2026-09-02")
 
     assert [entry["store_name"] for entry in history(client, "US")] == ["Target"]
+
+
+@pytest.mark.parametrize(
+    ("rate", "cents_per_kg"), [("($7.72 per kg)", 772), ("($0.27 per 100g)", 270), ("($5.91 per lb)", 1303)]
+)
+def test_a_by_weight_purchase_records_its_rate_per_kg_not_the_price_paid(
+    client: TestClient, add_item: Callable[..., dict], rate: str, cents_per_kg: int
+) -> None:
+    add_item(name=f"Granny Smith Apples {rate}", item_code="4011", price_cents=888, item_count=None)
+
+    assert [entry["price_cents"] for entry in history(client)] == [cents_per_kg]
+
+
+def test_an_item_with_a_size_and_a_typed_rate_still_records_the_price_paid(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    add_item(name="Sea Salt (500g) ($1.00 per 100g)", item_code="4011", price_cents=500, item_count=None)
+
+    assert [entry["price_cents"] for entry in history(client)] == [500]

@@ -276,12 +276,13 @@ def add_item(new_item: NewItem) -> AddedItem:
         # The same item, price and date again is the same receipt sent twice (a double click, a retry), so it is not
         # recorded a second time
         if new_item.item_code or new_item.fuel_type:
+            tracked_cents = _tracked_price_cents(new_item)
             conn.execute(
                 "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) "
                 "SELECT ?, ?, ?, ? WHERE NOT EXISTS "
                 "(SELECT 1 FROM price_history WHERE item_id = ? AND price_cents = ? AND purchased_on = ?)",
-                (item_id, new_item.item_code, new_item.price_cents, purchased_on,
-                 item_id, new_item.price_cents, purchased_on),
+                (item_id, new_item.item_code, tracked_cents, purchased_on,
+                 item_id, tracked_cents, purchased_on),
             )
 
     if older_receipt:
@@ -688,6 +689,15 @@ def _cents_per_kg(name: str) -> float | None:
     if grams == 0:
         return None
     return float(dollars) * 100 / grams * 1000
+
+
+def _tracked_price_cents(item: NewItem) -> int:
+    """What price_history records for a purchase: the price paid, except for a by-weight item (no size, a typed rate
+    like "($7.72 per kg)"), which records its rate per kg, since what was paid depends on how much was bought."""
+    rate = _cents_per_kg(item.name)
+    if rate and not _amounts_of(item.name, item.item_count, item.weight_g, item.volume_ml):
+        return round(rate)
+    return item.price_cents
 
 
 def _weight_offers(country: str) -> list[WeightOffer]:
