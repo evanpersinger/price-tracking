@@ -56,6 +56,12 @@ Every item added from a receipt has two names saved together on the same row:
   one up. `POST /api/items` rejects an item without one (422), so a display name is always attached to the receipt
   name it came from, and no receipt item is saved without a display name.
 
+Misspelled words in the display name are corrected from a hand-edited list of correct spellings (`ITEM_WORDS` in
+`itemWords.ts`), when the Item name box loses focus and again when the item is added. A word is only changed when it
+is close to a listed one (one letter off under 8 letters, two from 8), never into its plural or singular, and never
+when it is a longer word that starts with a listed one (`Broccolini`). The receipt name is never touched, repeat
+purchases are matched on it. Add a word to the list whenever a new typo comes up.
+
 The display name is what every screen shows. Only the Store Prices tables also show the receipt name, as a small line
 under it (and only when it differs from the display name), every other screen shows the display name alone. The same
 product at two stores has two different receipt names but should get one display name. Nothing carries a display
