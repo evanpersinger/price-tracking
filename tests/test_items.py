@@ -3,13 +3,12 @@
 import json
 from collections.abc import Callable
 from contextlib import closing
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
 
 import db
-import server
 
 
 def history() -> list[tuple]:
@@ -282,12 +281,29 @@ def test_an_older_receipt_goes_in_the_history_but_keeps_the_current_price(
     client: TestClient, add_item: Callable[..., dict]
 ) -> None:
     add_item(item_code="111", price_cents=500, purchased_on="2026-10-01")
-    add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
+    older = add_item(item_code="111", price_cents=400, purchased_on="2026-09-01")
 
     [saved] = stores_in(client)[0]["items"]
     assert (saved["price_cents"], saved["purchased_on"]) == (500, "2026-10-01")
     assert [(price, day) for _, price, day in history()] == [(500, "2026-10-01"), (400, "2026-09-01")]
     assert activity_log()[-1]["action"] == "older_receipt"
+    assert older["history_only"] is True
+
+
+def test_an_older_receipt_for_an_item_with_no_item_code_is_turned_away(
+    client: TestClient, add_item: Callable[..., dict]
+) -> None:
+    """With no code there is no price history to put it in, and it must not overwrite the newer saved price."""
+    add_item(price_cents=500, purchased_on="2026-10-01")
+
+    response = client.post("/api/items", json={
+        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 400,
+        "item_count": 12, "purchased_on": "2026-09-01",
+    })
+
+    assert response.status_code == 422
+    [saved] = stores_in(client)[0]["items"]
+    assert (saved["price_cents"], saved["purchased_on"]) == (500, "2026-10-01")
 
 
 def test_an_item_with_no_saved_date_is_overwritten_by_a_dated_receipt(
@@ -329,22 +345,11 @@ def test_a_receipt_dated_in_the_future_is_rejected(client: TestClient) -> None:
     assert stores_in(client) == []
 
 
-def test_a_receipt_dated_over_30_days_ago_is_rejected(
-    client: TestClient, add_item: Callable[..., dict], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(server, "MAX_RECEIPT_AGE_DAYS", 30)  # conftest raises it for the other tests
-    on_the_limit = (date.today() - timedelta(days=30)).isoformat()
-    over_the_limit = (date.today() - timedelta(days=31)).isoformat()
+def test_a_receipt_of_any_age_is_accepted_as_a_new_item(client: TestClient, add_item: Callable[..., dict]) -> None:
+    added = add_item(item_code="111", price_cents=500, purchased_on="2015-03-01")
 
-    rejected = client.post("/api/items", json={
-        "country": "CA", "store": "Costco", "name": "Large Eggs", "display_name": "Eggs", "price_cents": 1000,
-        "item_count": 12, "item_code": "111", "purchased_on": over_the_limit,
-    })
-
-    assert rejected.status_code == 422
-    assert rejected.json()["detail"] == "That receipt's date is over 30 days ago, check it."
-    assert stores_in(client) == []
-    assert add_item(item_code="111", purchased_on=on_the_limit)["purchased_on"] == on_the_limit
+    assert (added["purchased_on"], added["history_only"]) == ("2015-03-01", False)
+    assert [(price, day) for _, price, day in history()] == [(500, "2015-03-01")]
 
 
 def test_posting_the_same_purchase_twice_records_it_in_the_history_once(

@@ -13,7 +13,7 @@ import threading
 import time
 from collections.abc import Callable
 from contextlib import closing
-from datetime import date, timedelta
+from datetime import date
 from itertools import combinations
 from typing import Annotated, Literal, NamedTuple
 from urllib.parse import unquote
@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from db import backup_database, connect, log_activity
-from extract_receipt import MAX_RECEIPT_AGE_DAYS, RECEIPT_MODEL, extract_receipt
+from extract_receipt import RECEIPT_MODEL, extract_receipt
 
 PORT = 8021
 RECEIPT_MEDIA_TYPES = {"image/jpeg", "image/png"}
@@ -167,6 +167,7 @@ class NewItem(BaseModel):
 
 class AddedItem(Item):
     store_id: int
+    history_only: bool = False  # the receipt is older than the saved item, so it only went into price_history
 
 
 @app.post("/api/items", status_code=201)
@@ -178,17 +179,14 @@ def add_item(new_item: NewItem) -> AddedItem:
     code (or a fuel type, gas has no code), the price is also recorded in price_history, even when an existing item is
     overwritten. Any other item is saved but not tracked.
 
-    A receipt older than the one the saved item came from is only recorded in price_history, the saved price, size and
-    date stay. The response still echoes the receipt.
+    A receipt can be any age. One older than the one the saved item came from is only recorded in price_history, the
+    saved price, size and date stay, and `history_only` is true in the response, which still echoes the receipt. An item
+    with no item code has no price_history, so for it that receipt is turned away with a 422.
     """
     if new_item.purchased_on is None:
         raise HTTPException(status_code=422, detail="That receipt has no date, add one.")
     if new_item.purchased_on > date.today():
         raise HTTPException(status_code=422, detail="That receipt's date is in the future, check it.")
-    if new_item.purchased_on < date.today() - timedelta(days=MAX_RECEIPT_AGE_DAYS):
-        raise HTTPException(
-            status_code=422, detail=f"That receipt's date is over {MAX_RECEIPT_AGE_DAYS} days ago, check it."
-        )
     purchased_on = new_item.purchased_on.isoformat()
     with closing(connect()) as conn, conn:
         # Take the write lock now, so a second request for the same new store or item waits here and then finds the
@@ -256,6 +254,14 @@ def add_item(new_item: NewItem) -> AddedItem:
             )
         # Dates are ISO strings, so comparing them as text orders them by day
         older_receipt = bool(existing and existing[-1] and purchased_on < existing[-1])
+        # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
+        tracked = bool(new_item.item_code or new_item.fuel_type)
+        if older_receipt and not tracked:
+            raise HTTPException(
+                status_code=422,
+                detail="That receipt is older than the saved one, and an item with no item code isn't tracked, "
+                "so it can't be added.",
+            )
         if existing:
             _reject_a_size_typo(existing, new_item)
             item_id = existing[0]
@@ -274,10 +280,9 @@ def add_item(new_item: NewItem) -> AddedItem:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, store_id),
             ).lastrowid
-        # Only an item with a code is tracked (name and price are always there), plus gas, which has none by design
         # The same item, price and date again is the same receipt sent twice (a double click, a retry), so it is not
         # recorded a second time
-        if new_item.item_code or new_item.fuel_type:
+        if tracked:
             tracked_cents = _tracked_price_cents(new_item)
             conn.execute(
                 "INSERT INTO price_history (item_id, item_code, price_cents, purchased_on) "
@@ -320,6 +325,7 @@ def add_item(new_item: NewItem) -> AddedItem:
         price_cents=new_item.price_cents, rating=None, item_count=new_item.item_count, weight_g=new_item.weight_g,
         volume_ml=new_item.volume_ml, purchased_on=purchased_on, brand=brand, item_code=new_item.item_code,
         fuel_type=new_item.fuel_type, dose_mg=new_item.dose_mg, unit_volume_ml=new_item.unit_volume_ml,
+        history_only=older_receipt,
     )
 
 
