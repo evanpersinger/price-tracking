@@ -53,6 +53,7 @@ const BRANDS: string[] = [
   'No Sugar',
   'Old Spice',
   'Orange Naturals',
+  'Oreo',
   'PepsiCo',
   'Philips',
   'Phyzik',
