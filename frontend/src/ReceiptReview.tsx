@@ -4,6 +4,7 @@ import { findBrandInName, findClosestBrand, isOldSpice, isSoda } from './brands.
 import { COUNTRIES } from './countries.ts'
 import { dedupeExact } from './dedupeExact.ts'
 import { splitItemCode } from './itemCode.ts'
+import { fixItemWords } from './itemWords.ts'
 import { guessCountry } from './guessCountry.ts'
 import { pricePerLitre } from './fuel.ts'
 import { previewUnitPrice } from './format.ts'
@@ -336,6 +337,12 @@ export function ReceiptReview({ result, onDone }: Props) {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)))
   }
 
+  // Corrects misspelled words in the Item name box, never the receipt name (see itemWords.ts)
+  function fixDisplayName(row: Row) {
+    const fixed = fixItemWords(row.displayName)
+    if (fixed !== row.displayName) patchRow(row.id, { displayName: fixed })
+  }
+
   function removeRow(id: number) {
     setRows((current) => current.filter((row) => row.id !== id))
   }
@@ -356,6 +363,7 @@ export function ReceiptReview({ result, onDone }: Props) {
           store: trimmedStore,
           purchased_on: date,
           ...fields,
+          display_name: fixItemWords(fields.display_name),
           brand,
           item_code: row.code,
         })
@@ -532,6 +540,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                         value={row.displayName}
                         disabled={locked}
                         onChange={(event) => patchRow(row.id, { displayName: event.target.value })}
+                        onBlur={() => fixDisplayName(row)}
                       />
                       {!isFuelReceipt && (
                         <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
@@ -739,6 +748,7 @@ export function ReceiptReview({ result, onDone }: Props) {
                             value={row.displayName}
                             disabled={locked}
                             onChange={(event) => patchRow(row.id, { displayName: event.target.value })}
+                            onBlur={() => fixDisplayName(row)}
                           />
                           <div className="raw-name">Receipt name: {row.rawName || 'nothing'}</div>
                         </td>
