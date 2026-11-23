@@ -176,7 +176,10 @@ compares on (`WEIGHT_RATE` in `backend/server.py`). The
 review page also generates one automatically for a by-weight item with no fixed size
 (produce, a bulk bin): its own "Priced by weight" table saves the typed rate as
 `($7.72 per kg)`, letting `POST /api/items` accept the item with no `item_count`,
-`weight_g` or `volume_ml` at all (see `repo.md`'s Review page rules). The conventions
+`weight_g` or `volume_ml` at all (see `repo.md`'s Review page rules). Such an item's
+`price_history` row holds its rate per kg (`_tracked_price_cents` in `backend/server.py`,
+a per 100g or per lb rate is converted), not the price paid, since that depends on how
+much was bought. Items with a size still record the price paid. The conventions
 used when filling these in by hand:
 
 - Weight or volume: always `($4.41 per 100g)` or `($0.30 per 100ml)`, never `per gram`/
