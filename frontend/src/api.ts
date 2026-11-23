@@ -6,9 +6,15 @@ async function failure(response: Response): Promise<Error> {
   return new Error(typeof body?.detail === 'string' ? body.detail : `The server answered ${response.status}`)
 }
 
-// Sends the receipt image as the raw request body, the server reads it with the local model (this is slow).
+// Sends the receipt image as the raw request body, the server reads it with the local model (this is slow). The file's
+// name goes in a header, percent-encoded since a header can't hold every character, so the server can log which file
+// it was.
 export async function uploadReceipt(file: File): Promise<ReceiptResult> {
-  const response = await fetch('/api/receipt', { method: 'POST', headers: { 'Content-Type': file.type }, body: file })
+  const response = await fetch('/api/receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type, 'X-Filename': encodeURIComponent(file.name) },
+    body: file,
+  })
   if (!response.ok) throw await failure(response)
   return (await response.json()) as ReceiptResult
 }
