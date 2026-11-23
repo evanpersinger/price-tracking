@@ -170,13 +170,14 @@ function tolerance(length: number): number {
 const MIN_LENGTH_FOR_TYPOS = 6
 
 // The closest known brand to whatever was typed, correcting a misspelling or a slightly different spelling, ignoring
-// case, spaces and punctuation. Null when nothing in the list is close enough, since it might just be a brand we
-// don't have yet, not a typo of one we do.
-export function findClosestBrand(typed: string): string | null {
+// case, spaces and punctuation. Known means the hand-edited list above plus any brands already saved, which are tried
+// first so a tie keeps the spelling the brand was saved with. Null when nothing is close enough, since it might just
+// be a brand we don't have yet, not a typo of one we do.
+export function findClosestBrand(typed: string, savedBrands: readonly string[] = []): string | null {
   const normalizedTyped = normalize(typed)
   if (!normalizedTyped) return null
   let best: { brand: string; distance: number } | null = null
-  for (const brand of BRANDS) {
+  for (const brand of [...savedBrands, ...BRANDS]) {
     const normalizedBrand = normalize(brand)
     const distance = editDistance(normalizedTyped, normalizedBrand)
     const allowed = Math.max(normalizedTyped.length, normalizedBrand.length) < MIN_LENGTH_FOR_TYPOS ? 0 : tolerance(normalizedTyped.length)

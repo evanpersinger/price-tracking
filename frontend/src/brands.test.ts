@@ -15,6 +15,16 @@ describe('findClosestBrand', () => {
     expect(findClosestBrand('Drizzzlicious')).toBe('Drizzilicious')
   })
 
+  it('also corrects to a brand that is saved but not on the list', () => {
+    expect(findClosestBrand('Nature Valey', ['Nature Valley'])).toBe('Nature Valley')
+    expect(findClosestBrand('Nature Valey')).toBeNull()
+  })
+
+  it('keeps the spelling a brand was saved with over the list spelling', () => {
+    expect(findClosestBrand('arm hammer', ['Arm&Hammer'])).toBe('Arm&Hammer')
+    expect(findClosestBrand('arm hammer')).toBe('Arm & Hammer')
+  })
+
   it('corrects a misspelling, including a swapped pair of letters', () => {
     expect(findClosestBrand('Fiber1')).toBe('Fibre 1')
     expect(findClosestBrand('Biscof')).toBe('Biscoff')
