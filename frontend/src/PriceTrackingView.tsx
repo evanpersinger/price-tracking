@@ -270,6 +270,7 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                           <th scope="col" className="item-code">Item code</th>
                           <th scope="col" className="item">Item name</th>
                           <th scope="col" className="price">Price</th>
+                          <th scope="col" className="history">Show price <br />history</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -282,6 +283,16 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                               <td className="item-code">{newest.item_code}</td>
                               <td className="item"><ItemName segments={name} /></td>
                               <td className="price">{unitPrice}</td>
+                              <td className="history">
+                                <button
+                                  type="button"
+                                  className="nav-link history-button"
+                                  aria-label={`Show price history for ${name.map((segment) => segment.text).join('').trim()}`}
+                                  onClick={() => setPickedKey(tracked.key)}
+                                >
+                                  Show
+                                </button>
+                              </td>
                             </tr>
                           )
                         })}
