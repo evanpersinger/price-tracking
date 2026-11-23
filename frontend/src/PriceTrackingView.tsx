@@ -39,9 +39,11 @@ const RANGES: Range[] = [
   { label: '1 year', days: 365 },
 ]
 const DEFAULT_RANGE = RANGES[RANGES.length - 1]
-// Every graph's price axis starts at 0 and goes up to this, for now: $500 (in cents), and $10 a litre (in cents) for gas
+// Every graph's price axis starts at 0 and goes up to this, for now: $500 (in cents), $10 a litre (in cents) for gas and
+// $10 a kg (in cents) for produce and bulk bins, whose graphs go up to the next multiple of it for the pricier ones
 const PRICE_AXIS_MAX = 50000
 const GAS_AXIS_MAX = 1000
+const WEIGHT_AXIS_MAX = 1000
 
 function keyOf(entry: HistoryEntry): string {
   const name = entry.item_name.toLowerCase()
@@ -72,6 +74,14 @@ function amountsOf(entry: HistoryEntry): string[] {
 // Gas is tracked by what a litre cost, since the total depends on how much was bought
 function litrePrice(entry: HistoryEntry): number | null {
   return entry.volume_ml ? entry.price_cents / (entry.volume_ml / 1000) : null
+}
+
+// The price axis's title and how high it starts: gas is tracked per litre, produce and bulk bins per kg (that's what
+// their history rows hold), anything else by the price paid
+function axisOf(isFuel: boolean, isByWeight: boolean): { label: string; max: number } {
+  if (isFuel) return { label: 'Price per litre', max: GAS_AXIS_MAX }
+  if (isByWeight) return { label: 'Price per kg', max: WEIGHT_AXIS_MAX }
+  return { label: 'Price', max: PRICE_AXIS_MAX }
 }
 
 // The entries arrive newest first, so each item's purchases and the order of a store's items both stay newest first
@@ -122,8 +132,10 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
 
         if (picked) {
           const newest = picked.entries[0]
-          const { name } = partsOf(newest)
+          const parts = partsOf(newest)
+          const { name } = parts
           const isFuel = newest.fuel_type !== null
+          const axis = axisOf(isFuel, isPricedByWeight(parts))
           // The graph covers the range up to today, as the same YYYY-MM-DD days the purchases are saved with
           const rangeStart = new Date(today)
           rangeStart.setDate(today.getDate() - range.days)
@@ -167,8 +179,8 @@ export function PriceTrackingView({ country }: PriceTrackingViewProps) {
                     entries={inRange}
                     value={isFuel ? litrePrice : (entry) => entry.price_cents}
                     format={isFuel ? (value) => formatPerLitre(value, country) : (value) => formatPrice(Math.round(value), country)}
-                    priceLabel={isFuel ? 'Price per litre' : 'Price'}
-                    axisMax={isFuel ? GAS_AXIS_MAX : PRICE_AXIS_MAX}
+                    priceLabel={axis.label}
+                    axisMax={axis.max}
                     start={axisStart}
                     end={end}
                   />
