@@ -25,6 +25,10 @@ editing, or reviewing data by hand.
   brands like `DORITOS`) or only at one store (`SPECIFIC_STORES_BRAND_WORDS`, like `CHIPITS` at Walmart or `NO NAME` at
   Superstore). Each is a specific, well-known case, not a general "infer the brand" rule, and the review page's Brand
   box stays editable.
+- A brand typed close to a known one is corrected to it (`findClosestBrand` in `brands.ts`), when the review page's
+  Brand box loses focus and again when the item is added. Known means the hand-edited list in `brands.ts` plus every
+  brand already saved in that country (the saved spelling wins a tie), ignoring case, spaces and punctuation. A name
+  that isn't close to any of them is kept as typed, it may be a brand we don't have yet.
 - Capitals don't matter in a brand: `Arm&Hammer` and `arm&hammer` are the same brand. `POST /api/items`
   saves a brand that matches a saved one ignoring case with the saved spelling (the first one saved wins).
   Rows edited by hand in the database aren't covered, keep their spelling consistent yourself.
