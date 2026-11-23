@@ -1,3 +1,4 @@
+import { findClosestSpelling, normalize } from './closestSpelling.ts'
 import { splitItemCode } from './itemCode.ts'
 
 // Brand names we recognize, so an item's brand can be matched against a known spelling. Hand-maintained, add a
@@ -75,10 +76,6 @@ const BRANDS: string[] = [
   'Ziploc',
 ]
 
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]/g, '')
-}
-
 // Brands spelled out in item names: the printed word in capitals, and the brand it stands for. Two hand-maintained
 // sections, add a line whenever one comes up.
 
@@ -144,46 +141,10 @@ export function isSoda(brand: string, printedName: string): boolean {
   return [...words, ...pairs].some((candidate) => SODA_KEYS.has(normalize(candidate)))
 }
 
-// Edit distance between two strings (single-character insertions, deletions and substitutions).
-function editDistance(a: string, b: string): number {
-  const dp = Array.from({ length: b.length + 1 }, (_, i) => i)
-  for (let i = 1; i <= a.length; i++) {
-    let previousDiagonal = dp[0]
-    dp[0] = i
-    for (let j = 1; j <= b.length; j++) {
-      const previous = dp[j]
-      dp[j] = a[i - 1] === b[j - 1] ? previousDiagonal : 1 + Math.min(previousDiagonal, dp[j], dp[j - 1])
-      previousDiagonal = previous
-    }
-  }
-  return dp[b.length]
-}
-
-// How many edits ("Fiber1" -> "Fibre 1" is 2, swapping the "er"/"re") still count as the same brand. Scaled to
-// length (roughly 30%, capped at 3) so a longer name tolerates a swapped pair of letters, not just a single one.
-function tolerance(length: number): number {
-  return Math.min(3, Math.max(1, Math.round(length * 0.3)))
-}
-
-// Names where both sides are shorter than this must match exactly (apart from case and punctuation), since one edit
-// turns "Care" into "Dare" or "Guest" into "Quest", a different brand.
-const MIN_LENGTH_FOR_TYPOS = 6
-
 // The closest known brand to whatever was typed, correcting a misspelling or a slightly different spelling, ignoring
 // case, spaces and punctuation. Known means the hand-edited list above plus any brands already saved, which are tried
 // first so a tie keeps the spelling the brand was saved with. Null when nothing is close enough, since it might just
 // be a brand we don't have yet, not a typo of one we do.
 export function findClosestBrand(typed: string, savedBrands: readonly string[] = []): string | null {
-  const normalizedTyped = normalize(typed)
-  if (!normalizedTyped) return null
-  let best: { brand: string; distance: number } | null = null
-  for (const brand of [...savedBrands, ...BRANDS]) {
-    const normalizedBrand = normalize(brand)
-    const distance = editDistance(normalizedTyped, normalizedBrand)
-    const allowed = Math.max(normalizedTyped.length, normalizedBrand.length) < MIN_LENGTH_FOR_TYPOS ? 0 : tolerance(normalizedTyped.length)
-    if (distance <= allowed && (!best || distance < best.distance)) {
-      best = { brand, distance }
-    }
-  }
-  return best?.brand ?? null
+  return findClosestSpelling(typed, [...savedBrands, ...BRANDS])
 }
