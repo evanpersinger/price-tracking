@@ -108,7 +108,10 @@ When `POST /api/items` finds a repeat to overwrite, it compares the price per un
 item, whichever both have) against the saved row. The price comes off the receipt, so a price per unit that is more
 than `MAX_UNIT_PRICE_SWING = 5` times higher or lower means the typed size or unit is wrong (500 kg for 500 g), and
 the item is rejected with a 422 instead of overwriting. A different pack size at a matching price passes. It doesn't
-cover a first purchase (nothing saved to compare to), dose, brand or names, or other stores. If the saved size is the
+cover a first purchase (nothing saved to compare to), dose, brand or names, or other stores. For a first purchase the
+review page shows the price per 100g, 100ml or item live next to Size (`previewUnitPrice` in `frontend/src/format.ts`),
+so a wrong size shows as a nonsense unit price before it is saved. A backend check for first purchases was considered
+and dropped, matching an abbreviated receipt name against other stores is too unreliable. If the saved size is the
 wrong one, a correct entry gets blocked until the saved row is fixed or deleted.
 
 ## Receipt date (`purchased_on`)
